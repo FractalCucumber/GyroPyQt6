@@ -1,0 +1,110 @@
+
+/* 
+    Main Window 
+*/
+
+QWidget{
+    background-color: #262626;
+    color: #FFFFFF;
+    font-size: 18px;
+    text-align: center;
+    /* qproperty-alignment: AlignCenter; align everything */
+}
+/* 
+    Grid
+*/
+
+QGroupBox {
+    /* text-align: center; */
+}
+QGroupBox {
+    /* background-color: rgb(20, 0, 0); */
+    /* border-color: aqua;0 */
+    /* text-align: center; */
+    /* border: 20px solid rgb(158, 12, 12); */
+}
+/* 
+    QProgressBar
+*/
+
+QProgressBar{
+    border: 2px solid grey;
+    border-radius: 5px;
+    text-align: center;
+}
+QProgressBar::chunk {
+    background-color: rgb(160, 32, 15);
+    /* width: 20px; */
+    /* margin: 1px; */
+}
+/* 
+    QComboBox
+*/
+
+QComboBox {
+    background-color: red;
+}
+QComboBox:!editable {
+    text-align: center;
+    background-color: gray;
+}
+QComboBox::item {
+    text-align: center;
+}
+/* 
+    Buttons
+*/
+
+QPushButton {
+    border-style: outset;
+    border-width: 1px;
+    border-radius: 10px;
+    border-color: white;
+    padding: 3px;
+}
+QPushButton {
+    border-style: outset;
+    border-width: 1px;
+    border-radius: 10px;
+    border-color: white;
+    padding: 3px;
+}
+QPushButton:pressed {
+    background-color: rgb(0, 0, 0);
+}
+QPushButton:disabled {
+    background-color: rgb(90, 88, 88);
+    border-color: rgb(90, 88, 88);
+}
+QPushButton#start_button {
+    background-color: rgb(0, 120, 0);
+}
+QPushButton#stop_button {
+    background-color: rgb(150, 0, 0);
+}
+
+/* QPushButton#textbox1 {
+    color: blue;
+} */
+
+/* 
+    Others
+*/
+/* QFormLayout {
+
+} */
+QLabel {
+    qproperty-alignment: AlignCenter; 
+} 
+
+QLineEdit {
+    border: 1px solid grey;
+    qproperty-alignment: AlignCenter;
+    /* border-radius: 5px; */
+}
+QLineEdit:!read-only {
+    background-color: gray;
+}
+
+
+
