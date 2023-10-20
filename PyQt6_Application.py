@@ -371,6 +371,7 @@ class MyWindow(QtWidgets.QWidget):
         # self.data_prosessing_thr.Serial.readyRead.connect(
         #     self.read_serial,
         #     QtCore.Qt.ConnectionType.SingleShotConnection)
+        # ffffffffffffffffffffffff
         self.read_serial()
         
     def read_serial(self):
