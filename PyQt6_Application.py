@@ -49,8 +49,6 @@ class QTextEditLogger(logging.Handler):
         # self.logTextBox = QTextEditLogger(self)
         # self.logTextBox.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
         # logging.getLogger().addHandler(self.logTextBox)
-        # # You can control the logging level
-        # logging.getLogger().setLevel(logging.INFO)
 
 
 class MyWindow(QtWidgets.QWidget):
@@ -100,7 +98,7 @@ class MyWindow(QtWidgets.QWidget):
 
         # self.subblock1_com_param.setSizeConstraint(self.subblock1_com_param.SizeConstraint.SetMaximumSize)
         self.block1_com_param.setLayout(self.subblock1_com_param)
-        self.block1_com_param.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
+        # self.block1_com_param.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
 ###############################################################################
         self.block2 = QtWidgets.QGroupBox("&Измерения")
         self.subblock2 = QtWidgets.QFormLayout()
@@ -167,14 +165,10 @@ class MyWindow(QtWidgets.QWidget):
         self.subblock1right.addWidget(self.clear_button)
 
         self.start_button = QtWidgets.QPushButton("&START")
-        # self.start_button.setStyleSheet(
-        #     styleSheets.BUTTON_STYLE + "background-color: rgb(0, 120, 0);")
         # self.subblock1right.addWidget(self._start_button_)
 
         self.stop_button = QtWidgets.QPushButton("&STOP")
         self.stop_button.setDisabled(True)
-        # self.stop_button.setStyleSheet(
-        #     styleSheets.BUTTON_STYLE + "background-color: rgb(150, 0, 0);")
         # self.subblock1right.addWidget(self._stop_button_)
 
         self.block1right.setLayout(self.subblock1right)
@@ -191,16 +185,15 @@ class MyWindow(QtWidgets.QWidget):
         # # self.curve.setData(self.random_array)
 
         self.progress_bar = QtWidgets.QProgressBar()
-        self.progress_bar.setValue(2)
-        self.progress_bar.setFormat('0/100')
-        self.progress_bar.setMaximum(10)
+        self.progress_bar.setValue(1)
+        # self.progress_bar.setFormat('0/- sec')
+        self.progress_bar.setMaximum(1)
         self.progress_bar.setFormat('%v/%m sec')
 
         self.subblock1rightright.addWidget(self.progress_bar)
 
-        self.package_number = QtWidgets.QLabel()
-        # self.package_number.setReadOnly(True)
-        self.subblock1rightright.addWidget(self.package_number)
+        self.package_number_label = QtWidgets.QLabel()
+        self.subblock1rightright.addWidget(self.package_number_label)
     
         self.block1rightright.setLayout(self.subblock1rightright)
 #########################################################################
@@ -215,24 +208,18 @@ class MyWindow(QtWidgets.QWidget):
 
         self.logTextBox = QTextEditLogger(self)
         # self.logTextBox.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-        
         logging.getLogger().addHandler(self.logTextBox)
         # You can control the logging level
         logging.getLogger().setLevel(logging.INFO)
-        self.main_grid.addWidget(self.logTextBox.widget, 0, 4, 5, 6)
-
-        
-        app_icon = QtGui.QIcon()
-        # app_icon.addFile('Vibro_1_resources/icon_16.png', QtCore.QSize(16, 16))
-        # app_icon.addFile('Vibro_1_resources/icon_24.png', QtCore.QSize(24, 24))
-        # app_icon.addFile('Vibro_1_resources/icon_32.png', QtCore.QSize(32, 32))
-        app_icon.addFile('Vibro_1_resources/icon_48.png', QtCore.QSize(48, 48))
-        app.setWindowIcon(app_icon)
+        self.main_grid.addWidget(self.logTextBox.widget, 0, 4, 2, 40)
 
         self.setLayout(self.main_grid)  # здесь работа с графикой закончена
-        self.main_grid.setSizeConstraint(self.main_grid.SizeConstraint.SetDefaultConstraint)
+        # self.main_grid.setSizeConstraint(
+        #     self.main_grid.SizeConstraint.SetDefaultConstraint)
         
 # ------------------------------------------------------------------------------------------------------------------------
+        # Style
+
         # self.block1_com_param.setObjectName("group1")
         # self.subblock1_com_param.setObjectName("group1")
         self.stop_button.setObjectName("stop_button")
@@ -241,11 +228,21 @@ class MyWindow(QtWidgets.QWidget):
         with open("StyleSheets.css", "r") as StyleSheetsFile:
             self.setStyleSheet(StyleSheetsFile.read())
 
+        app_icon = QtGui.QIcon()
+        # app_icon.addFile('Vibro_1_resources/icon_16.png', QtCore.QSize(16, 16))
+        # app_icon.addFile('Vibro_1_resources/icon_24.png', QtCore.QSize(24, 24))
+        # app_icon.addFile('Vibro_1_resources/icon_32.png', QtCore.QSize(32, 32))
+        app_icon.addFile('Vibro_1_resources/icon_48.png', QtCore.QSize(48, 48))
+        app.setWindowIcon(app_icon)
+
 # ------------------------------------------------------------------------------------------------------------------------
         self.start_button.clicked.connect(self.start) # test_serail  start
         self.stop_button.clicked.connect(self.stop)
         self.clear_button.clicked.connect(self.clear_logs)
         self.choose_file.clicked.connect(self.get_data_from_file)
+        self.cycle_num_widget.valueChanged.connect(self.cycle_num_value_change)
+        self.cycle_num_widget.valueChanged.connect(self.progress_bar_set_max)
+
 # ------------------------------------------------------------------------------------------------------------------------
         # # нужен pyqtgraph
         # self.view = view =
@@ -272,7 +269,6 @@ class MyWindow(QtWidgets.QWidget):
 
         self.timer_sent_com = QtCore.QTimer()
         self.timer_sent_com.setTimerType(QtCore.Qt.TimerType.PreciseTimer)
-        # self.timer_sent_com.setInterval(1000)
         self.timer_sent_com.timeout.connect(self.timerEvent_sent_com)
 # ------------------------------------------------------------------------------------------------------------------------
         # self.cycle_num = 1
@@ -280,10 +276,11 @@ class MyWindow(QtWidgets.QWidget):
 
         self.count = 0
         self.pr_bar = 0
-        self.choose_file.setDisabled(True)
+        # self.choose_file.setDisabled(True)
         self.list_freq = []
         self.list_amp = []
         self.list_time = []
+        self.total_cycle_num = self.cycle_num_widget.value()
 
         self.data_prosessing_thr = PyQt6_Thread.MyThread()  # Создаем поток
         # принимаем сигнал и записываем его в прогресс бар
@@ -302,7 +299,6 @@ class MyWindow(QtWidgets.QWidget):
 # 1
 
     def start(self):
-        # self.k = 0
         
         self.progress_bar.setValue(0)
         self.val = 0
@@ -352,29 +348,29 @@ class MyWindow(QtWidgets.QWidget):
                     print(self._com_name_.currentText() + " open and readable")
                     logging.info(f"{self._com_name_.currentText()} open and readable")
 
-                    self.avaliable_butttons(True)
 
+                    self.cycle_num_value_change()
+                    self.progress_bar_set_max()
+                    self.avaliable_butttons(True)
                     self.timer.start()
                     self.timer_sent_com.start()
-
-                    self.total_cycle_num = self.cycle_num_widget.value()
-                    print("self.cycleNum = " + str(self.total_cycle_num))
-                    self.pr_bar = (1000/self.timer_interval) * (self.totalTime + len(self.list_time) + 1) * self.total_cycle_num
+                    # self.total_cycle_num = self.cycle_num_widget.value()
+                    print(line := f"self.cycleNum = {self.total_cycle_num}")
+                    logging.info(line)
+                    # self.pr_bar = (1000/self.timer_interval) * (self.totalTime + len(self.list_time) + 1) * self.total_cycle_num
 
                     # self.timer.singleShot(1000, self.timerEvent)
-
                     # self.test_serail()
-                    # self.data_prosessing_thr.Serial.readyRead.connect(self.test_read_serial)
-                    # self.data_prosessing_thr.Serial.readyRead.connect(self.test_read_serial)
                     # self.data_prosessing_thr.Serial.readyRead.connect(self.test_read_serial)
                     # self.data_prosessing_thr.start()
                     # self.data_prosessing_thr.Serial.timerEvent(self.test_read_serial)
                     # self.data_prosessing_thr.Serial.startTimer(1000)
                     # self.data_prosessing_thr.Serial.timerEvent(QtCore.QTimer/
-                    print("self.pr_bar = " + str(self.pr_bar))
+                    # print("self.pr_bar = " + str(self.pr_bar))
 
-                    self.text_logs.append(
+                    self.text_logs.append(line := 
                         ">>> " + str(time.strftime("%H:%M:%S")) + " Start")
+                    logging.info(line)
                     
                     # self.data_prosessing_thr.start()
 
@@ -390,9 +386,7 @@ class MyWindow(QtWidgets.QWidget):
 
     # ----------------------------------------------------------------------------
     def timerEvent(self):
-        # print("\n     Event: " + str(datetime.now().time()) + " Start ")
-        # # if not (flag0 := self.data_prosessing_thr.Serial.waitForBytesWritten(50)):
-        # #     print("!!! waitForBytesWritten = " + str(flag0))
+        print("Tim1")
         # if not (flag1 := self.data_prosessing_thr.Serial.isReadable()):
         #     print("isReadable = " + str(flag1))
         # if not (flag2 := self.data_prosessing_thr.Serial.waitForReadyRead(10)):
@@ -405,32 +399,28 @@ class MyWindow(QtWidgets.QWidget):
         #     # print(self.data_prosessing_thr.Serial.clearError())
         #     # self.data_prosessing_thr.Serial.clear()
         #     # self.data_prosessing_thr.Serial.flush()
-        # else:    #  QtCore.Qt.connectionType.SingleShotConnection
-        self.data_prosessing_thr.Serial.readyRead.connect(self.test_read_serial, QtCore.Qt.ConnectionType.SingleShotConnection)
-        # pass
-        # self.data_prosessing_thr.start()
-
-        # print("self.package_num = " +
-        #       str(self.data_prosessing_thread.package_num))
-        # if self.sec_counter < self.mythread.totalTime:
-        #     self.sec_counter += 1  # (1/self.totalTime)*100
-        # self.sec_count.emit(self.sec_counter)
-
-        # print("     Event: " + str(datetime.now().time()) +
-        #       " Чтение по таймеру " + str(self.k))
+        # else:
+        self.data_prosessing_thr.Serial.readyRead.connect(
+            self.read_serial,
+            QtCore.Qt.ConnectionType.SingleShotConnection)
+        
+    def read_serial(self):
+        # if not self.runnable.flag_read:
+        #     self.runnable.flag_read = True
+        # print(self.data_prosessing_thr.isFinished())
+        # if self.data_prosessing_thr.isFinished():
+        print("ready to read ------ Число байтов " +
+            str(self.data_prosessing_thr.Serial.bytesAvailable()))
+        self.data_prosessing_thr.rx = b''
+        self.data_prosessing_thr.rx = self.data_prosessing_thr.Serial.readAll().data()
+        print(len(self.data_prosessing_thr.rx))
+        self.data_prosessing_thr.start()
+        logging.info("thread_start")
 
 # ------------------------------------------------------------------------------------
     def timerEvent_sent_com(self):
-        # print("\ntimerEvent_sent_com: "+str(datetime.now().time()) + " Start ")
-        # if not (flag1 := self.data_prosessing_thr.Serial.isWritable()):
-        #     print("isWritable = " + str(flag1))
-
-        # if not (flag2 := self.data_prosessing_thr.Serial.isOpen()):
-        #     print("isOpen = " + str(flag2))
 
         if self.flag_sent:
-            # print("\n   Частота №" + str(self.count) + " Число частот " +
-            #       str(len(self.list_time)) + " Цикл " + str(self.curr_cylce))
             self.sent_command()
             self.flag_sent = False
         else:
@@ -441,12 +431,6 @@ class MyWindow(QtWidgets.QWidget):
             self.data_prosessing_thr.Serial.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
             self.flag_sent = True
             self.timer_sent_com.setInterval(1000)
-        # print("     waitForBytesWritten = " +
-        #       str(self.data_prosessing_thr.Serial.waitForBytesWritten(25)))
-        # self.k += 1
-        # print("timerEvent_sent_com: "+str(datetime.now().time())+ " посылка по таймеру " + str(self.k))
-        pass
-# --------------------------------------------------------------------------------
 
     def sent_command(self):  # перерыв между циклами
 
@@ -465,168 +449,81 @@ class MyWindow(QtWidgets.QWidget):
             A_H = self.list_amp[self.count] >> 8
             A_L = self.list_amp[self.count] & (0xFF)
 
-            self.data_prosessing_thr.Serial.write(bytes([77, 0, F_L, F_H, A_L, A_H, 0, 0]))
+            self.data_prosessing_thr.Serial.write(
+                bytes([77, 0, F_L, F_H, A_L, A_H, 0, 0]))
             self.timer_sent_com.setInterval(
                 self.list_time[self.count] * 1000)
             self.count += 1
         else:
             QtWidgets.QMessageBox.critical(
                 None, "", "Отправка данных невозможна")
-            self.text_logs.append(
+            self.text_logs.append(line :=
                     ">>> " + str(time.strftime("%H:%M:%S")) +
                     " Cannot sent data")
+            logging.info(line)
+# --------------------------------------------------------------------------------
 
     def cycle_end(self):
-        self.text_logs.append(
+        self.text_logs.append(line :=
             ">>> " + str(time.strftime("%H:%M:%S")) + " End of cycle "
             + str(self.curr_cylce) + " of " +
             str(self.total_cycle_num))
+        logging.info(line)
         self.curr_cylce += 1
         self.count = 0
 
     def stop(self):
         # self.run_flag = False
-        self.timer.stop()
-        self.timer_sent_com.stop()
-
-        self.data_prosessing_thr.Serial.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
-        print(self.data_prosessing_thr.Serial.waitForBytesWritten(1000))
-        self.data_prosessing_thr.Serial.close()
-
         self.avaliable_butttons(False)
+        if self.timer_sent_com.isActive():
+            self.timer_sent_com.stop()
 
-        self.text_logs.append(
-            ">>> " + str(time.strftime("%H:%M:%S")) + " End of measurements")
-        print(">>> " + str(time.strftime("%H:%M:%S")) +
-              " End of measurements\n\n")
+        if self.timer.isActive():
+            self.timer.stop()
+
+            self.text_logs.append(line :=
+                ">>> " + str(time.strftime("%H:%M:%S")) + " End of measurements")
+            print(line)
+            logging.info(line)
+
+        if self.data_prosessing_thr.Serial.isOpen():
+            self.data_prosessing_thr.Serial.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
+            print(
+                "COM close? " + (flag := str(self.data_prosessing_thr.Serial.waitForBytesWritten(1000))))
+            logging.info(
+                "COM close? " + flag)
+            self.data_prosessing_thr.Serial.close()
+
+#################################################################################
+
+    def cycle_num_value_change(self):
+        if not self.timer.isActive(): # is this required?
+            self.total_cycle_num = self.cycle_num_widget.value()
+
+    def progress_bar_set_max(self):
+        if len(self.list_time) and not self.timer.isActive(): # is this required?
+            self.progress_bar.setMaximum(
+                (self.total_time + len(self.list_time) + 1) * self.total_cycle_num)
+            self.progress_bar.setValue(0) 
 
     def avaliable_butttons(self, flag_start: bool):
         self.start_button.setDisabled(flag_start)
         self.stop_button.setDisabled(not flag_start)
         self.choose_file.setDisabled(flag_start)
 
-    # def logs_print(self):  # по этому сигналу можно в логи писать
-    #     s = 5000
-    #     if 0 < s < 100:
-    #         print("___100%___")
-    #         self.progressBar.setValue(str(s))
-    #         self.text_logs.append(str(s))
-    #     if s < 0:
-    #         self.progressBar.setValue(str(0))
-
     def on_change(self, s):  # по этому сигналу можно в логи писать
-        # print(s)
-        pass
-        # self.val += 100/self.pr_bar
-        # self.package_number.setText(
-        #     str(self.data_prosessing_thr.package_num))
-        # # print(self.val)
-        # self.progress_bar.setValue(int(self.val)) # self.progress_bar.setFormat('0/100')
-        # self.progress_bar.setFormat(str(self.val))
-
-    def closeEvent(self, event):
-        self.settings.setValue("COM_speed", self._com_boderate_.text())
-        print("\n     Exit\n")
+        print(str(time.strftime("%H:%M:%S")))
+        logging.info("thread_stop")
+        self.val += self.timer_interval/1000
+        self.package_number_label.setText(
+            str(self.data_prosessing_thr.package_num))
+        print(self.data_prosessing_thr.package_num)
+        self.progress_bar.setValue(int(self.val)) 
 
     def clear_logs(self):
         self.text_logs.clear()
 
-    def test_serail(self): 
-        self.Serial = QSerialPort()
 
-        self.Serial.setPortName("COM1")
-        self.Serial.setBaudRate(921600)
-        self.Serial.setDataBits(
-            QSerialPort.DataBits.Data8)
-        self.Serial.setParity(
-            QSerialPort.Parity.NoParity)
-        self.Serial.setStopBits(
-            QSerialPort.StopBits.OneStop)
-        self.package_num = 1
-
-        self.Serial.open(
-            QtCore.QIODevice.OpenModeFlag.ReadOnly)
-        # self.Serial.clear()
-        # self.Serial.clearError()
-        # self.Serial.flush()
-        self.pool = QThreadPool.globalInstance()
-        self.runnable = PyQt6_QRunnable.Runnable()
-        self.runnable.Serial = self.Serial
-        # self.n = n
-        self.runnable.filename = "PyQt6_QRunnable1.txt"
-        # 3. Call start()
-        self.pool.start(self.runnable)
-        
-        self.Serial.readyRead.connect(self.test_read_serial)
-
-############################################
-        # while True:
-        #     print("--------------------  " +
-        #         str(self.Serial.isReadable()))
-        #     print("--------------------Число байтов " +
-        #         str(self.Serial.bytesAvailable()))
-        #     print(self.Serial.canReadLine())
-        #     rx = self.Serial.readAll()
-        #     time.sleep(1)
-            # i = rx.data().find(0x72)
-            # nums1 = numpy.array([])
-            # flag = rx.data()[i] == 0x72 and rx.data()[i + 13] == 0x27
-            # while (i + 13) < len(rx.data()) and flag:
-            #     nums = numpy.array([self.package_num])
-
-            #     for shift in [1, 4, 7, 10]:
-            #         res = int.from_bytes(
-            #             rx.data()[(i + shift):(i + shift + 3)],
-            #             byteorder='big', signed=True)
-            #         nums = numpy.append(nums, res)
-            #     i += 14
-
-            #     nums1 = numpy.append(nums1, nums)
-            #     self.package_num += 1
-
-            # print(rx)
-
-    def test_read_serial(self):
-        
-        # print("ready to read")
-        
-        # if not self.runnable.flag_read:
-        #     self.runnable.flag_read = True
-        # print(self.data_prosessing_thr.isFinished())
-        # if self.data_prosessing_thr.isFinished():
-        # self.data_prosessing_thr.start()
-        print("ready to read ------ Число байтов " +
-            str(self.data_prosessing_thr.Serial.bytesAvailable()))
-        self.data_prosessing_thr.rx = self.data_prosessing_thr.Serial.readAll()
-        self.data_prosessing_thr.start()
-
-        # rx = self.Serial.readAll()
-
-        # i = rx.data().find(0x72)
-        # print("i = " + str(i))
-        # # nums1 = numpy.array([])
-        # while (i + 13) < len(rx.data()) and rx.data()[i] == 0x72 and rx.data()[i + 13] == 0x27:
-        #     nums = numpy.array([self.package_num])
-        #     # nums_b = []
-        #     for shift in [1, 4, 7, 10]:
-        #         res = int.from_bytes(
-        #             rx.data()[(i + shift):(i + shift + 3)],
-        #             byteorder='big', signed=True)
-        #         nums = numpy.append(nums, res)
-        #         nums_b.append(str(rx.data()[(i + shift):(i + shift + 3)]))
-
-        #     i += 14
-        #     # nums1 = numpy.append(nums1, nums)
-        #     self.package_num += 1
-        #     with open("test6.txt", 'a') as file:
-        #         file.write(str(nums[0]) + '\t\t' + str(nums[1]) + '\t\t' +
-        #                     str(nums[2]) + '\t\t' + str(nums[3]) + '\t\t' +
-        #                     str(nums[4]) + '\n')
-            # with open("test6.txt", 'a') as file:
-            #     file.write(str(str(rx.data()[i:(i + 14)])) + '\n')
-        # # print(rx)
-        # time.sleep(1)
-        # time.sleep(0.005)
 # -----------------------------------------------------------------------------
 
     def check_filename(self):
@@ -637,19 +534,18 @@ class MyWindow(QtWidgets.QWidget):
         while os.path.exists(new_name):
             new_name = filename + "(" + str(i) + ")" + extension
             i += 1
-
         self.data_prosessing_thr.filename = new_name
 # -----------------------------------------------------------------------------
 
     def get_data_from_file(self):
-        fname, filetype = QFileDialog.getOpenFileName(
+        filename, filetype = QFileDialog.getOpenFileName(
             self,
             "Выберите методику измерений",
             ".",
             "Text Files(*.txt)")
-        if fname:
-            with open(fname, 'r') as f:
-                self.file_name_and_path.setText(os.path.basename(fname))
+        if filename:
+            with open(filename, 'r') as f:
+                self.file_name_and_path.setText(os.path.basename(filename))
                 self.current_folder.setText(os.getcwd())
                 Data = []
                 self.list_freq = []
@@ -667,11 +563,14 @@ class MyWindow(QtWidgets.QWidget):
                             Data.append('F=' + str(f_a_t[0]) + ' A=' +
                                         str(f_a_t[1]) + ' T=' + str(f_a_t[2]))
 
-                self.totalTime = sum(self.list_time)
+                self.total_time = sum(self.list_time)
+
+                # self.total_cycle_num = self.cycle_num_widget.value()
+
                 self.list_data_from_file_.setStringList(Data)
 
-                # print(self.pr_bar)
-                # print(1/self.pr_bar)
+                self.progress_bar_set_max()
+
                 # self.list_data_from_file_.itemData(self, 2)
                 # self.data_from_file.setSelectionRectVisible(True)
                 # self.data_from_file.setSelectionModel()
@@ -687,6 +586,11 @@ class MyWindow(QtWidgets.QWidget):
                 # QtGui.Qicon(iconfile),
                 # lst[row])
                 # sti. appendRow (item)
+
+    def closeEvent(self, event):
+        self.stop()
+        self.settings.setValue("COM_speed", self._com_boderate_.text())
+        print("\n     Exit\n")
 
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------

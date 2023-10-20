@@ -6,7 +6,8 @@ import time
 
 
 class MyThread(QtCore.QThread):
-    sec_count = QtCore.pyqtSignal(bytes)
+    sec_count = QtCore.pyqtSignal(int)
+    # end_signal = QtCore.pyqtSignal()
 
     def __init__(self, parent=None):
         QtCore.QThread.__init__(self, parent)
@@ -14,14 +15,9 @@ class MyThread(QtCore.QThread):
 
         self.filename = []
         self.package_num = 0
-        self.rx = bytearray()
+        self.rx: bytes = b''
 
-    def run(self):  # бесконечный цикл здесь должен быть
-        # try:
-        # print("RUN")
-        # self.Serial.readyRead.connect(self.test_read_serial1)
-        # self.Serial.readyRead.connect(self.test_read_serial1, QtCore.Qt.ConnectionType.SingleShotConnection)
-        # self.sleep(1)
+    def run(self):
 
         # print("--------------------Число_байтов " +
         #         str(self.Serial.bytesAvailable()))
@@ -29,61 +25,33 @@ class MyThread(QtCore.QThread):
         # # if self.Serial.bytesAvailable() >= 14:
         # if self.Serial.bytesAvailable() >= 14:
 
-        i = self.rx.data().find(0x72)
+        i = self.rx.find(0x72)
 
         # print("-------------------- i = " + str(i))
         
-        nums1 = numpy.array([])
+        nums_united = numpy.array([])
 
-        while (i + 13) < len(self.rx.data()) and self.rx.data()[i] == 0x72 and self.rx.data()[i + 13] == 0x27:
+        while (i + 13) < len(self.rx) and self.rx[i] == 0x72 and self.rx[i + 13] == 0x27:
             nums = numpy.array([self.package_num])
 
             for shift in [1, 4, 7, 10]:
                 res = int.from_bytes(
-                    self.rx.data()[(i + shift):(i + shift + 3)],
+                    self.rx[(i + shift):(i + shift + 3)],
                     byteorder='big', signed=True)
                 nums = numpy.append(nums, res)
             i += 14
 
-            # nums1 = numpy.append(nums1, nums)
-            nums1 = numpy.append(nums1, nums)
+            nums_united = numpy.append(nums_united, nums)
             self.package_num += 1
 
-            # numpy.savetxt(self.filename, nums, delimiter='  ', fmt="%d")
-            with open(self.filename, 'a') as file:
-                file.write(str(nums[0]) + '\t' + str(nums[1]) + '\t' +
-                            str(nums[2]) + '\t' + str(nums[3]) + '\t' +
-                            str(nums[4]) + '\n')
-            # with open("numpy.txt", 'a') as file:
-                # file.writelines(
-                #       numpy.array2string(nums1, separator='\t', fmt="%d"))
-            # numpy.savetxt("text.txt", nums1, delimiter='\t', fmt="%d")
-            # numpy.savetxt("np222", nums1, delimiter='   ', fmt="%d")
-        
-            # self.Serial.flush()
-            # self.Serial.clear()
-            # print("--------------")
-            # print(numpy.array2string(nums1, separator='\t', fmt="%d"))
-            # print(numpy.array2string(nums, separator='\t'))
-        # print((rx.data()))
-        # print("(rx")
-        # self.sec_count.emit(self.package_num)
-        # self.sec_count.emit(rx.data())
-            # self.sleep(0.02)
-            # self.sleep(1)
-            # except:
-                # print(())
-                # print("(rx.dd())")
-            # else:
-            #     QtWidgets.QMessageBox.critical(
-            #               None, "", "Нет данных c COM порта")
+            # with open(self.filename, 'a') as file:
+            #     numpy.savetxt(file, [nums], delimiter='\t', fmt='%d')
 
-            # self.Serial.close
+        # print("len = " + str(len(nums_united)))
+        nums_united = numpy.reshape(nums_united, [int(len(nums_united)/5), 5])
+        # print(self.package_num)
+        with open(self.filename, 'a') as file:
+            numpy.savetxt(file, nums_united, delimiter='\t', fmt='%d')
 
-# ----------------------------------------------------------------------------
-    def test_read_serial1(self):
-        print("before")
-        # self.sleep(1)
-        print("after")
-    # def stop(self):
-    #     self.Serial.write([0, 0, 0, 0, 0, 0, 0, 0])
+        # self.end_signal.emit()
+        self.sec_count.emit(self.package_num)
