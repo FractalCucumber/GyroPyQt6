@@ -1,13 +1,11 @@
 from PyQt6 import QtCore
-# import PyQt6.QtCore.QThread.Slot
+# import PyQt6.QtCore.QThread.pyqtSignalSlot
 import numpy
 from PyQt6.QtSerialPort import QSerialPort
-import time
 
 
 class MyThread(QtCore.QThread):
     sec_count = QtCore.pyqtSignal(int)
-    # end_signal = QtCore.pyqtSignal()
 
     def __init__(self, parent=None):
         QtCore.QThread.__init__(self, parent)
@@ -19,16 +17,7 @@ class MyThread(QtCore.QThread):
 
     def run(self):
 
-        # print("--------------------Число_байтов " +
-        #         str(self.Serial.bytesAvailable()))
-        # # print(self.filename)
-        # # if self.Serial.bytesAvailable() >= 14:
-        # if self.Serial.bytesAvailable() >= 14:
-
         i = self.rx.find(0x72)
-
-        # print("-------------------- i = " + str(i))
-        
         nums_united = numpy.array([])
 
         while (i + 13) < len(self.rx) and self.rx[i] == 0x72 and self.rx[i + 13] == 0x27:
@@ -44,14 +33,10 @@ class MyThread(QtCore.QThread):
             nums_united = numpy.append(nums_united, nums)
             self.package_num += 1
 
-            # with open(self.filename, 'a') as file:
-            #     numpy.savetxt(file, [nums], delimiter='\t', fmt='%d')
-
         # print("len = " + str(len(nums_united)))
         nums_united = numpy.reshape(nums_united, [int(len(nums_united)/5), 5])
         # print(self.package_num)
         with open(self.filename, 'a') as file:
             numpy.savetxt(file, nums_united, delimiter='\t', fmt='%d')
 
-        # self.end_signal.emit()
         self.sec_count.emit(self.package_num)

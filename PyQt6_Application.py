@@ -150,8 +150,6 @@ class MyWindow(QtWidgets.QWidget):
         self.data_from_file = QtWidgets.QListView(self)
         self.data_from_file.setModel(self.list_data_from_file_)
 
-        # self.textEdit = QtWidgets.QTextEdit()
-
         self.subblock1right = QtWidgets.QFormLayout()
         # self.subblock1right.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.text_logs = QtWidgets.QTextEdit()
@@ -186,7 +184,6 @@ class MyWindow(QtWidgets.QWidget):
 
         self.progress_bar = QtWidgets.QProgressBar()
         self.progress_bar.setValue(1)
-        # self.progress_bar.setFormat('0/- sec')
         self.progress_bar.setMaximum(1)
         self.progress_bar.setFormat('%v/%m sec')
 
@@ -216,7 +213,7 @@ class MyWindow(QtWidgets.QWidget):
         self.setLayout(self.main_grid)  # здесь работа с графикой закончена
         # self.main_grid.setSizeConstraint(
         #     self.main_grid.SizeConstraint.SetDefaultConstraint)
-        
+
 # ------------------------------------------------------------------------------------------------------------------------
         # Style
 
@@ -263,13 +260,13 @@ class MyWindow(QtWidgets.QWidget):
 # ------------------------------------------------------------------------------------------------------------------------
         self.timer = QtCore.QTimer()
         
-        self.timer_interval = 500
+        self.timer_interval = 125*2
         self.timer.setInterval(self.timer_interval)
         self.timer.timeout.connect(self.timerEvent)
 
         self.timer_sent_com = QtCore.QTimer()
         self.timer_sent_com.setTimerType(QtCore.Qt.TimerType.PreciseTimer)
-        self.timer_sent_com.timeout.connect(self.timerEvent_sent_com)
+        self.timer_sent_com.timeout.connect(self.timer_event_sent_com)
 # ------------------------------------------------------------------------------------------------------------------------
         # self.cycle_num = 1
         # self.curr_cylce = 1
@@ -305,26 +302,26 @@ class MyWindow(QtWidgets.QWidget):
         self.count = 0  # сброс счетчика принятых данных
         self.curr_cylce = 1
         self.available_ports = QSerialPortInfo.availablePorts()
-        for port in self.available_ports:
-            self._com_name_.addItem(port.portName())
-
-        print("\n\n\n" + self._com_name_.currentText() + "\n\n\n")
-
         self.flag_sent = False
         self.data_prosessing_thr.package_num = 0
+        
+        print(F"PORT: {len(self._com_name_.currentText())}\n")
+        #
+        if not len(self._com_name_.currentText()):
+            for port in self.available_ports:
+                self._com_name_.addItem(port.portName())
+                print(F"PORT: {len(self._com_name_.currentText())}\n")
 
         # self.data_prosessing_thread.Serial = self.Serial
 
         self.check_filename()
 
-        print(len(self.list_time))
         if not len(self.list_time):
-            print("Нет данных из файла")
-            logging.info(f"No data from file")
+            # logging.info("No data from file")
             self.get_data_from_file()
 
         if len(self.list_time):
-            print("Есть данные из файла")
+            logging.info("File was loaded")
             
             self.data_prosessing_thr.Serial.setPortName(
                 self._com_name_.currentText())
@@ -337,102 +334,66 @@ class MyWindow(QtWidgets.QWidget):
             self.data_prosessing_thr.Serial.setStopBits(
                 QSerialPort.StopBits.OneStop)
 
-            self.data_prosessing_thr.Serial.open(
-                QtCore.QIODevice.OpenModeFlag.ReadWrite)
-
-            if self.data_prosessing_thr.Serial.isOpen():
+            if self.data_prosessing_thr.Serial.open(QtCore.QIODevice.OpenModeFlag.ReadWrite):
                 self.data_prosessing_thr.Serial.clear()
                 self.data_prosessing_thr.Serial.flush()
 
                 if self.data_prosessing_thr.Serial.isReadable():
-                    print(self._com_name_.currentText() + " open and readable")
-                    logging.info(f"{self._com_name_.currentText()} open and readable")
-
+                    print(line := f"{self._com_name_.currentText()} open and readable")
+                    logging.info(line)
 
                     self.cycle_num_value_change()
                     self.progress_bar_set_max()
                     self.avaliable_butttons(True)
+                    # self.timer.setInterval(0)
                     self.timer.start()
+                    
+                    self.timer_sent_com.setInterval(0)
                     self.timer_sent_com.start()
-                    # self.total_cycle_num = self.cycle_num_widget.value()
+
+                    # self.timer.setInterval(self.timer_interval)
+
                     print(line := f"self.cycleNum = {self.total_cycle_num}")
                     logging.info(line)
-                    # self.pr_bar = (1000/self.timer_interval) * (self.totalTime + len(self.list_time) + 1) * self.total_cycle_num
 
-                    # self.timer.singleShot(1000, self.timerEvent)
-                    # self.test_serail()
-                    # self.data_prosessing_thr.Serial.readyRead.connect(self.test_read_serial)
-                    # self.data_prosessing_thr.start()
-                    # self.data_prosessing_thr.Serial.timerEvent(self.test_read_serial)
-                    # self.data_prosessing_thr.Serial.startTimer(1000)
-                    # self.data_prosessing_thr.Serial.timerEvent(QtCore.QTimer/
-                    # print("self.pr_bar = " + str(self.pr_bar))
-
-                    self.text_logs.append(line := 
+                    self.text_logs.append(line :=
                         ">>> " + str(time.strftime("%H:%M:%S")) + " Start")
                     logging.info(line)
-                    
-                    # self.data_prosessing_thr.start()
-
                 # else:
                 #     self.text_logs.append(
                 #         ">>> " + str(time.strftime("%H:%M:%S")) +
                 #         " No data from COM port")
-                    # QtWidgets.QMessageBox.critical(
-                    #     None, "Ошибка", "Нет данных из порта")
 
-            # QtWidgets.QMessageBox.critical(
-            #     None, "Ошибка", "Проверьте COM порт")
-
-    # ----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
     def timerEvent(self):
-        print("Tim1")
-        # if not (flag1 := self.data_prosessing_thr.Serial.isReadable()):
-        #     print("isReadable = " + str(flag1))
-        # if not (flag2 := self.data_prosessing_thr.Serial.waitForReadyRead(10)):
-        #     print("waitForReadyRead = " + str(flag2) + " " +
-        #           str(self.data_prosessing_thr.Serial.error().name) +
-        #           " bytesAvailable =" +
-        #           str(self.data_prosessing_thr.Serial.bytesAvailable()) +
-        #           " isReadable =" +
-        #           str(self.data_prosessing_thr.Serial.isReadable()))
-        #     # print(self.data_prosessing_thr.Serial.clearError())
-        #     # self.data_prosessing_thr.Serial.clear()
-        #     # self.data_prosessing_thr.Serial.flush()
-        # else:
+
         self.data_prosessing_thr.Serial.readyRead.connect(
             self.read_serial,
             QtCore.Qt.ConnectionType.SingleShotConnection)
         
     def read_serial(self):
-        # if not self.runnable.flag_read:
-        #     self.runnable.flag_read = True
-        # print(self.data_prosessing_thr.isFinished())
-        # if self.data_prosessing_thr.isFinished():
-        print("ready to read ------ Число байтов " +
-            str(self.data_prosessing_thr.Serial.bytesAvailable()))
-        self.data_prosessing_thr.rx = b''
-        self.data_prosessing_thr.rx = self.data_prosessing_thr.Serial.readAll().data()
-        print(len(self.data_prosessing_thr.rx))
-        self.data_prosessing_thr.start()
-        logging.info("thread_start")
+
+        if not self.data_prosessing_thr.isRunning():
+            print("ready to read ------ Число байтов " +
+                str(self.data_prosessing_thr.Serial.bytesAvailable()))
+            self.data_prosessing_thr.rx = self.data_prosessing_thr.Serial.readAll().data()
+            self.data_prosessing_thr.start()
+            logging.info(f"thread_start, count = {self.count}")
+        else:
+            logging.info("thread_still_running!")
 
 # ------------------------------------------------------------------------------------
-    def timerEvent_sent_com(self):
+    def timer_event_sent_com(self):
 
         if self.flag_sent:
             self.sent_command()
             self.flag_sent = False
         else:
-            # print("\n   --- Pause ---- count = " + str(self.count) +
-            #       " len = " + str(len(self.list_time))
-            #       + " curr_cycle = " + str(self.curr_cylce) +
-            #       " total =" + str(self.total_cycle_num))
             self.data_prosessing_thr.Serial.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
-            self.flag_sent = True
             self.timer_sent_com.setInterval(1000)
+            self.flag_sent = True
 
-    def sent_command(self):  # перерыв между циклами
+    def sent_command(self):
 
         if self.count >= len(self.list_time):
             if self.curr_cylce < self.total_cycle_num:
@@ -442,7 +403,8 @@ class MyWindow(QtWidgets.QWidget):
                 return
 
         if self.data_prosessing_thr.Serial.isWritable():
-            print("---sent_command---")
+            print(line := "---sent_command---")
+            logging.info(line)
 
             F_H = self.list_freq[self.count] >> 8
             F_L = self.list_freq[self.count] & (0xFF)
@@ -455,16 +417,16 @@ class MyWindow(QtWidgets.QWidget):
                 self.list_time[self.count] * 1000)
             self.count += 1
         else:
-            QtWidgets.QMessageBox.critical(
-                None, "", "Отправка данных невозможна")
-            self.text_logs.append(line :=
-                    ">>> " + str(time.strftime("%H:%M:%S")) +
-                    " Cannot sent data")
+            self.text_logs.append(
+                line := ">>> " + str(time.strftime("%H:%M:%S")) +
+                " Cannot sent data")
             logging.info(line)
 # --------------------------------------------------------------------------------
 
     def cycle_end(self):
-        self.text_logs.append(line :=
+
+        self.text_logs.append(
+            line :=
             ">>> " + str(time.strftime("%H:%M:%S")) + " End of cycle "
             + str(self.curr_cylce) + " of " +
             str(self.total_cycle_num))
@@ -473,7 +435,7 @@ class MyWindow(QtWidgets.QWidget):
         self.count = 0
 
     def stop(self):
-        # self.run_flag = False
+
         self.avaliable_butttons(False)
         if self.timer_sent_com.isActive():
             self.timer_sent_com.stop()
@@ -481,7 +443,8 @@ class MyWindow(QtWidgets.QWidget):
         if self.timer.isActive():
             self.timer.stop()
 
-            self.text_logs.append(line :=
+            self.text_logs.append(
+                line :=
                 ">>> " + str(time.strftime("%H:%M:%S")) + " End of measurements")
             print(line)
             logging.info(line)
@@ -489,31 +452,35 @@ class MyWindow(QtWidgets.QWidget):
         if self.data_prosessing_thr.Serial.isOpen():
             self.data_prosessing_thr.Serial.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
             print(
-                "COM close? " + (flag := str(self.data_prosessing_thr.Serial.waitForBytesWritten(1000))))
-            logging.info(
-                "COM close? " + flag)
+                line := "COM close? " +
+                str(self.data_prosessing_thr.Serial.waitForBytesWritten(1000)))
+            logging.info(line)
             self.data_prosessing_thr.Serial.close()
 
 #################################################################################
 
     def cycle_num_value_change(self):
+
         if not self.timer.isActive(): # is this required?
             self.total_cycle_num = self.cycle_num_widget.value()
 
     def progress_bar_set_max(self):
-        if len(self.list_time) and not self.timer.isActive(): # is this required?
+
+        length = len(self.list_time)
+        if length and not self.timer.isActive(): # is this required?
             self.progress_bar.setMaximum(
-                (self.total_time + len(self.list_time) + 1) * self.total_cycle_num)
-            self.progress_bar.setValue(0) 
+                (self.total_time + length) * self.total_cycle_num + 1)
+            self.progress_bar.setValue(0)
 
     def avaliable_butttons(self, flag_start: bool):
+
         self.start_button.setDisabled(flag_start)
         self.stop_button.setDisabled(not flag_start)
         self.choose_file.setDisabled(flag_start)
 
     def on_change(self, s):  # по этому сигналу можно в логи писать
-        print(str(time.strftime("%H:%M:%S")))
-        logging.info("thread_stop")
+
+        logging.info(F"thread_stop, count = {self.count}")
         self.val += self.timer_interval/1000
         self.package_number_label.setText(
             str(self.data_prosessing_thr.package_num))
@@ -522,11 +489,10 @@ class MyWindow(QtWidgets.QWidget):
 
     def clear_logs(self):
         self.text_logs.clear()
-
-
 # -----------------------------------------------------------------------------
 
     def check_filename(self):
+
         filename = self.file_name.text()
         extension = '.txt'
         new_name = filename + extension
@@ -538,6 +504,7 @@ class MyWindow(QtWidgets.QWidget):
 # -----------------------------------------------------------------------------
 
     def get_data_from_file(self):
+
         filename, filetype = QFileDialog.getOpenFileName(
             self,
             "Выберите методику измерений",
@@ -554,14 +521,12 @@ class MyWindow(QtWidgets.QWidget):
                 print("\n\n")
                 for line in f:
                     if (f_a_t := list(filter(None, re.split("F|A|T|\n", line)))):
-                        # logging.info(f"len(f_a_t) = {len(f_a_t)}")
                         if len(f_a_t) == 3 and f_a_t[0].isdecimal() and f_a_t[1].isdecimal() and f_a_t[2].isdecimal():
                             self.list_freq.append(int(f_a_t[0]))
                             self.list_amp.append(int(f_a_t[1]))
                             self.list_time.append(int(f_a_t[2]))
 
-                            Data.append('F=' + str(f_a_t[0]) + ' A=' +
-                                        str(f_a_t[1]) + ' T=' + str(f_a_t[2]))
+                            Data.append(f"F={f_a_t[0]} A={f_a_t[1]} T={f_a_t[2]}")
 
                 self.total_time = sum(self.list_time)
 
@@ -614,6 +579,6 @@ if __name__ == "__main__":
     app.setStyle('Fusion')
     window = MyWindow()
     window.setWindowTitle("Gyro")
-    window.resize(800, 500)
+    # window.resize(850, 500)
     window.show()
     sys.exit(app.exec())
