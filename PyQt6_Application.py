@@ -1,6 +1,5 @@
 
 import logging
-import numpy
 import sys
 
 from PyQt6.QtWidgets import QFileDialog
@@ -19,13 +18,15 @@ from PyQt6 import QtGui
 from datetime import datetime
 from PyQt6 import QtWidgets, QtCore
 # , QtGui
-from pyqtgraph import PlotWidget, plot
+# from pyqtgraph import PlotWidget, plot
+
 # import matplotlib
 # import PyQt6.QtSerialPort
 import PyQt6_Thread
 import PyQt6_QRunnable
 from PyQt6.QtCore import QRunnable, Qt, QThreadPool
-# import StyleSheets as Style
+import pyqtgraph as pg
+import numpy as np
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------------------
 #
@@ -177,12 +178,6 @@ class MyWindow(QtWidgets.QWidget):
 ##############################################################################
         self.block1rightright = QtWidgets.QGroupBox("&График")
         self.subblock1rightright = QtWidgets.QFormLayout()
-        # self.view = view = pyqtgraph.PlotWidget()
-        # self.curve = view.plot(name="Line")
-        # self.curve = view.plotItem(name="Line")
-
-        # self.random_array = numpy.random.random_sample(20)
-        # # self.curve.setData(self.random_array)
 
         self.progress_bar = QtWidgets.QProgressBar()
         self.progress_bar.setValue(1)
@@ -193,7 +188,41 @@ class MyWindow(QtWidgets.QWidget):
 
         self.package_number_label = QtWidgets.QLabel()
         self.subblock1rightright.addWidget(self.package_number_label)
-    
+
+        
+        # self.view = view = pyqtgraph.PlotWidget()
+        # self.curve = view.plot(name="Line")
+        # self.curve = view.plotItem(name="Line")
+                    # self.time_plot = pg.plot()
+                    # self.time_plot.showGrid(x=True, y=True)
+
+                    # self.time_plot.addLegend()
+                    # self.time_plot.setLabel('left', 'Velosity Amplitude', units='smth')
+                    # self.time_plot.setLabel('bottom', 'Horizontal Values', units='smth')
+
+                    # self.scatter = pg.ScatterPlotItem(
+                    #     size=10, brush=pg.mkBrush(30, 255, 35, 255))
+                    
+                    # x_data = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+                    # y_data = np.array([5, 4, 6, 4, 3, 5, 6, 6, 7, 8])
+                    # self.time_plot.plot(
+                    #     x_data, y_data, symbol='o', pen={'color': 0.8, 'width': 2}, name='first')
+        # als0 can use np array
+
+        # self.scatter.addPoints(x_data, y_data)
+        # self.scatter.addPoints(x_data, [5, 4, 8, 8, 8, 8, 8, 8, 7, 8], name='first')
+        
+        # self.time_plot.addItem(self.scatter)
+        # self.bargraph1 = pg.BarGraphItem(
+        #   x = x_data, height = y_data, width = 0.6, brush ='g', name ='green')
+        # self.time_plot.addItem(self.bargraph1)
+        
+        # self.subblock1rightright.addWidget(self.time_plot)
+
+        # self.random_array = numpy.random.random_sample(20)
+        # # self.curve.setData(self.random_array)
+        self.data_prosessing_thr = PyQt6_Thread.MyThread(self.subblock1rightright)  # create thread
+
         self.block1rightright.setLayout(self.subblock1rightright)
 #########################################################################
 
@@ -281,7 +310,7 @@ class MyWindow(QtWidgets.QWidget):
         self.list_time = []
         self.total_cycle_num = self.cycle_num_widget.value()
 
-        self.data_prosessing_thr = PyQt6_Thread.MyThread()  # create thread
+        # self.data_prosessing_thr = PyQt6_Thread.MyThread()  # create thread
 
         self.data_prosessing_thr.Serial.setDataBits(
                 QSerialPort.DataBits.Data8)
@@ -371,7 +400,6 @@ class MyWindow(QtWidgets.QWidget):
         # self.data_prosessing_thr.Serial.readyRead.connect(
         #     self.read_serial,
         #     QtCore.Qt.ConnectionType.SingleShotConnection)
-        # ffffffffffffffffffffffff
         self.read_serial()
         
     def read_serial(self):
