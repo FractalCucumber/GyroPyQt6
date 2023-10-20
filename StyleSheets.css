@@ -69,11 +69,10 @@ QPushButton {
     border-color: white;
     padding: 3px;
 }
-QPushButton:pressed {
+QPushButton:pressed, QPushButton:pressed#start_button, QPushButton:pressed#stop_button {
     background-color: rgb(0, 0, 0);
 }
 QPushButton:disabled {
-    background-color: rgb(90, 88, 88);
     border-color: rgb(90, 88, 88);
 }
 QPushButton#start_button {

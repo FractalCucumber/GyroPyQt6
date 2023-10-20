@@ -4,6 +4,7 @@ import numpy
 from PyQt6.QtCore import QRunnable, Qt, QThreadPool
 from PyQt6.QtSerialPort import QSerialPort
 import logging
+import time
 
 
 class Runnable(QRunnable):
@@ -14,37 +15,50 @@ class Runnable(QRunnable):
         # self.n = n
         self.filename = []
         self.package_num = 0
+        self.flag_read = False
 
     def run(self):
 
         # Your long-running task goes here ...
         while True:
-            # logging.info(f"Working in thread")
+            if self.flag_read:
+                # logging.info(f"Working in thread")
+                
+                # self.Serial.open(QtCore.QIODevice.OpenModeFlag.ReadOnly)
+                # self.Serial.waitForReadyRead(2000)
+                print("--------------------Число байтов     " +
+                    str(self.Serial.bytesAvailable()))
+                logging.info(f"Bytes: {str(self.Serial.bytesAvailable())}")
+                rx = self.Serial.readAll()
+                # self.Serial.close()
+    
+                i = rx.data().find(0x72)           
+                nums1 = numpy.array([])
 
-            print("--------------------Число байтов     " +
-                  str(self.Serial.bytesAvailable()))
+                while (i + 13) < len(rx.data()) and rx.data()[i] == 0x72 and rx.data()[i + 13] == 0x27:
+                    nums = numpy.array([self.package_num])
 
-            rx = self.Serial.readAll()
-  
-            i = rx.data().find(0x72)           
-            nums1 = numpy.array([])
+                    for shift in [1, 4, 7, 10]:
+                        res = int.from_bytes(
+                            rx.data()[(i + shift):(i + shift + 3)],
+                            byteorder='big', signed=True)
+                        nums = numpy.append(nums, res)
+                    i += 14
 
-            while (i + 13) < len(rx.data()) and rx.data()[i] == 0x72 and rx.data()[i + 13] == 0x27:
-                nums = numpy.array([self.package_num])
+                    # nums1 = numpy.append(nums1, nums)
+                    nums1 = numpy.append(nums1, nums)
+                    self.package_num += 1
 
-                for shift in [1, 4, 7, 10]:
-                    res = int.from_bytes(
-                        rx.data()[(i + shift):(i + shift + 3)],
-                        byteorder='big', signed=True)
-                    nums = numpy.append(nums, res)
-                i += 14
-
-                # nums1 = numpy.append(nums1, nums)
-                nums1 = numpy.append(nums1, nums)
-                self.package_num += 1
-            # print("(rx")
-            # self.sec_count.emit(self.package_num)
-            # self.sec_count.emit(rx.data())
+                    with open(self.filename, 'a') as file:
+                        file.write(str(nums[0]) + '\t' + str(nums[1]) + '\t' +
+                                str(nums[2]) + '\t' + str(nums[3]) + '\t' +
+                                str(nums[4]) + '\n')
+                self.flag_read = False
+                time.sleep(0.1)
+                # self.sleep(0.1)
+                # print("(rx")
+                # self.sec_count.emit(self.package_num)
+                # self.sec_count.emit(rx.data())
 
 # class MyThread(QtCore.QThread):
 #     sec_count = QtCore.pyqtSignal(bytearray)
