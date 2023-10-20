@@ -73,30 +73,32 @@ class MyWindow(QtWidgets.QWidget):
 
         self.subblock1_com_param = QtWidgets.QFormLayout()
 
-        self._com_name_ = QtWidgets.QComboBox()
+        self.com_name = QtWidgets.QComboBox()
         self.available_ports = QSerialPortInfo.availablePorts()
         if self.available_ports:
             for self.port in self.available_ports:
-                self._com_name_.addItem(self.port.portName())
-        self.subblock1_com_param.addWidget(self._com_name_)
+                self.com_name.addItem(self.port.portName())
 
-        self.subblock1_com_param.addRow('COM:\t\t', self._com_name_)
+        self.subblock1_com_param.addRow('COM:', self.com_name)
 
-        self._com_boderate_ = QtWidgets.QLineEdit()
+        self.com_boderate = QtWidgets.QLineEdit()
 
         self.settings = QtCore.QSettings("COM_speed")  # save settings
         if self.settings.contains("COM_speed"):
-            self._com_boderate_.setText(str(self.settings.value("COM_speed")))
+            self.com_boderate.setText(str(self.settings.value("COM_speed")))
         else:
-            self._com_boderate_.setText(str(self.settings.value("921600")))
+            self.com_boderate.setText(str(self.settings.value("921600")))
 
-        self._com_boderate_.setInputMask("9900000")
-        self.subblock1_com_param.addWidget(self._com_boderate_)
+        self.com_boderate.setInputMask("9900000")
+        self.subblock1_com_param.addWidget(self.com_boderate)
 
-        self.subblock1_com_param.addRow('&Speed:\t\t', self._com_boderate_)
+        self.subblock1_com_param.addRow('&Speed:', self.com_boderate)
         # self.COMparamBox.addRow(self.COMparamBox)
 
+        # self.subblock1_com_param.setFieldGrowthPolicy(self.subblock1_com_param.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        # self.subblock1_com_param.setVerticalSpacing()
         # self.subblock1_com_param.setSizeConstraint(self.subblock1_com_param.SizeConstraint.SetMaximumSize)
+        # self.subblock1_com_param.setSizeConstraint(self.subblock1_com_param.SizeConstraint.SetDefaultConstraint)
         self.block1_com_param.setLayout(self.subblock1_com_param)
         # self.block1_com_param.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
 ###############################################################################
@@ -279,8 +281,15 @@ class MyWindow(QtWidgets.QWidget):
         self.list_time = []
         self.total_cycle_num = self.cycle_num_widget.value()
 
-        self.data_prosessing_thr = PyQt6_Thread.MyThread()  # Создаем поток
-        # принимаем сигнал и записываем его в прогресс бар
+        self.data_prosessing_thr = PyQt6_Thread.MyThread()  # create thread
+
+        self.data_prosessing_thr.Serial.setDataBits(
+                QSerialPort.DataBits.Data8)
+        self.data_prosessing_thr.Serial.setParity(
+                QSerialPort.Parity.NoParity)
+        self.data_prosessing_thr.Serial.setStopBits(
+                QSerialPort.StopBits.OneStop)
+
         self.data_prosessing_thr.sec_count.connect(self.on_change)
 
         logging.info(f"Start")
@@ -305,41 +314,33 @@ class MyWindow(QtWidgets.QWidget):
         self.flag_sent = False
         self.data_prosessing_thr.package_num = 0
         
-        print(F"PORT: {len(self._com_name_.currentText())}\n")
+        print(F"PORT: {len(self.com_name.currentText())}\n")
         #
-        if not len(self._com_name_.currentText()):
+        if not len(self.com_name.currentText()):
             for port in self.available_ports:
-                self._com_name_.addItem(port.portName())
-                print(F"PORT: {len(self._com_name_.currentText())}\n")
-
+                self.com_name.addItem(port.portName())
+                print(F"PORT: {len(self.com_name.currentText())}\n")
         # self.data_prosessing_thread.Serial = self.Serial
 
         self.check_filename()
-
         if not len(self.list_time):
             # logging.info("No data from file")
             self.get_data_from_file()
 
         if len(self.list_time):
-            logging.info("File was loaded")
+            logging.info("Data from file was loaded")
             
             self.data_prosessing_thr.Serial.setPortName(
-                self._com_name_.currentText())
+                self.com_name.currentText())
             self.data_prosessing_thr.Serial.setBaudRate(
-                int(self._com_boderate_.text()))
-            self.data_prosessing_thr.Serial.setDataBits(
-                QSerialPort.DataBits.Data8)
-            self.data_prosessing_thr.Serial.setParity(
-                QSerialPort.Parity.NoParity)
-            self.data_prosessing_thr.Serial.setStopBits(
-                QSerialPort.StopBits.OneStop)
+                int(self.com_boderate.text()))
 
             if self.data_prosessing_thr.Serial.open(QtCore.QIODevice.OpenModeFlag.ReadWrite):
                 self.data_prosessing_thr.Serial.clear()
                 self.data_prosessing_thr.Serial.flush()
 
                 if self.data_prosessing_thr.Serial.isReadable():
-                    print(line := f"{self._com_name_.currentText()} open and readable")
+                    print(line := f"{self.com_name.currentText()} open and readable")
                     logging.info(line)
 
                     self.cycle_num_value_change()
@@ -367,9 +368,10 @@ class MyWindow(QtWidgets.QWidget):
 # ----------------------------------------------------------------------------
     def timerEvent(self):
 
-        self.data_prosessing_thr.Serial.readyRead.connect(
-            self.read_serial,
-            QtCore.Qt.ConnectionType.SingleShotConnection)
+        # self.data_prosessing_thr.Serial.readyRead.connect(
+        #     self.read_serial,
+        #     QtCore.Qt.ConnectionType.SingleShotConnection)
+        self.read_serial()
         
     def read_serial(self):
 
@@ -554,7 +556,7 @@ class MyWindow(QtWidgets.QWidget):
 
     def closeEvent(self, event):
         self.stop()
-        self.settings.setValue("COM_speed", self._com_boderate_.text())
+        self.settings.setValue("COM_speed", self.com_boderate.text())
         print("\n     Exit\n")
 
 # ----------------------------------------------------------------------------------------------
@@ -576,7 +578,7 @@ if __name__ == "__main__":
                         datefmt='%d-%b-%y %H:%M:%S')
     # logging.disable(logging.INFO) # disable logging for certain level
     app = QtWidgets.QApplication(sys.argv)
-    app.setStyle('Fusion')
+    app.setStyle('Fusion') # 'Fusion' ... QtWidgets.QStyle
     window = MyWindow()
     window.setWindowTitle("Gyro")
     # window.resize(850, 500)
