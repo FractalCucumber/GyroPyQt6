@@ -222,24 +222,34 @@ class MyWindow(QtWidgets.QWidget):
         # self.random_array = numpy.random.random_sample(20)
         # # self.curve.setData(self.random_array)
         self.data_prosessing_thr = PyQt6_Thread.MyThread(self.subblock1rightright)  # create thread
+        self.fft_button = QtWidgets.QPushButton("&Time")
+        self.subblock1rightright.addWidget(self.fft_button)
 
+        # self.subblock1rightright.setSizeConstraint(self.subblock1rightright.SizeConstraint.SetMaximumSize)
+        self.block1rightright.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
         self.block1rightright.setLayout(self.subblock1rightright)
-#########################################################################
 
-        self.main_grid.addWidget(self.block1_com_param, 0, 0)
-        self.main_grid.addWidget(self.block2, 1, 0)
-        self.main_grid.addWidget(self.block3, 2, 0, 3, 1)
-        self.main_grid.addWidget(self.block1right, 0, 1, 3, 1)
-        self.main_grid.addWidget(self.start_button, 3, 1, 1, 1)
-        self.main_grid.addWidget(self.stop_button, 4, 1, 1, 1)
-        self.main_grid.addWidget(self.block1rightright, 0, 3, 5, 1)
+#########################################################################
 
         self.logTextBox = QTextEditLogger(self)
         # self.logTextBox.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
         logging.getLogger().addHandler(self.logTextBox)
         # You can control the logging level
         logging.getLogger().setLevel(logging.INFO)
-        self.main_grid.addWidget(self.logTextBox.widget, 0, 4, 2, 40)
+
+#########################################################################
+
+        self.main_grid.addWidget(self.block1_com_param, 0, 0, 1, 1)
+        self.main_grid.addWidget(self.block2, 1, 0, 1, 1)
+        self.main_grid.addWidget(self.block3, 2, 0, 3, 1)
+
+        self.main_grid.addWidget(self.block1right, 0, 1, 3, 1)
+        self.main_grid.addWidget(self.start_button, 3, 1, 1, 1)
+        self.main_grid.addWidget(self.stop_button, 4, 1, 1, 1)
+
+        self.main_grid.addWidget(self.block1rightright, 0, 3, 5, 2)
+
+        self.main_grid.addWidget(self.logTextBox.widget, 0, 5, 5, 20)
 
         self.setLayout(self.main_grid)  # здесь работа с графикой закончена
         # self.main_grid.setSizeConstraint(
@@ -270,6 +280,7 @@ class MyWindow(QtWidgets.QWidget):
         self.choose_file.clicked.connect(self.get_data_from_file)
         self.cycle_num_widget.valueChanged.connect(self.cycle_num_value_change)
         self.cycle_num_widget.valueChanged.connect(self.progress_bar_set_max)
+        self.fft_button.clicked.connect(self.plot_change)
 
 # ------------------------------------------------------------------------------------------------------------------------
         # # нужен pyqtgraph
@@ -290,7 +301,6 @@ class MyWindow(QtWidgets.QWidget):
         # self.MainGrid.addPlot
 # ------------------------------------------------------------------------------------------------------------------------
         self.timer = QtCore.QTimer()
-        
         self.timer_interval = 125*2
         self.timer.setInterval(self.timer_interval)
         self.timer.timeout.connect(self.timerEvent)
@@ -301,14 +311,13 @@ class MyWindow(QtWidgets.QWidget):
 # ------------------------------------------------------------------------------------------------------------------------
         # self.cycle_num = 1
         # self.curr_cylce = 1
-
         self.count = 0
         self.pr_bar = 0
         # self.choose_file.setDisabled(True)
         self.list_freq = []
         self.list_amp = []
         self.list_time = []
-        self.total_cycle_num = self.cycle_num_widget.value()
+        self.total_cycle_num = 1
 
         # self.data_prosessing_thr = PyQt6_Thread.MyThread()  # create thread
 
@@ -331,10 +340,11 @@ class MyWindow(QtWidgets.QWidget):
 #
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
-# 1
+#
 
     def start(self):
-        
+
+        self.data_prosessing_thr.time_plot.clear()
         self.progress_bar.setValue(0)
         self.val = 0
         self.count = 0  # сброс счетчика принятых данных
@@ -419,10 +429,16 @@ class MyWindow(QtWidgets.QWidget):
         if self.flag_sent:
             self.sent_command()
             self.flag_sent = False
+
+            print(line := "---sent_command---")
+            logging.info(line)
         else:
             self.data_prosessing_thr.Serial.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
             self.timer_sent_com.setInterval(1000)
             self.flag_sent = True
+
+            print(line := "--sent_pause_command--")
+            logging.info(line)
 
     def sent_command(self):
 
@@ -434,8 +450,6 @@ class MyWindow(QtWidgets.QWidget):
                 return
 
         if self.data_prosessing_thr.Serial.isWritable():
-            print(line := "---sent_command---")
-            logging.info(line)
 
             F_H = self.list_freq[self.count] >> 8
             F_L = self.list_freq[self.count] & (0xFF)
@@ -516,7 +530,19 @@ class MyWindow(QtWidgets.QWidget):
         self.package_number_label.setText(
             str(self.data_prosessing_thr.package_num))
         print(self.data_prosessing_thr.package_num)
-        self.progress_bar.setValue(int(self.val)) 
+        self.progress_bar.setValue(int(self.val))
+
+    def plot_change(self):
+        self.fft_button.setText(
+            self.data_prosessing_thr.plot_change(self.fft_button.text()))
+    #     if self.fft_button.text() == "FFT":
+    #         self.fft_button.setText("Time")
+    #         self.data_prosessing_thr.time_plot.getPlotItem().ctrl.fftCheck.setChecked(False)
+    #         self.time_plot.setLabel('bottom', 'Horizontal Values', units='smth')
+    #     else:
+    #         self.fft_button.setText("FFT")
+    #         self.data_prosessing_thr.time_plot.getPlotItem().ctrl.fftCheck.setChecked(True)
+    #         self.time_plot.setLabel('bottom', 'Frequency', units='Hz')
 
     def clear_logs(self):
         self.text_logs.clear()
