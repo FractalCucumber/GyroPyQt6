@@ -11,7 +11,7 @@ class MyThread(QtCore.QThread):
     sec_count = QtCore.pyqtSignal(int)
     # data = QtCore.pyqtSignal(int)
 
-    def __init__(self, plot):
+    def __init__(self):
         # QtCore.QThread.__init__(self)
         super(MyThread, self).__init__()
         self.Serial = QSerialPort()
@@ -22,37 +22,19 @@ class MyThread(QtCore.QThread):
         self.rx: bytes = b''
 
         self.nums_united = np.array([], dtype=np.int32)
-        # self.subblock1rightright = block
 
-        # self.time_plot = pg.plot()
-        # self.time_plot.showGrid(x=True, y=True)
-
-        # self.time_plot.addLegend()
-        # self.time_plot.setLabel('left', 'Velosity Amplitude', units='smth')
-        # self.time_plot.setLabel('bottom', 'Horizontal Values', units='smth')
-
-        # # self.scatter = pg.ScatterPlotItem(
-        # #     size=10, brush=pg.mkBrush(30, 255, 35, 255))
-
-        # # self.time_plot.plot(
-        # #     x_data, y_data, symbol='o', pen={'color': 0.8, 'width': 1}, name='first')
-        
-        # self.time_plot.getPlotItem().ctrl.fftCheck.setChecked(False)
-        
-        # self.subblock1rightright.addWidget(self.time_plot)
-        self.time_plot = plot
+        # self.time_plot = plot
 
     def run(self):
         while self.flag_start:
             if self.flag_recieve:
-                self.flag_recieve = False
                 # logging.info("thread_run_start")
                 # t1 = time.time()
-
+                
                 i = self.rx.find(0x72)
                 self.nums_united = np.array([], dtype=np.int32)
 
-                while (i + 13) < len(self.rx):
+                while (i + 13) < len(self.rx): # and (self.rx[i] == 0x72 and self.rx[i + 13] == 0x27):
                     if not (self.rx[i] == 0x72 and self.rx[i + 13] == 0x27):
                         i = self.rx.find(0x72)
                         if not self.rx[i + 13] == 0x27:
@@ -75,18 +57,16 @@ class MyThread(QtCore.QThread):
                 # print(f"len = {nums_united.size}")
                 self.nums_united = np.reshape(
                     self.nums_united, [int(self.nums_united.size/5), 5])
-                # print(self.package_num)
                 # print("dt_0 = ", time.time() - t1)
                 with open(self.filename, 'a') as file:
                     np.savetxt(file, self.nums_united, delimiter='\t', fmt='%d')
 
-                # graph
                 # self.time_plot.plot(
                 #     nums_united[:, 0], nums_united[:, 2])
                     # t, velosity_amp, symbol='o', pen={'color': 0.8, 'width': 1})
 
                 self.sec_count.emit(self.package_num)
-                # self.data.emit(nums_united)
 
                 # print("dt = ", time.time() - t1)
+                self.flag_recieve = False
             self.msleep(40)

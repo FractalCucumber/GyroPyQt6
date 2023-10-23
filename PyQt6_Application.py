@@ -203,7 +203,6 @@ class MyWindow(QtWidgets.QWidget):
         
         self.subblock1rightright.addWidget(self.time_plot)
 
-        self.data_prosessing_thr = PyQt6_Thread.MyThread(self.time_plot) # create thread
         self.fft_button = QtWidgets.QPushButton("&Time")
         self.subblock1rightright.addWidget(self.fft_button)
 
@@ -234,7 +233,7 @@ class MyWindow(QtWidgets.QWidget):
 
         self.main_grid.addWidget(self.logTextBox.widget, 0, 5, 5, 20)
 
-        self.setLayout(self.main_grid)  # здесь работа с графикой закончена
+        self.setLayout(self.main_grid) 
         # self.main_grid.setSizeConstraint(
         #     self.main_grid.SizeConstraint.SetDefaultConstraint)
 
@@ -249,9 +248,9 @@ class MyWindow(QtWidgets.QWidget):
             self.setStyleSheet(StyleSheetsFile.read())
 
         app_icon = QtGui.QIcon()
-        # app_icon.addFile('Vibro_1_resources/icon_16.png', QtCore.QSize(16, 16))
-        # app_icon.addFile('Vibro_1_resources/icon_24.png', QtCore.QSize(24, 24))
-        # app_icon.addFile('Vibro_1_resources/icon_32.png', QtCore.QSize(32, 32))
+        app_icon.addFile('Vibro_1_resources/icon_16.png', QtCore.QSize(16, 16))
+        app_icon.addFile('Vibro_1_resources/icon_24.png', QtCore.QSize(24, 24))
+        app_icon.addFile('Vibro_1_resources/icon_32.png', QtCore.QSize(32, 32))
         app_icon.addFile('Vibro_1_resources/icon_48.png', QtCore.QSize(48, 48))
         app.setWindowIcon(app_icon)
 
@@ -268,7 +267,7 @@ class MyWindow(QtWidgets.QWidget):
 # ------ Timres ---------------------------------------------------------------
 
         self.timer = QtCore.QTimer()
-        self.timer_interval = 125*4
+        self.timer_interval = 125*1
         self.timer.setInterval(self.timer_interval)
         self.timer.timeout.connect(self.timerEvent)
 
@@ -278,24 +277,18 @@ class MyWindow(QtWidgets.QWidget):
 
 # ------ Init vars ------------------------------------------------------------
 
-        # self.cycle_num = 1
-        # self.curr_cylce = 1
         self.count = 0
-        self.pr_bar = 0
-        self.list_freq = []
-        self.list_amp = []
-        self.list_time = []
-        self.total_cycle_num = 1
+        self.progress_bar_value = 0
+        self.total_time = 0
+        # self.total_cycle_num = 1
 
-        # self.data_prosessing_thr = PyQt6_Thread.MyThread()  # create thread
-
+        self.data_prosessing_thr = PyQt6_Thread.MyThread()  # create thread
         self.data_prosessing_thr.Serial.setDataBits(
                 QSerialPort.DataBits.Data8)
         self.data_prosessing_thr.Serial.setParity(
                 QSerialPort.Parity.NoParity)
         self.data_prosessing_thr.Serial.setStopBits(
                 QSerialPort.StopBits.OneStop)
-
         self.data_prosessing_thr.sec_count.connect(self.on_change)
 
         logging.info(f"Start")
@@ -313,29 +306,30 @@ class MyWindow(QtWidgets.QWidget):
     def start(self):
         self.exp_package_num = 0
         
-        self.data_prosessing_thr.time_plot.clear()
+        self.time_plot.clear()
         self.progress_bar.setValue(0)
-        self.val = 0
+        self.progress_value = 0
         self.count = 0  # сброс счетчика принятых данных
-        self.curr_cylce = 1
-        self.flag_sent = False
+        self.current_cylce = 1
         self.data_prosessing_thr.package_num = 0
+        self.flag_sent = False
         
-        print(F"PORT: {len(self.com_name.currentText())}\n")
+        logging.info(F"PORT: {(self.com_name.currentText())}\n")
         if not len(self.com_name.currentText()):
             self.available_ports = QSerialPortInfo.availablePorts()
             for port in self.available_ports:
                 self.com_name.addItem(port.portName())
-                print(F"PORT: {len(self.com_name.currentText())}\n")
+                logging.info(F"PORT: {(self.com_name.currentText())}\n")
         if not len(self.com_name.currentText()):
             logging.info("Can't find COM port")
             return
         # self.data_prosessing_thread.Serial = self.Serial
 
         self.check_filename()
-        if not len(self.list_time):
+        if not self.total_time:
+            self.cycle_num_value_change()
             self.get_data_from_file()
-            if not len(self.list_time):
+            if not self.total_time:
                 logging.info("No data from file")
                 return
         
@@ -349,7 +343,7 @@ class MyWindow(QtWidgets.QWidget):
         if not self.data_prosessing_thr.Serial.open(QtCore.QIODevice.OpenModeFlag.ReadWrite):
             logging.info(f"Can't open {self.com_name.currentText()}")
             return
-        print(self.data_prosessing_thr.Serial.isReadable())
+        # print(self.data_prosessing_thr.Serial.isReadable())
 
         self.data_prosessing_thr.Serial.clear()
         self.data_prosessing_thr.Serial.clearError()
@@ -360,17 +354,16 @@ class MyWindow(QtWidgets.QWidget):
         self.avaliable_butttons(True)
 
         # self.timer.setInterval(self.timer_interval)
-        print(line := f"{self.com_name.currentText()} open")
-        logging.info(line)
-        print(line := f"self.cycleNum = {self.total_cycle_num}")
-        logging.info(line)
+        logging.info(line := f"{self.com_name.currentText()} open")
+        logging.info(line := f"self.cycleNum = {self.total_cycle_num}")
         self.text_logs.append(
-            line := f">>> {time.strftime("%H:%M:%S")} Start, pack_num = {self.data_prosessing_thr.package_num})
+            line := f">>> {time.strftime("%H:%M:%S")} Start,\
+pack_num = {self.data_prosessing_thr.package_num}")
         logging.info(line)
 
         # self.timer.setInterval(0)
         self.timer.start()
-        
+
         self.timer_sent_com.setInterval(0)
         self.timer_sent_com.start()
 
@@ -380,8 +373,9 @@ class MyWindow(QtWidgets.QWidget):
 # ------ Timer1 ---------------------------------------------------------------
 
     def timerEvent(self):
-        self.val += self.timer_interval/1000
-        self.progress_bar.setValue(int(self.val))
+        self.progress_value += self.timer_interval/1000
+        self.progress_bar.setValue(int(self.progress_value))
+        logging.info(f"Progress: {self.progress_value}")
         # self.data_prosessing_thr.Serial.readyRead.connect(
         #     self.read_serial,
         #     QtCore.Qt.ConnectionType.SingleShotConnection)
@@ -391,13 +385,16 @@ class MyWindow(QtWidgets.QWidget):
         if (bytes_num := self.data_prosessing_thr.Serial.bytesAvailable()) <= 14:
             logging.info("no data from COM port!")
             return
+        if self.data_prosessing_thr.flag_recieve:
+            logging.info("thread still work with previous datad!")
+            return
+        
         self.exp_package_num += int(bytes_num/14)
         logging.info(
             f"ready to read, bytes num = {bytes_num}, \
 expected package num {self.exp_package_num}")
         self.data_prosessing_thr.rx = self.data_prosessing_thr.Serial.readAll().data()
         self.data_prosessing_thr.flag_recieve = True
-        # self.data_prosessing_thr.start()
         logging.info(f"thread_start, count = {self.count}")
 
 # ------- Timer2 --------------------------------------------------------------
@@ -409,6 +406,7 @@ expected package num {self.exp_package_num}")
                 " Cannot sent data")
             logging.info(line)
             return
+        
         if not self.data_prosessing_thr.Serial.isOpen():
             self.text_logs.append(
                 line := ">>> " + str(time.strftime("%H:%M:%S")) +
@@ -417,39 +415,34 @@ expected package num {self.exp_package_num}")
             return
 
         if self.flag_sent:
+            if self.count >= len(self.list_time):
+                if self.current_cylce < self.total_cycle_num:
+                    self.cycle_end()
+                else:
+                    self.stop()
+                    return
             self.sent_command()
             self.flag_sent = False
-            # print()
-            logging.info(line := "---sent_command---")
+            logging.info(
+                line := f"---sent_command--- Open?\
+{self.data_prosessing_thr.Serial.isOpen()}")
         else:
             self.data_prosessing_thr.Serial.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
             self.timer_sent_com.setInterval(1000)
             self.flag_sent = True
-            # print()
-            logging.info(line := "--sent_pause_command--")
+            logging.info(
+                line := f"--sent_pause_command-- Open?\
+{self.data_prosessing_thr.Serial.isOpen()}")
 
     def sent_command(self):
-        if self.count >= len(self.list_time):
-            if self.curr_cylce < self.total_cycle_num:
-                self.cycle_end()
-            else:
-                self.stop()
-                return
-
         F_H = self.list_freq[self.count] >> 8
         F_L = self.list_freq[self.count] & (0xFF)
         A_H = self.list_amp[self.count] >> 8
         A_L = self.list_amp[self.count] & (0xFF)
 
-        # F_H = np.left_shift(self.list_freq[self.count], -8)
-        # F_L = np.bitwise_and(self.list_freq[self.count], 255)
-        # A_H = np.left_shift(self.list_amp[self.count], -8)
-        # A_L = np.bitwise_and(self.list_amp[self.count], 255)
-        # messasge = np.array(
-        #     [77, 0, F_L, F_H, A_L, A_H, 0, 0], np.uint8).tobytes()
         self.data_prosessing_thr.Serial.write(
             bytes([77, 0, F_L, F_H, A_L, A_H, 0, 0]))
-        # self.data_prosessing_thr.Serial.write(messasge)
+
         self.timer_sent_com.setInterval(
             self.list_time[self.count] * 1000)
         self.count += 1
@@ -460,10 +453,10 @@ expected package num {self.exp_package_num}")
         self.text_logs.append(
             line :=
             ">>> " + str(time.strftime("%H:%M:%S")) + " End of cycle "
-            + str(self.curr_cylce) + " of " +
+            + str(self.current_cylce) + " of " +
             str(self.total_cycle_num))
         logging.info(line)
-        self.curr_cylce += 1
+        self.current_cylce += 1
         self.count = 0
 
     def stop(self):
@@ -496,10 +489,9 @@ expected package num {self.exp_package_num}")
             self.total_cycle_num = self.cycle_num_widget.value()
 
     def progress_bar_set_max(self):
-        length = len(self.list_time)
-        if length and not self.timer.isActive(): # is this required?
+        if self.total_time and not self.timer.isActive(): # is this required?
             self.progress_bar.setMaximum(
-                (self.total_time + length) * self.total_cycle_num + 1)
+                (self.total_time + len(self.list_time)) * self.total_cycle_num + 1)
             self.progress_bar.setValue(0)
 
     def avaliable_butttons(self, flag_start: bool):
