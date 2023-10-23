@@ -3,6 +3,8 @@ from PyQt6 import QtCore
 import numpy as np
 from PyQt6.QtSerialPort import QSerialPort
 import pyqtgraph as pg
+import logging
+import time
 
 
 class MyThread(QtCore.QThread):
@@ -41,11 +43,16 @@ class MyThread(QtCore.QThread):
 
     def run(self):
 
+        # logging.info("thread_run_start")
+        t1 = time.time()
+
         i = self.rx.find(0x72)
-        nums_united = np.array([])
+        nums_united = np.array([], dtype=np.int32)
 
         while (i + 13) < len(self.rx) and self.rx[i] == 0x72 and self.rx[i + 13] == 0x27:
-            nums = np.array([self.package_num])
+
+            # check flag
+            nums = np.array([self.package_num], dtype=np.int32)
 
             for shift in [1, 4, 7, 10]:
                 res = int.from_bytes(
@@ -57,8 +64,8 @@ class MyThread(QtCore.QThread):
             nums_united = np.append(nums_united, nums)
             self.package_num += 1
 
-        print(f"len = {len(nums_united)}")
-        nums_united = np.reshape(nums_united, [int(len(nums_united)/5), 5])
+        # print(f"len = {nums_united.size}")
+        nums_united = np.reshape(nums_united, [int(nums_united.size/5), 5])
         # print(self.package_num)
         with open(self.filename, 'a') as file:
             np.savetxt(file, nums_united, delimiter='\t', fmt='%d')
@@ -69,6 +76,8 @@ class MyThread(QtCore.QThread):
             # t, velosity_amp, symbol='o', pen={'color': 0.8, 'width': 1})
 
         self.sec_count.emit(self.package_num)
+
+        print("dt = ", time.time() - t1)
 
     def plot_change(self, text):
         if text == "FFT":
