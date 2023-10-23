@@ -4,26 +4,17 @@ import sys
 
 from PyQt6.QtWidgets import QFileDialog
 # from PyQt6.QtWidgets import QDialog, QApplication, QFileDialog
-# import PyQt6.QtSerialPort  # лучше использовать эту
 # from PyQt6.QtCore import pyqtSignal, QThread, QIODevice
-# import serial.tools.list_ports
 import os
 import re
 import time
-# import numpy
-# import pyqtgraph
 # from pyqtgraph.Qt import QtCore, QtGui
 from PyQt6.QtSerialPort import QSerialPort, QSerialPortInfo
 from PyQt6 import QtGui
-from datetime import datetime
+# from datetime import datetime
 from PyQt6 import QtWidgets, QtCore
-# , QtGui
-# from pyqtgraph import PlotWidget, plot
-
-# import matplotlib
-# import PyQt6.QtSerialPort
 import PyQt6_Thread
-import PyQt6_QRunnable
+# import PyQt6_QRunnable
 from PyQt6.QtCore import QRunnable, Qt, QThreadPool
 import pyqtgraph as pg
 import numpy as np
@@ -36,7 +27,10 @@ import numpy as np
 class QTextEditLogger(logging.Handler):
     def __init__(self, parent):
         super().__init__()
-        self.widget = QtWidgets.QPlainTextEdit(parent)
+        # self.widget = QtWidgets.QPlainTextEdit(parent)
+        # self.widget.setReadOnly(True)
+
+        self.widget = QtWidgets.QTextEdit(parent)
         self.widget.setReadOnly(True)
         # logging.basicConfig(level=logging.INFO,
         #                     filemode="w",
@@ -45,7 +39,9 @@ class QTextEditLogger(logging.Handler):
 
     def emit(self, record):
         msg = self.format(record)
-        self.widget.appendPlainText(msg)
+        # self.widget.appendPlainText(msg)
+        # self.widget.appendPlainText(msg)
+        self.widget.append(msg)
         # self.logTextBox = QTextEditLogger(self)
         # self.logTextBox.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
         # logging.getLogger().addHandler(self.logTextBox)
@@ -72,26 +68,38 @@ class MyWindow(QtWidgets.QWidget):
 
         self.subblock1_com_param = QtWidgets.QFormLayout()
 
-        self.com_name = QtWidgets.QComboBox()
+        self.com_list_widget = QtWidgets.QComboBox()
         self.available_ports = QSerialPortInfo.availablePorts()
         if self.available_ports:
             for self.port in self.available_ports:
-                self.com_name.addItem(self.port.portName())
+                self.com_list_widget.addItem(self.port.portName())
 
-        self.subblock1_com_param.addRow('COM:', self.com_name)
+        self.subblock1_com_param.addRow('COM:', self.com_list_widget)
 
-        self.com_boderate = QtWidgets.QLineEdit()
-
-        self.settings = QtCore.QSettings("COM_speed")  # save settings
-        if self.settings.contains("COM_speed"):
-            self.com_boderate.setText(str(self.settings.value("COM_speed")))
+        self.com_boderate_widget = QtWidgets.QComboBox()
+        self.com_boderate_widget.setEditable(True)
+        self.settings = QtCore.QSettings("COM_speed")
+        # self.com_boderate_widget.addItems(["921600", "115200"])
+        # self.com_boderate_widget.addItems(["921600", "115200"])
+        if self.settings.contains("COM_speed_list"):
+            self.com_boderate_widget.addItems(
+                self.settings.value("COM_speed_list"))
         else:
-            self.com_boderate.setText(str(self.settings.value("921600")))
+            self.com_boderate_widget.addItems(["921600", "115200"])
+        if self.settings.contains("COM_index"):
+            self.com_boderate_widget.setCurrentIndex(
+                self.settings.value("COM_index"))
+        
+        # self.com_boderate_widget = QtWidgets.QLineEdit()
+        # self.settings = QtCore.QSettings("COM_speed")  # save settings
+        # if self.settings.contains("COM_speed"):
+        #     self.com_boderate_widget.setText(str(self.settings.value("COM_speed")))
+        # else:
+        #     self.com_boderate_widget.setText(str(self.settings.value("921600")))
+        # self.com_boderate_widget.setInputMask("9900000")
+        # self.subblock1_com_param.addWidget(self.com_boderate_widget)
 
-        self.com_boderate.setInputMask("9900000")
-        self.subblock1_com_param.addWidget(self.com_boderate)
-
-        self.subblock1_com_param.addRow('&Speed:', self.com_boderate)
+        self.subblock1_com_param.addRow('&Speed:', self.com_boderate_widget)
         # self.COMparamBox.addRow(self.COMparamBox)
 
         # self.subblock1_com_param.setFieldGrowthPolicy(self.subblock1_com_param.FieldGrowthPolicy.AllNonFixedFieldsGrow)
@@ -147,22 +155,35 @@ class MyWindow(QtWidgets.QWidget):
         self.block3.setLayout(self.subblock3)
 
 ##############################################################################
+# ------ Logger ---------------------------------------------------------------
+
+        self.log_text_box = QTextEditLogger(self)
+        # self.logTextBox.setFormatter(
+        #   logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        logging.getLogger().addHandler(self.log_text_box)
+        # You can control the logging level
+        # logging.getLogger().setLevel(logging.INFO)
+        # logging.getLogger().setLevel(logging.WARNING)
+
 # ------ Output logs and data from file ---------------------------------------
 
         self.block1right = QtWidgets.QGroupBox("")
         self.subblock1right = QtWidgets.QFormLayout()
 
-        self.list_data_from_file_ = QtCore.QStringListModel(self)
-        self.data_from_file = QtWidgets.QListView(self)
-        self.data_from_file.setModel(self.list_data_from_file_)
+        self.list_data_from_file_widget = QtCore.QStringListModel(self)
+        self.list_view_from_file = QtWidgets.QListView(self)
+        self.list_view_from_file.setModel(self.list_data_from_file_widget)
 
         self.subblock1right = QtWidgets.QFormLayout()
         # self.subblock1right.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.text_logs = QtWidgets.QTextEdit()
         self.text_logs.setReadOnly(True)
 
-        self.subblock1right.addRow("&Содержимое\nфайла", self.data_from_file)
-        self.subblock1right.addRow("&Logs:", self.text_logs)
+        self.subblock1right.addRow("&Содержимое\nфайла",
+                                   self.list_view_from_file)
+        # self.subblock1right.addRow("&Logs:", self.text_logs)
+        self.subblock1right.addRow("&Logs:",
+                                   self.log_text_box.widget)
         self.subblock1right.addRow(self.subblock1right)
 
         self.clear_button = QtWidgets.QPushButton("&Clear logs")
@@ -183,7 +204,7 @@ class MyWindow(QtWidgets.QWidget):
         self.subblock1rightright = QtWidgets.QFormLayout()
 
         self.progress_bar = QtWidgets.QProgressBar()
-        self.progress_bar.setValue(1)
+        self.progress_bar.setValue(0)
         self.progress_bar.setMaximum(1)
         self.progress_bar.setFormat('%v/%m sec')
 
@@ -191,7 +212,7 @@ class MyWindow(QtWidgets.QWidget):
 
         self.package_number_label = QtWidgets.QLabel()
         self.subblock1rightright.addWidget(self.package_number_label)
-        
+
         self.time_plot = pg.plot()
         self.time_plot.showGrid(x=True, y=True)
 
@@ -199,25 +220,18 @@ class MyWindow(QtWidgets.QWidget):
         self.time_plot.setLabel('left', 'Velosity Amplitude', units='smth')
         self.time_plot.setLabel('bottom', 'Horizontal Values', units='smth')
         
-        self.time_plot.getPlotItem().ctrl.fftCheck.setChecked(False)
-        
         self.subblock1rightright.addWidget(self.time_plot)
+        self.time_plot.getPlotItem().ctrl.fftCheck.setChecked(False) # fft
 
         self.fft_button = QtWidgets.QPushButton("&Time")
         self.subblock1rightright.addWidget(self.fft_button)
 
-        # self.subblock1rightright.setSizeConstraint(self.subblock1rightright.SizeConstraint.SetMaximumSize)
+        # self.subblock1rightright.setSizeConstraint(
+        #   self.subblock1rightright.SizeConstraint.SetMaximumSize)
         self.block1rightright.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Expanding)
         self.block1rightright.setLayout(self.subblock1rightright)
-
-# ------ Logger ---------------------------------------------------------------
-
-        self.logTextBox = QTextEditLogger(self)
-        # self.logTextBox.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-        logging.getLogger().addHandler(self.logTextBox)
-        # You can control the logging level
-        logging.getLogger().setLevel(logging.INFO)
 
 # ------ Set main grid --------------------------------------------------------
 
@@ -231,9 +245,9 @@ class MyWindow(QtWidgets.QWidget):
 
         self.main_grid.addWidget(self.block1rightright, 0, 3, 5, 2)
 
-        self.main_grid.addWidget(self.logTextBox.widget, 0, 5, 5, 20)
+        # self.main_grid.addWidget(self.log_text_box.widget, 0, 5, 5, 20)
 
-        self.setLayout(self.main_grid) 
+        self.setLayout(self.main_grid)
         # self.main_grid.setSizeConstraint(
         #     self.main_grid.SizeConstraint.SetDefaultConstraint)
 
@@ -263,11 +277,13 @@ class MyWindow(QtWidgets.QWidget):
         self.cycle_num_widget.valueChanged.connect(self.cycle_num_value_change)
         self.cycle_num_widget.valueChanged.connect(self.progress_bar_set_max)
         self.fft_button.clicked.connect(self.plot_change)
+        self.com_boderate_widget.currentTextChanged.connect(
+            self.combobox_changed)
 
 # ------ Timres ---------------------------------------------------------------
 
         self.timer = QtCore.QTimer()
-        self.timer_interval = 125*1
+        self.timer_interval = 125*4
         self.timer.setInterval(self.timer_interval)
         self.timer.timeout.connect(self.timerEvent)
 
@@ -280,24 +296,24 @@ class MyWindow(QtWidgets.QWidget):
         self.count = 0
         self.progress_bar_value = 0
         self.total_time = 0
-        # self.total_cycle_num = 1
+        self.total_cycle_num = 1
 
         self.data_prosessing_thr = PyQt6_Thread.MyThread()  # create thread
-        self.data_prosessing_thr.Serial.setDataBits(
+        self.Serial = QSerialPort()
+        self.Serial.setDataBits(
                 QSerialPort.DataBits.Data8)
-        self.data_prosessing_thr.Serial.setParity(
+        self.Serial.setParity(
                 QSerialPort.Parity.NoParity)
-        self.data_prosessing_thr.Serial.setStopBits(
+        self.Serial.setStopBits(
                 QSerialPort.StopBits.OneStop)
-        self.data_prosessing_thr.sec_count.connect(self.on_change)
+        self.data_prosessing_thr.sec_count.connect(self.signal_from_thread)
 
+        logging.getLogger().setLevel(logging.WARNING)
         logging.info(f"Start")
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
 #
-#
 ###############################################################################
-#
 #
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
@@ -309,21 +325,34 @@ class MyWindow(QtWidgets.QWidget):
         self.time_plot.clear()
         self.progress_bar.setValue(0)
         self.progress_value = 0
-        self.count = 0  # сброс счетчика принятых данных
+        self.count = 0
         self.current_cylce = 1
         self.data_prosessing_thr.package_num = 0
         self.flag_sent = False
+        self.data_prosessing_thr.flag_start = True
         
-        logging.info(F"PORT: {(self.com_name.currentText())}\n")
-        if not len(self.com_name.currentText()):
+        logging.info(F"PORT: {(self.com_list_widget.currentText())}\n")
+        if not len(self.com_list_widget.currentText()):
             self.available_ports = QSerialPortInfo.availablePorts()
             for port in self.available_ports:
-                self.com_name.addItem(port.portName())
-                logging.info(F"PORT: {(self.com_name.currentText())}\n")
-        if not len(self.com_name.currentText()):
+                self.com_list_widget.addItem(port.portName())
+                logging.info(F"PORT: {(self.com_list_widget.currentText())}\n")
+        if not len(self.com_list_widget.currentText()):
             logging.info("Can't find COM port")
+            QtWidgets.QMessageBox.critical(
+                None, "Ошибка", "COM порт не найден")
             return
-        # self.data_prosessing_thread.Serial = self.Serial
+
+        if not self.com_boderate_widget.currentText().isdecimal():
+            QtWidgets.QMessageBox.critical(
+                None, "Ошибка", "Некорректная скорость порта")
+            return
+        
+        self.Serial.setBaudRate(
+            int(self.com_boderate_widget.currentText()))
+        
+        self.Serial.setPortName(
+            self.com_list_widget.currentText())
 
         self.check_filename()
         if not self.total_time:
@@ -334,40 +363,32 @@ class MyWindow(QtWidgets.QWidget):
                 return
         
         logging.info("Data from file was loaded")
-        
-        self.data_prosessing_thr.Serial.setPortName(
-            self.com_name.currentText())
-        self.data_prosessing_thr.Serial.setBaudRate(
-            int(self.com_boderate.text()))
 
-        if not self.data_prosessing_thr.Serial.open(QtCore.QIODevice.OpenModeFlag.ReadWrite):
-            logging.info(f"Can't open {self.com_name.currentText()}")
+        if not self.Serial.open(QtCore.QIODevice.OpenModeFlag.ReadWrite):
+            logging.info(f"Can't open {self.com_list_widget.currentText()}")
             return
-        # print(self.data_prosessing_thr.Serial.isReadable())
-
-        self.data_prosessing_thr.Serial.clear()
-        self.data_prosessing_thr.Serial.clearError()
-        self.data_prosessing_thr.Serial.flush()
 
         self.cycle_num_value_change()
         self.progress_bar_set_max()
         self.avaliable_butttons(True)
 
         # self.timer.setInterval(self.timer_interval)
-        logging.info(line := f"{self.com_name.currentText()} open")
+        logging.info(line := f"{self.com_list_widget.currentText()} open")
         logging.info(line := f"self.cycleNum = {self.total_cycle_num}")
         self.text_logs.append(
-            line := f">>> {time.strftime("%H:%M:%S")} Start,\
-pack_num = {self.data_prosessing_thr.package_num}")
+            line := f">>> {time.strftime("%H:%M:%S")} Start")
         logging.info(line)
+        logging.warning(line)
 
+        self.Serial.clear()
+        self.Serial.clearError()
+        self.Serial.flush()
         # self.timer.setInterval(0)
         self.timer.start()
 
         self.timer_sent_com.setInterval(0)
         self.timer_sent_com.start()
 
-        self.data_prosessing_thr.flag_start = True
         self.data_prosessing_thr.start()
 
 # ------ Timer1 ---------------------------------------------------------------
@@ -376,43 +397,43 @@ pack_num = {self.data_prosessing_thr.package_num}")
         self.progress_value += self.timer_interval/1000
         self.progress_bar.setValue(int(self.progress_value))
         logging.info(f"Progress: {self.progress_value}")
-        # self.data_prosessing_thr.Serial.readyRead.connect(
+        # self.Serial.readyRead.connect(
         #     self.read_serial,
         #     QtCore.Qt.ConnectionType.SingleShotConnection)
         self.read_serial()
 
     def read_serial(self):
-        if (bytes_num := self.data_prosessing_thr.Serial.bytesAvailable()) <= 14:
+        if (bytes_num := self.Serial.bytesAvailable()) <= 14:
             logging.info("no data from COM port!")
             return
         if self.data_prosessing_thr.flag_recieve:
             logging.info("thread still work with previous datad!")
             return
-        
+
         self.exp_package_num += int(bytes_num/14)
         logging.info(
             f"ready to read, bytes num = {bytes_num}, \
 expected package num {self.exp_package_num}")
-        self.data_prosessing_thr.rx = self.data_prosessing_thr.Serial.readAll().data()
+        self.data_prosessing_thr.rx = self.Serial.readAll().data()
+        # self.Serial.flush()
         self.data_prosessing_thr.flag_recieve = True
         logging.info(f"thread_start, count = {self.count}")
 
 # ------- Timer2 --------------------------------------------------------------
 
     def timer_event_sent_com(self):
-        if not self.data_prosessing_thr.Serial.isWritable():
-            self.text_logs.append(
-                line := ">>> " + str(time.strftime("%H:%M:%S")) +
-                " Cannot sent data")
-            logging.info(line)
-            return
-        
-        if not self.data_prosessing_thr.Serial.isOpen():
-            self.text_logs.append(
-                line := ">>> " + str(time.strftime("%H:%M:%S")) +
-                " COM isn't open")
-            logging.info(line)
-            return
+        # if not self.Serial.isWritable():
+        #     self.text_logs.append(
+        #         line := ">>> " + str(time.strftime("%H:%M:%S")) +
+        #         " Cannot sent data")
+        #     logging.info(line)
+        #     return
+        # if not self.Serial.isOpen():
+        #     self.text_logs.append(
+        #         line := ">>> " + str(time.strftime("%H:%M:%S")) +
+        #         " COM isn't open")
+        #     logging.info(line)
+        #     return
 
         if self.flag_sent:
             if self.count >= len(self.list_time):
@@ -421,18 +442,17 @@ expected package num {self.exp_package_num}")
                 else:
                     self.stop()
                     return
+
+            self.list_view_from_file.setCurrentIndex(
+                self.list_data_from_file_widget.index(self.count))
             self.sent_command()
             self.flag_sent = False
-            logging.info(
-                line := f"---sent_command--- Open?\
-{self.data_prosessing_thr.Serial.isOpen()}")
+            logging.info(f"---sent_command--- Open? {self.Serial.isOpen()}")
         else:
-            self.data_prosessing_thr.Serial.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
+            self.Serial.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
             self.timer_sent_com.setInterval(1000)
             self.flag_sent = True
-            logging.info(
-                line := f"--sent_pause_command-- Open?\
-{self.data_prosessing_thr.Serial.isOpen()}")
+            logging.info(f"-sent_pause_command- Open? {self.Serial.isOpen()}")
 
     def sent_command(self):
         F_H = self.list_freq[self.count] >> 8
@@ -440,7 +460,7 @@ expected package num {self.exp_package_num}")
         A_H = self.list_amp[self.count] >> 8
         A_L = self.list_amp[self.count] & (0xFF)
 
-        self.data_prosessing_thr.Serial.write(
+        self.Serial.write(
             bytes([77, 0, F_L, F_H, A_L, A_H, 0, 0]))
 
         self.timer_sent_com.setInterval(
@@ -456,6 +476,9 @@ expected package num {self.exp_package_num}")
             + str(self.current_cylce) + " of " +
             str(self.total_cycle_num))
         logging.info(line)
+
+        logging.warning(line)
+
         self.current_cylce += 1
         self.count = 0
 
@@ -470,19 +493,21 @@ expected package num {self.exp_package_num}")
             self.timer.stop()
             self.text_logs.append(
                 line :=
-                ">>> " + str(time.strftime("%H:%M:%S")) + " End of measurements")
-            print(line)
+                ">>> " + str(time.strftime("%H:%M:%S")) +
+                " End of measurements\n")
+            # print(line)
             logging.info(line)
+            logging.warning(line)
 
-        if self.data_prosessing_thr.Serial.isOpen():
-            self.data_prosessing_thr.Serial.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
+        if self.Serial.isOpen():
+            self.Serial.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
             print(
                 line := "COM close? " +
-                str(self.data_prosessing_thr.Serial.waitForBytesWritten(1000)))
+                str(self.Serial.waitForBytesWritten(1000)))
             logging.info(line)
-            self.data_prosessing_thr.Serial.close()
+            self.Serial.close()
 
-#################################################################################
+###############################################################################
 
     def cycle_num_value_change(self):
         if not self.timer.isActive(): # is this required?
@@ -499,16 +524,31 @@ expected package num {self.exp_package_num}")
         self.stop_button.setDisabled(not flag_start)
         self.choose_file.setDisabled(flag_start)
 
-    def on_change(self, s):  # по этому сигналу можно в логи писать
-        logging.info(F"thread_stop, count = {self.count}")
-        logging.info(f"package_num = {self.data_prosessing_thr.package_num}")
-
+    def signal_from_thread(self, s):  # по этому сигналу можно в логи писать
+        logging.info(f"thread_stop, count = {self.count}\n\
+package_num = {self.data_prosessing_thr.package_num}")
         self.package_number_label.setText(
             str(self.data_prosessing_thr.package_num))
 
         self.time_plot.plot(
             self.data_prosessing_thr.nums_united[:, 0],
-            self.data_prosessing_thr.nums_united[:, 2])
+            self.data_prosessing_thr.nums_united[:, 2])#,
+            #pen=(255, 0, 0), name="Red curve")
+        
+        # self.time_plot.plot(
+        #     self.data_prosessing_thr.nums_united[:, 0],
+        #     self.data_prosessing_thr.nums_united[:, 2]/2,
+        #     pen=(0, 255, 0), name="Red curve")
+        # self.time_plot.setData(
+        #     self.data_prosessing_thr.nums_united[:, 0],
+        #     self.data_prosessing_thr.nums_united[:, 2]/2,
+        #     pen=(0, 255, 0), name="Red curve")
+
+            # curve.setData
+        
+    def combobox_changed(self, value):
+        self.com_boderate_widget.setItemText(
+            self.com_boderate_widget.currentIndex(), value)
 
     def plot_change(self):
         if self.fft_button.text() == "FFT":
@@ -528,7 +568,7 @@ expected package num {self.exp_package_num}")
         filename = self.file_name.text()
         if not len(filename):
             filename = 'test'
-            
+
         extension = '.txt'
         new_name = filename + extension
         i = 1
@@ -546,7 +586,7 @@ expected package num {self.exp_package_num}")
             "Text Files(*.txt)")
         if not filename:
             return
-        
+
         with open(filename, 'r') as f:
             self.file_name_and_path.setText(os.path.basename(filename))
             self.current_folder.setText(os.getcwd())
@@ -568,30 +608,22 @@ expected package num {self.exp_package_num}")
 
             self.total_time = sum(self.list_time)
 
-            self.list_data_from_file_.setStringList(Data)
-
+            self.list_data_from_file_widget.setStringList(Data)
             self.progress_bar_set_max()
-
-            # self.list_data_from_file_.itemData(self, 2)
-            # self.data_from_file.setSelectionRectVisible(True)
-            # self.data_from_file.setSelectionModel()
-            # self.data_from_file.selectionModel().selection()
-
-            # theIndices = [1,3,5]
-            # theQIndexObjects = [self.list_data_from_file_.createIndex(
-            #               rowIndex, 0, 2) for rowIndex in theIndices]
-            # for Qindex in theQIndexObjects:
-            #     self.data_from_file.selectionModel().select(Qindex)
-
-            # item = QtGui.QStandardltem(
-            # QtGui.Qicon(iconfile),
-            # lst[row])
-            # sti. appendRow (item)
+            # self.list_view_from_file.setSelectionRectVisible(True)
 
     def closeEvent(self, event):
         self.stop()
-        self.settings.setValue("COM_speed", self.com_boderate.text())
-        print("\n     Exit\n")
+        # self.settings.setValue("COM_speed", self.com_boderate_widget.text())
+        self.settings.setValue(
+            "COM_speed_list",
+            [self.com_boderate_widget.itemText(i)
+             for i in range(self.com_boderate_widget.count())])
+        self.settings.setValue(
+            "COM_index", self.com_boderate_widget.currentIndex())
+        print("\nExit\n")
+        logging.info("\nExit\n")
+        logging.warning("\nExit\n")
 
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
