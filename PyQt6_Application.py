@@ -46,7 +46,6 @@ class QTextEditLogger(logging.Handler):
     def emit(self, record):
         msg = self.format(record)
         self.widget.appendPlainText(msg)
-
         # self.logTextBox = QTextEditLogger(self)
         # self.logTextBox.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
         # logging.getLogger().addHandler(self.logTextBox)
@@ -62,10 +61,8 @@ class MyWindow(QtWidgets.QWidget):
             AA_UseStyleSheetPropagationInWidgetStyles,
             True)  # наследование свойств оформления потомков от родителей
 
-###############################################################################
-
         self.main_grid = QtWidgets.QGridLayout(self)   # главный контейнер
-        self.main_grid.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        # self.main_grid.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
 ###############################################################################
 # ------ Com Settings ---------------------------------------------------------
@@ -148,8 +145,7 @@ class MyWindow(QtWidgets.QWidget):
         self.subblock3.addRow("&<b>Имя файла:</b>", self.file_name)
 
         self.block3.setLayout(self.subblock3)
-##############################################################################
-##############################################################################
+
 ##############################################################################
 # ------ Output logs and data from file ---------------------------------------
 
@@ -196,38 +192,18 @@ class MyWindow(QtWidgets.QWidget):
         self.package_number_label = QtWidgets.QLabel()
         self.subblock1rightright.addWidget(self.package_number_label)
         
-        # self.view = view = pyqtgraph.PlotWidget()
-        # self.curve = view.plot(name="Line")
-        # self.curve = view.plotItem(name="Line")
-                    # self.time_plot = pg.plot()
-                    # self.time_plot.showGrid(x=True, y=True)
+        self.time_plot = pg.plot()
+        self.time_plot.showGrid(x=True, y=True)
 
-                    # self.time_plot.addLegend()
-                    # self.time_plot.setLabel('left', 'Velosity Amplitude', units='smth')
-                    # self.time_plot.setLabel('bottom', 'Horizontal Values', units='smth')
-
-                    # self.scatter = pg.ScatterPlotItem(
-                    #     size=10, brush=pg.mkBrush(30, 255, 35, 255))
-                    
-                    # x_data = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-                    # y_data = np.array([5, 4, 6, 4, 3, 5, 6, 6, 7, 8])
-                    # self.time_plot.plot(
-                    #     x_data, y_data, symbol='o', pen={'color': 0.8, 'width': 2}, name='first')
-        # als0 can use np array
-
-        # self.scatter.addPoints(x_data, y_data)
-        # self.scatter.addPoints(x_data, [5, 4, 8, 8, 8, 8, 8, 8, 7, 8], name='first')
+        self.time_plot.addLegend()
+        self.time_plot.setLabel('left', 'Velosity Amplitude', units='smth')
+        self.time_plot.setLabel('bottom', 'Horizontal Values', units='smth')
         
-        # self.time_plot.addItem(self.scatter)
-        # self.bargraph1 = pg.BarGraphItem(
-        #   x = x_data, height = y_data, width = 0.6, brush ='g', name ='green')
-        # self.time_plot.addItem(self.bargraph1)
+        self.time_plot.getPlotItem().ctrl.fftCheck.setChecked(False)
         
-        # self.subblock1rightright.addWidget(self.time_plot)
+        self.subblock1rightright.addWidget(self.time_plot)
 
-        # self.random_array = numpy.random.random_sample(20)
-        # # self.curve.setData(self.random_array)
-        self.data_prosessing_thr = PyQt6_Thread.MyThread(self.subblock1rightright)  # create thread
+        self.data_prosessing_thr = PyQt6_Thread.MyThread(self.time_plot) # create thread
         self.fft_button = QtWidgets.QPushButton("&Time")
         self.subblock1rightright.addWidget(self.fft_button)
 
@@ -292,7 +268,7 @@ class MyWindow(QtWidgets.QWidget):
 # ------ Timres ---------------------------------------------------------------
 
         self.timer = QtCore.QTimer()
-        self.timer_interval = 125*2
+        self.timer_interval = 125*4
         self.timer.setInterval(self.timer_interval)
         self.timer.timeout.connect(self.timerEvent)
 
@@ -335,7 +311,8 @@ class MyWindow(QtWidgets.QWidget):
 #
 
     def start(self):
-
+        self.exp_package_num = 0
+        
         self.data_prosessing_thr.time_plot.clear()
         self.progress_bar.setValue(0)
         self.val = 0
@@ -375,16 +352,12 @@ class MyWindow(QtWidgets.QWidget):
         print(self.data_prosessing_thr.Serial.isReadable())
 
         self.data_prosessing_thr.Serial.clear()
+        self.data_prosessing_thr.Serial.clearError()
         self.data_prosessing_thr.Serial.flush()
 
         self.cycle_num_value_change()
         self.progress_bar_set_max()
         self.avaliable_butttons(True)
-        # self.timer.setInterval(0)
-        self.timer.start()
-        
-        self.timer_sent_com.setInterval(0)
-        self.timer_sent_com.start()
 
         # self.timer.setInterval(self.timer_interval)
         print(line := f"{self.com_name.currentText()} open")
@@ -392,51 +365,68 @@ class MyWindow(QtWidgets.QWidget):
         print(line := f"self.cycleNum = {self.total_cycle_num}")
         logging.info(line)
         self.text_logs.append(
-            line := ">>> " + str(time.strftime("%H:%M:%S")) + " Start")
+            line := f">>> {time.strftime("%H:%M:%S")} Start, pack_num = {self.data_prosessing_thr.package_num})
         logging.info(line)
-        # else:
-        #     self.text_logs.append(
-        #         ">>> " + str(time.strftime("%H:%M:%S")) +
-        #         " No data from COM port")
+
+        # self.timer.setInterval(0)
+        self.timer.start()
+        
+        self.timer_sent_com.setInterval(0)
+        self.timer_sent_com.start()
+
+        self.data_prosessing_thr.flag_start = True
+        self.data_prosessing_thr.start()
 
 # ------ Timer1 ---------------------------------------------------------------
 
     def timerEvent(self):
-
+        self.val += self.timer_interval/1000
+        self.progress_bar.setValue(int(self.val))
         # self.data_prosessing_thr.Serial.readyRead.connect(
         #     self.read_serial,
         #     QtCore.Qt.ConnectionType.SingleShotConnection)
         self.read_serial()
 
     def read_serial(self):
-
-        if self.data_prosessing_thr.isRunning():
-            logging.info("thread_still_running!")
-            return
         if (bytes_num := self.data_prosessing_thr.Serial.bytesAvailable()) <= 14:
             logging.info("no data from COM port!")
             return
-        print("ready to read ------ Число байтов " + str(bytes_num))
+        self.exp_package_num += int(bytes_num/14)
+        logging.info(
+            f"ready to read, bytes num = {bytes_num}, \
+expected package num {self.exp_package_num}")
         self.data_prosessing_thr.rx = self.data_prosessing_thr.Serial.readAll().data()
-        self.data_prosessing_thr.start()
+        self.data_prosessing_thr.flag_recieve = True
+        # self.data_prosessing_thr.start()
         logging.info(f"thread_start, count = {self.count}")
 
 # ------- Timer2 --------------------------------------------------------------
 
     def timer_event_sent_com(self):
+        if not self.data_prosessing_thr.Serial.isWritable():
+            self.text_logs.append(
+                line := ">>> " + str(time.strftime("%H:%M:%S")) +
+                " Cannot sent data")
+            logging.info(line)
+            return
+        if not self.data_prosessing_thr.Serial.isOpen():
+            self.text_logs.append(
+                line := ">>> " + str(time.strftime("%H:%M:%S")) +
+                " COM isn't open")
+            logging.info(line)
+            return
+
         if self.flag_sent:
             self.sent_command()
             self.flag_sent = False
-
-            print(line := "---sent_command---")
-            logging.info(line)
+            # print()
+            logging.info(line := "---sent_command---")
         else:
             self.data_prosessing_thr.Serial.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
             self.timer_sent_com.setInterval(1000)
             self.flag_sent = True
-
-            print(line := "--sent_pause_command--")
-            logging.info(line)
+            # print()
+            logging.info(line := "--sent_pause_command--")
 
     def sent_command(self):
         if self.count >= len(self.list_time):
@@ -445,13 +435,6 @@ class MyWindow(QtWidgets.QWidget):
             else:
                 self.stop()
                 return
-            
-        if not self.data_prosessing_thr.Serial.isWritable():
-            self.text_logs.append(
-                line := ">>> " + str(time.strftime("%H:%M:%S")) +
-                " Cannot sent data")
-            logging.info(line)
-            return
 
         F_H = self.list_freq[self.count] >> 8
         F_L = self.list_freq[self.count] & (0xFF)
@@ -484,6 +467,8 @@ class MyWindow(QtWidgets.QWidget):
         self.count = 0
 
     def stop(self):
+        self.data_prosessing_thr.flag_start = False
+
         self.avaliable_butttons(False)
         if self.timer_sent_com.isActive():
             self.timer_sent_com.stop()
@@ -524,23 +509,24 @@ class MyWindow(QtWidgets.QWidget):
 
     def on_change(self, s):  # по этому сигналу можно в логи писать
         logging.info(F"thread_stop, count = {self.count}")
-        self.val += self.timer_interval/1000
+        logging.info(f"package_num = {self.data_prosessing_thr.package_num}")
+
         self.package_number_label.setText(
             str(self.data_prosessing_thr.package_num))
-        print(self.data_prosessing_thr.package_num)
-        self.progress_bar.setValue(int(self.val))
+
+        self.time_plot.plot(
+            self.data_prosessing_thr.nums_united[:, 0],
+            self.data_prosessing_thr.nums_united[:, 2])
 
     def plot_change(self):
-        self.fft_button.setText(
-            self.data_prosessing_thr.plot_change(self.fft_button.text()))
-    #     if self.fft_button.text() == "FFT":
-    #         self.fft_button.setText("Time")
-    #         self.data_prosessing_thr.time_plot.getPlotItem().ctrl.fftCheck.setChecked(False)
-    #         self.time_plot.setLabel('bottom', 'Horizontal Values', units='smth')
-    #     else:
-    #         self.fft_button.setText("FFT")
-    #         self.data_prosessing_thr.time_plot.getPlotItem().ctrl.fftCheck.setChecked(True)
-    #         self.time_plot.setLabel('bottom', 'Frequency', units='Hz')
+        if self.fft_button.text() == "FFT":
+            self.fft_button.setText("Time")
+            self.time_plot.getPlotItem().ctrl.fftCheck.setChecked(False)
+            self.time_plot.setLabel('bottom', 'Horizontal Values', units='smth')
+        else:
+            self.fft_button.setText("FFT")
+            self.time_plot.getPlotItem().ctrl.fftCheck.setChecked(True)
+            self.time_plot.setLabel('bottom', 'Frequency', units='Hz')
 
     def clear_logs(self):
         self.text_logs.clear()

@@ -3,88 +3,90 @@ from PyQt6 import QtCore
 import numpy as np
 from PyQt6.QtSerialPort import QSerialPort
 import pyqtgraph as pg
-import logging
+# import logging
 import time
 
 
 class MyThread(QtCore.QThread):
     sec_count = QtCore.pyqtSignal(int)
+    # data = QtCore.pyqtSignal(int)
 
-    def __init__(self, block):
+    def __init__(self, plot):
         # QtCore.QThread.__init__(self)
         super(MyThread, self).__init__()
         self.Serial = QSerialPort()
         self.filename = []
+        self.flag_start = False
+        self.flag_recieve = False
         self.package_num = 0
         self.rx: bytes = b''
 
-        self.subblock1rightright = block
+        self.nums_united = np.array([], dtype=np.int32)
+        # self.subblock1rightright = block
 
-        self.time_plot = pg.plot()
-        self.time_plot.showGrid(x=True, y=True)
+        # self.time_plot = pg.plot()
+        # self.time_plot.showGrid(x=True, y=True)
 
-        self.time_plot.addLegend()
-        self.time_plot.setLabel('left', 'Velosity Amplitude', units='smth')
-        self.time_plot.setLabel('bottom', 'Horizontal Values', units='smth')
+        # self.time_plot.addLegend()
+        # self.time_plot.setLabel('left', 'Velosity Amplitude', units='smth')
+        # self.time_plot.setLabel('bottom', 'Horizontal Values', units='smth')
 
-        # self.scatter = pg.ScatterPlotItem(
-        #     size=10, brush=pg.mkBrush(30, 255, 35, 255))
+        # # self.scatter = pg.ScatterPlotItem(
+        # #     size=10, brush=pg.mkBrush(30, 255, 35, 255))
+
+        # # self.time_plot.plot(
+        # #     x_data, y_data, symbol='o', pen={'color': 0.8, 'width': 1}, name='first')
         
-        # x_data = np.array([1, 4, 4, 4, 5, 6, 7, 8, 9, 10])
-        # y_data = np.array([5, 4, 6, 4, 3, 5, 6, 6, 7, 8])
-
-        # self.time_plot.plot(
-        #     x_data, y_data, symbol='o', pen={'color': 0.8, 'width': 1}, name='first')
+        # self.time_plot.getPlotItem().ctrl.fftCheck.setChecked(False)
         
-        # self.time_plot.ctrl.fftCheck.setChecked(True)
-        self.time_plot.getPlotItem().ctrl.fftCheck.setChecked(False)
-        
-        self.subblock1rightright.addWidget(self.time_plot)
+        # self.subblock1rightright.addWidget(self.time_plot)
+        self.time_plot = plot
 
     def run(self):
+        while self.flag_start:
+            if self.flag_recieve:
+                self.flag_recieve = False
+                # logging.info("thread_run_start")
+                # t1 = time.time()
 
-        # logging.info("thread_run_start")
-        t1 = time.time()
+                i = self.rx.find(0x72)
+                self.nums_united = np.array([], dtype=np.int32)
 
-        i = self.rx.find(0x72)
-        nums_united = np.array([], dtype=np.int32)
+                while (i + 13) < len(self.rx):
+                    if not (self.rx[i] == 0x72 and self.rx[i + 13] == 0x27):
+                        i = self.rx.find(0x72)
+                        if not self.rx[i + 13] == 0x27:
+                            i += 14
+                            continue
 
-        while (i + 13) < len(self.rx) and self.rx[i] == 0x72 and self.rx[i + 13] == 0x27:
+                    # check flag
+                    nums = np.array([self.package_num], dtype=np.int32)
 
-            # check flag
-            nums = np.array([self.package_num], dtype=np.int32)
+                    for shift in [1, 4, 7, 10]:
+                        res = int.from_bytes(
+                            self.rx[(i + shift):(i + shift + 3)],
+                            byteorder='big', signed=True)
+                        nums = np.append(nums, res)
+                    i += 14
 
-            for shift in [1, 4, 7, 10]:
-                res = int.from_bytes(
-                    self.rx[(i + shift):(i + shift + 3)],
-                    byteorder='big', signed=True)
-                nums = np.append(nums, res)
-            i += 14
+                    self.nums_united = np.append(self.nums_united, nums)
+                    self.package_num += 1
 
-            nums_united = np.append(nums_united, nums)
-            self.package_num += 1
+                # print(f"len = {nums_united.size}")
+                self.nums_united = np.reshape(
+                    self.nums_united, [int(self.nums_united.size/5), 5])
+                # print(self.package_num)
+                # print("dt_0 = ", time.time() - t1)
+                with open(self.filename, 'a') as file:
+                    np.savetxt(file, self.nums_united, delimiter='\t', fmt='%d')
 
-        # print(f"len = {nums_united.size}")
-        nums_united = np.reshape(nums_united, [int(nums_united.size/5), 5])
-        # print(self.package_num)
-        with open(self.filename, 'a') as file:
-            np.savetxt(file, nums_united, delimiter='\t', fmt='%d')
+                # graph
+                # self.time_plot.plot(
+                #     nums_united[:, 0], nums_united[:, 2])
+                    # t, velosity_amp, symbol='o', pen={'color': 0.8, 'width': 1})
 
-        # graph
-        self.time_plot.plot(
-            nums_united[:, 0], nums_united[:, 2])
-            # t, velosity_amp, symbol='o', pen={'color': 0.8, 'width': 1})
+                self.sec_count.emit(self.package_num)
+                # self.data.emit(nums_united)
 
-        self.sec_count.emit(self.package_num)
-
-        print("dt = ", time.time() - t1)
-
-    def plot_change(self, text):
-        if text == "FFT":
-            self.time_plot.getPlotItem().ctrl.fftCheck.setChecked(False)
-            self.time_plot.setLabel('bottom', 'Horizontal Values', units='smth')
-            return "Time"
-        else:
-            self.time_plot.getPlotItem().ctrl.fftCheck.setChecked(True)
-            self.time_plot.setLabel('bottom', 'Frequency', units='Hz')
-            return "FFT"
+                # print("dt = ", time.time() - t1)
+            self.msleep(40)
