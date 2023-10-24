@@ -21,14 +21,15 @@ class MyThread(QtCore.QThread):
         self.rx: bytes = b''
 
         self.nums_united = np.array([], dtype=np.int32)
+        self.all_data = np.array([], dtype=np.int32)
+        self.all_data2 = np.array([], dtype=np.int32)
+        self.ftt_data = np.array([]) #, dtype=np.complex128)
 
     def run(self):
         while self.flag_start:
             if self.flag_recieve:
                 
                 logging.info(f"thread_run_start, len {len(self.rx)}")
-                package_num_prev = self.package_num
-                # rx = self.rx
                 i = self.rx.find(0x72)
                 self.nums_united = np.array([], dtype=np.int32)
                 
@@ -56,15 +57,15 @@ class MyThread(QtCore.QThread):
 
                 self.flag_recieve = False
                 logging.info(f"len = {self.nums_united.size}")
-                self.nums_united = np.reshape(
-                    self.nums_united, [self.package_num - package_num_prev, 5])
+                self.all_data = np.append(self.all_data, self.nums_united)
+                self.all_data2 = np.reshape(
+                    self.all_data, [self.package_num, 5])
+                # self.nums_united = np.reshape(
+                    # self.nums_united, [self.package_num - package_num_prev, 5])
+                
                 # print("dt_0 = ", time.time() - t1)
-                with open(self.filename, 'a') as file:
-                    np.savetxt(file, self.nums_united, delimiter='\t', fmt='%d')
-
-                # self.time_plot.plot(
-                #     nums_united[:, 0], nums_united[:, 2])
-                    # t, velosity_amp, symbol='o', pen={'color': 0.8, 'width': 1})
+                # with open(self.filename, 'a') as file:
+                #     np.savetxt(file, self.nums_united, delimiter='\t', fmt='%d')
 
                 self.sec_count.emit(self.package_num)
 
@@ -72,3 +73,9 @@ class MyThread(QtCore.QThread):
                 
             self.msleep(20)
         # self.rx = b''
+        with open(self.filename, 'a') as file:
+            np.savetxt(file, self.all_data2, delimiter='\t', fmt='%d')
+
+    def fft_data(self):
+        pass
+
