@@ -27,9 +27,6 @@ import numpy as np
 class QTextEditLogger(logging.Handler):
     def __init__(self, parent):
         super().__init__()
-        # self.widget = QtWidgets.QPlainTextEdit(parent)
-        # self.widget.setReadOnly(True)
-
         self.widget = QtWidgets.QTextEdit(parent)
         self.widget.setReadOnly(True)
         # logging.basicConfig(level=logging.INFO,
@@ -39,8 +36,6 @@ class QTextEditLogger(logging.Handler):
 
     def emit(self, record):
         msg = self.format(record)
-        # self.widget.appendPlainText(msg)
-        # self.widget.appendPlainText(msg)
         self.widget.append(msg)
         # self.logTextBox = QTextEditLogger(self)
         # self.logTextBox.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
@@ -64,7 +59,7 @@ class MyWindow(QtWidgets.QWidget):
 # ------ Com Settings ---------------------------------------------------------
 
         self.block1_com_param = QtWidgets.QGroupBox(
-            "&Настройки порта")  # объект группы
+            "&Настройки порта")
 
         self.subblock1_com_param = QtWidgets.QFormLayout()
 
@@ -88,15 +83,6 @@ class MyWindow(QtWidgets.QWidget):
             self.com_boderate_widget.setCurrentIndex(
                 self.settings.value("COM_index"))
         
-        # self.com_boderate_widget = QtWidgets.QLineEdit()
-        # self.settings = QtCore.QSettings("COM_speed")  # save settings
-        # if self.settings.contains("COM_speed"):
-        #     self.com_boderate_widget.setText(str(self.settings.value("COM_speed")))
-        # else:
-        #     self.com_boderate_widget.setText(str(self.settings.value("921600")))
-        # self.com_boderate_widget.setInputMask("9900000")
-        # self.subblock1_com_param.addWidget(self.com_boderate_widget)
-
         self.subblock1_com_param.addRow('&Speed:', self.com_boderate_widget)
         # self.COMparamBox.addRow(self.COMparamBox)
 
@@ -228,16 +214,18 @@ class MyWindow(QtWidgets.QWidget):
         self.time_plot.showGrid(x=True, y=True)
 
         self.time_plot.addLegend()
-        self.time_plot.setLabel('left', 'Velosity Amplitude', units='smth')
-        self.time_plot.setLabel('bottom', 'Horizontal Values', units='smth')
+        self.time_plot.setLabel('left', 'Velosity Amplitude',
+                                units='radians per second')
+        self.time_plot.setLabel('bottom', 'Horizontal Values',
+                                units='package number')
 
         self.curve_1 = self.time_plot.plot(pen='r', name="Line 1")
         self.curve_2 = self.time_plot.plot(pen='g', name="Line 2")
         self.curve_3 = self.time_plot.plot(pen='b', name="Line 3")
-        self.curve_1.setData(np.array([1, 2, 6, 4, 5]))
+
         self.curve_2.setData([1, 2, 3, 1, 5])
         self.curve_2.setData([8, 2, 3, 1, 5])
-        self.curve_2.setData([8, 2, 3, 1, 5, 6, 4, 8])
+        self.curve_3.setData([8, 2, 3, 1, 5, 6, 4, 8])
         # self.curve3.setData([1, 2, 3, 4, 8])
         
         self.subblock1rightright.addWidget(self.time_plot)
@@ -323,13 +311,11 @@ class MyWindow(QtWidgets.QWidget):
 
         self.data_prosessing_thr = PyQt6_Thread.MyThread()  # create thread
         self.Serial = QSerialPort()
-        self.Serial.setDataBits(
-                QSerialPort.DataBits.Data8)
-        self.Serial.setParity(
-                QSerialPort.Parity.NoParity)
-        self.Serial.setStopBits(
-                QSerialPort.StopBits.OneStop)
-        self.data_prosessing_thr.sec_count.connect(self.signal_from_thread)
+        self.Serial.setDataBits(QSerialPort.DataBits.Data8)
+        self.Serial.setParity(QSerialPort.Parity.NoParity)
+        self.Serial.setStopBits(QSerialPort.StopBits.OneStop)
+        self.data_prosessing_thr.package_num_signal.connect(
+            self.signal_from_thread)
 
         logging.getLogger().setLevel(logging.INFO)
         logging.info(f"Start")
@@ -392,6 +378,7 @@ class MyWindow(QtWidgets.QWidget):
 
         if not self.Serial.open(QtCore.QIODevice.OpenModeFlag.ReadWrite):
             logging.info(f"Can't open {self.com_list_widget.currentText()}")
+            logging.warning(f"Can't open {self.com_list_widget.currentText()}")
             return
 
         self.cycle_num_value_change()
@@ -401,8 +388,8 @@ class MyWindow(QtWidgets.QWidget):
         # self.timer.setInterval(self.timer_interval)
         logging.info(line := f"{self.com_list_widget.currentText()} open")
         logging.info(line := f"self.cycleNum = {self.total_cycle_num}")
-        self.text_logs.append(
-            line := f">>> {time.strftime("%H:%M:%S")} Start")
+        # self.text_logs.append(
+        #   line := f">>> {time.strftime("%H:%M:%S")} Start")
         logging.info(line)
         logging.warning(line)
 
@@ -429,7 +416,8 @@ class MyWindow(QtWidgets.QWidget):
     def read_serial(self):
         if (bytes_num := self.Serial.bytesAvailable()) <= 14:
             logging.info("no data from COM port!")
-            logging.warning(f"> {time.strftime("%H:%M:%S")} No data from {self.com_list_widget.currentText()}")
+            logging.warning(f"> {time.strftime("%H:%M:%S")} No data from {
+                self.com_list_widget.currentText()}")
             return
         if self.data_prosessing_thr.flag_recieve:
             logging.info("thread still work with previous datad!")
@@ -447,12 +435,6 @@ expected package num {self.exp_package_num}")
 # ------- Timer2 --------------------------------------------------------------
 
     def timer_event_sent_com(self):
-        # if not self.Serial.isWritable():
-        #     self.text_logs.append(
-        #         line := ">>> " + str(time.strftime("%H:%M:%S")) +
-        #         " Cannot sent data")
-        #     logging.info(line)
-        #     return
         # if not self.Serial.isOpen():
         #     self.text_logs.append(
         #         line := ">>> " + str(time.strftime("%H:%M:%S")) +
@@ -494,12 +476,12 @@ expected package num {self.exp_package_num}")
 # --------------------------------------------------------------------------------
 
     def cycle_end(self):
-        self.text_logs.append(
+        # self.text_logs.append(
+        logging.info(
             line :=
             ">>> " + str(time.strftime("%H:%M:%S")) + " End of cycle "
             + str(self.current_cylce) + " of " +
             str(self.total_cycle_num))
-        logging.info(line)
         logging.warning(line)
 
         self.current_cylce += 1
@@ -514,12 +496,14 @@ expected package num {self.exp_package_num}")
 
         if self.timer.isActive():
             self.timer.stop()
-            self.text_logs.append(
-                line :=
-                ">>> " + str(time.strftime("%H:%M:%S")) +
-                " End of measurements\n")
+            # self.text_logs.append(
+            #     line :=
+            #     ">>> " + str(time.strftime("%H:%M:%S")) +
+            #     " End of measurements\n")
             # print(line)
-            logging.info(line)
+            logging.info(line :=
+                         ">>> " + str(time.strftime("%H:%M:%S")) +
+                         " End of measurements\n")
             logging.warning(line)
 
         if self.Serial.isOpen():
@@ -561,7 +545,8 @@ expected package num {self.exp_package_num}")
     def progress_bar_set_max(self):
         if self.total_time and not self.timer.isActive(): # is this required?
             self.progress_bar.setMaximum(
-                (self.total_time + len(self.list_time)) * self.total_cycle_num + 1)
+                1 + self.total_cycle_num *
+                (self.total_time + len(self.list_time)))
             self.progress_bar.setValue(0)
 
     def avaliable_butttons(self, flag_start: bool):
@@ -569,15 +554,15 @@ expected package num {self.exp_package_num}")
         self.stop_button.setDisabled(not flag_start)
         self.choose_file.setDisabled(flag_start)
 
-    def signal_from_thread(self, s):  # по этому сигналу можно в логи писать
+    def signal_from_thread(self, s):
         logging.info(f"thread_stop, count = {self.count}\n\
 package_num = {self.data_prosessing_thr.package_num}")
         self.package_number_label.setText(
             str(self.data_prosessing_thr.package_num))
 
-        self.curve_1.setData(self.data_prosessing_thr.all_data2[:, 2])
-        self.curve_2.setData(self.data_prosessing_thr.all_data2[:, 2]*2)
-        self.curve_3.setData(self.data_prosessing_thr.all_data2[:, 2]/2)
+        self.curve_1.setData(self.data_prosessing_thr.all_data[:, 2])
+        self.curve_2.setData(self.data_prosessing_thr.all_data[:, 2]*2)
+        self.curve_3.setData(self.data_prosessing_thr.all_data[:, 2]/2)
 
     def combobox_changed(self, value):
         self.com_boderate_widget.setItemText(
@@ -587,15 +572,17 @@ package_num = {self.data_prosessing_thr.package_num}")
         if self.fft_button.text() == "FFT":
             self.fft_button.setText("Time")
             self.time_plot.getPlotItem().ctrl.fftCheck.setChecked(False)
-            self.time_plot.setLabel('bottom', 'Horizontal Values', units='smth')
+            self.time_plot.setLabel(
+                'bottom', 'Horizontal Values', units='smth')
         else:
             self.fft_button.setText("FFT")
             self.time_plot.getPlotItem().ctrl.fftCheck.setChecked(True)
-            self.time_plot.setLabel('bottom', 'Frequency', units='Hz')
+            self.time_plot.setLabel(
+                'bottom', 'Frequency', units='Hz')
 
     def clear_logs(self):
         # self.text_logs.clear()
-        self.log_text_box.clear()
+        self.log_text_box.widget.clear()
 # -----------------------------------------------------------------------------
 
     def check_filename(self):
