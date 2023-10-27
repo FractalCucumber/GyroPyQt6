@@ -62,13 +62,6 @@ QPushButton {
     border-color: white;
     padding: 3px;
 }
-QPushButton {
-    border-style: outset;
-    border-width: 1px;
-    border-radius: 10px;
-    border-color: white;
-    padding: 3px;
-}
 QPushButton:pressed, QPushButton:pressed#start_button, QPushButton:pressed#stop_button {
     background-color: rgb(0, 0, 0);
 }
@@ -95,14 +88,30 @@ QPushButton#stop_button {
 QLabel {
     qproperty-alignment: AlignCenter; 
 } 
-
+/* QCheckBox {
+    border-width: 1px;
+    border-style: solid;
+    border-color: white;
+    padding: 9px
+} */
+/* QCheckBox::indicator {
+    border: 1px solid grey;
+} */
+/* QCheckBox {
+    border-width: 1px;
+    border-style: solid;
+    border-color: white;
+    margin: 2px
+    max-width: 72px
+    padding: 3px
+} */
 QLineEdit {
     border: 1px solid grey;
     qproperty-alignment: AlignCenter;
     /* border-radius: 5px; */
 }
 QLineEdit:!read-only {
-    background-color: gray;
+    background-color: grey;
 }
 
 
