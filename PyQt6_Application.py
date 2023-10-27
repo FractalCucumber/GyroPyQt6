@@ -52,7 +52,7 @@ class MyWindow(QtWidgets.QWidget):
             QtCore.Qt.ApplicationAttribute.
             AA_UseStyleSheetPropagationInWidgetStyles,
             True)  # наследование свойств оформления потомков от родителей
-        style_sheets_filename = "StyleSheets.css"
+        
 
 # ------ Timres ---------------------------------------------------------------
 
@@ -80,17 +80,21 @@ class MyWindow(QtWidgets.QWidget):
         logging.getLogger().setLevel(logging.WARNING)
         # logging.getLogger().setLevel(logging.INFO)
         # logging.info(f"Start")
-
+        style_sheets_filename = "StyleSheets.css"
 ###############################################################################
         self.main_grid_layout = QtWidgets.QGridLayout(self)  # контейнер
         # self.main_grid.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-
+        # self.main_grid_layout.setColumnStretch(1, 1)
+        # self.main_grid_layout.setColumnMinimumWidth(0, 150)
+        # self.main_grid_layout.setColumnStretch(0, 0)
+        # self.main_grid_layout.setColumnMinimumWidth(1, 300)
+        # self.main_grid_layout.setColumnStretch(1, 0)
+        
 # ------ Com Settings ---------------------------------------------------------
 
         self.com_param_groupbox = QtWidgets.QGroupBox(
             "&Настройки порта")
-
-        # self.com_param_groupbox_layout = QtWidgets.QFormLayout()
+        self.com_param_groupbox.setMaximumWidth(300)
         self.com_param_groupbox_layout = QtWidgets.QGridLayout()
 
         self.com_list_widget = QtWidgets.QComboBox()
@@ -99,9 +103,10 @@ class MyWindow(QtWidgets.QWidget):
             for self.port in self.available_ports:
                 self.com_list_widget.addItem(self.port.portName())
 
-        # self.com_param_groupbox_layout.addRow('COM:', self.com_list_widget)
-        self.com_param_groupbox_layout.addWidget(self.com_list_widget, 0, 1)
-        self.com_param_groupbox_layout.addWidget(QtWidgets.QLabel('COM:'), 0, 0)
+        self.com_param_groupbox_layout.addWidget(QtWidgets.QLabel('COM:'),
+                                                 0, 0)
+        self.com_param_groupbox_layout.addWidget(self.com_list_widget,
+                                                 0, 1)
 
         self.com_boderate_widget = QtWidgets.QComboBox()
         self.com_boderate_widget.setEditable(True)
@@ -116,49 +121,50 @@ class MyWindow(QtWidgets.QWidget):
             self.com_boderate_widget.setCurrentIndex(
                 self.settings.value("COM_index"))
 
-        self.com_param_groupbox_layout.addWidget(self.com_boderate_widget, 1, 1)
-        self.com_param_groupbox_layout.addWidget(QtWidgets.QLabel('Speed:'), 1, 0)
-        # self.com_param_groupbox_layout.addRow(
-        #     '&Speed:', self.com_boderate_widget)
-        # self.COMparamBox.addRow(self.COMparamBox)
+        self.com_param_groupbox_layout.addWidget(QtWidgets.QLabel('Speed:'),
+                                                 1, 0)
+        self.com_param_groupbox_layout.addWidget(self.com_boderate_widget,
+                                                 1, 1)
 
         # self.subblock1_com_param.setFieldGrowthPolicy(self.subblock1_com_param.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         # self.subblock1_com_param.setVerticalSpacing()
         # self.subblock1_com_param.setSizeConstraint(self.subblock1_com_param.SizeConstraint.SetMaximumSize)
-        # self.subblock1_com_param.setSizeConstraint(self.subblock1_com_param.SizeConstraint.SetDefaultConstraint)
-
         self.com_param_groupbox.setLayout(self.com_param_groupbox_layout)
-        # self.block1_com_param.setSizePolicy(
-        #     QtWidgets.QSizePolicy.Policy.Minimum,
-        #     QtWidgets.QSizePolicy.Policy.Minimum)
 ###############################################################################
 # ------ File -----------------------------------------------------------------
 
         self.measurements_groupbox = QtWidgets.QGroupBox("&Измерения")
-        self.measurements_groupbox_layout = QtWidgets.QFormLayout()
+        self.measurements_groupbox.setMaximumWidth(300)
+        self.measurements_groupbox_layout = QtWidgets.QGridLayout()
 
         self.choose_file = QtWidgets.QPushButton(
             "Выбрать")
 
-        # self.subblock2.addWidget(self._choose_file_)
-        self.measurements_groupbox_layout.addRow(
-            "&Файл\nцикла\nизмерений", self.choose_file)
+        self.measurements_groupbox_layout.addWidget(
+            QtWidgets.QLabel("Measurement\ncycle file:"),
+            0, 0)
+        self.measurements_groupbox_layout.addWidget(self.choose_file,
+                                                    0, 1)
 
         self.file_name_and_path = QtWidgets.QLineEdit()
         self.file_name_and_path.setAlignment(
             QtCore.Qt.AlignmentFlag.AlignHCenter)
         self.file_name_and_path.setReadOnly(True)
-        self.measurements_groupbox_layout.addWidget(self.file_name_and_path)
-        self.measurements_groupbox_layout.addRow(
-            "&Имя\nфайла:", self.file_name_and_path)
+        self.measurements_groupbox_layout.addWidget(
+            QtWidgets.QLabel('Filename:'),
+            1, 0)
+        self.measurements_groupbox_layout.addWidget(self.file_name_and_path,
+                                                    1, 1)
 
         self.cycle_num_widget = QtWidgets.QSpinBox()
         self.cycle_num_widget.setAlignment(
             QtCore.Qt.AlignmentFlag.AlignHCenter)
         self.cycle_num_widget.setMinimum(1)
-        self.measurements_groupbox_layout.addWidget(self.cycle_num_widget)
-        self.measurements_groupbox_layout.addRow(
-            "&Количество\nциклов:", self.cycle_num_widget)
+        self.measurements_groupbox_layout.addWidget(
+            QtWidgets.QLabel("Cycle number:"),
+            2, 0)
+        self.measurements_groupbox_layout.addWidget(self.cycle_num_widget,
+                                                    2, 1)
 
         self.measurements_groupbox.setLayout(self.measurements_groupbox_layout)
 ###############################################################################
@@ -166,21 +172,21 @@ class MyWindow(QtWidgets.QWidget):
 
         self.saving_measurements_groupbox = QtWidgets.QGroupBox(
             "&Сохранение измерений")
-        self.saving_measurements_groupbox_layout = QtWidgets.QFormLayout()
+        self.saving_measurements_groupbox.setMaximumWidth(300)
+        self.saving_measurements_groupbox_layout = QtWidgets.QGridLayout()
 
+        self.saving_measurements_groupbox_layout.addWidget(
+            QtWidgets.QLabel("Папка:"), 0, 0)
         self.current_folder = QtWidgets.QLineEdit(os.getcwd())
         self.current_folder.setReadOnly(True)
         self.saving_measurements_groupbox_layout.addWidget(
-            self.current_folder)
-        self.saving_measurements_groupbox_layout.addRow(
-            "&Папка:", self.current_folder)
+            self.current_folder, 0, 1)
 
+        self.saving_measurements_groupbox_layout.addWidget(
+            QtWidgets.QLabel("<b>Имя файла:</b>"), 1, 0)
         self.file_name = QtWidgets.QLineEdit("test")
         self.saving_measurements_groupbox_layout.addWidget(
-            self.file_name)
-        self.saving_measurements_groupbox_layout.addRow(
-            "&<b>Имя файла:</b>", self.file_name)
-
+            self.file_name, 1, 1)
         self.saving_measurements_groupbox.setLayout(
             self.saving_measurements_groupbox_layout)
 
@@ -198,6 +204,7 @@ class MyWindow(QtWidgets.QWidget):
 # ------ Output logs and data from file ---------------------------------------
 
         self.text_output_groupbox = QtWidgets.QGroupBox("")
+        self.text_output_groupbox.setMaximumWidth(395)
         self.text_output_groupbox_layout = QtWidgets.QFormLayout()
 
         self.list_data_from_file_widget = QtCore.QStringListModel(self)
@@ -232,36 +239,39 @@ class MyWindow(QtWidgets.QWidget):
 # ------ PLot -----------------------------------------------------------------
 
         self.plot_groupbox = QtWidgets.QGroupBox("&График")
-        self.plot_groupbox_layout = QtWidgets.QFormLayout()
+        self.plot_groupbox.setMinimumWidth(395)
+        self.plot_groupbox_layout = QtWidgets.QGridLayout()
 
         self.progress_bar = QtWidgets.QProgressBar()
         self.progress_bar.setValue(0)
         self.progress_bar.setMaximum(1)
         self.progress_bar.setFormat('%v/%m sec')
+        self.plot_groupbox_layout.addWidget(self.progress_bar, 0, 0, 1, 3)
 
-        self.plot_groupbox_layout.addWidget(self.progress_bar)
-
-        self.package_number_label = QtWidgets.QLabel("Package number")
-        self.plot_groupbox_layout.addWidget(self.package_number_label)
+        self.package_number_label = QtWidgets.QLabel("Package number:")
+        self.plot_groupbox_layout.addWidget(self.package_number_label, 1, 0, 1, 1)
         self.package_number_label = QtWidgets.QLabel()
-        self.plot_groupbox_layout.addWidget(self.package_number_label)
+        self.plot_groupbox_layout.addWidget(self.package_number_label, 1, 1, 1, 1)
 
         self.show_graph_1 = QtWidgets.QCheckBox("Line 1")
+        self.show_graph_1.setCheckState(QtCore.Qt.CheckState.Checked)
         self.show_graph_1.setObjectName("show_graph_1")
-        self.plot_groupbox_layout.addWidget(self.show_graph_1)
+        self.plot_groupbox_layout.addWidget(self.show_graph_1, 2, 0, 1, 1)
         self.show_graph_2 = QtWidgets.QCheckBox("Line 2")
+        self.show_graph_2.setCheckState(QtCore.Qt.CheckState.Checked)
         self.show_graph_2.setObjectName("show_graph_2")
-        self.plot_groupbox_layout.addWidget(self.show_graph_2)
+        self.plot_groupbox_layout.addWidget(self.show_graph_2, 2, 1, 1, 1)
         self.show_graph_3 = QtWidgets.QCheckBox("Line 3")
+        self.show_graph_3.setCheckState(QtCore.Qt.CheckState.Checked)
         self.show_graph_3.setObjectName("show_graph_3")
-        self.plot_groupbox_layout.addWidget(self.show_graph_3)
+        self.plot_groupbox_layout.addWidget(self.show_graph_3, 2, 2, 1, 1)
 
         self.time_plot = pg.plot()
-        # self.time_plot.QSizePolicy
-        self.time_plot.setTitle("Velosity Graph")
+        self.time_plot.setTitle("Velosity Graph", size="14pt")
         self.time_plot.showGrid(x=True, y=True)
 
         self.time_plot.addLegend()
+        # styles = {'color':'r', 'font-size':'20px'}
         self.time_plot.setLabel('left', 'Velosity',
                                 units='radians per second')
         self.time_plot.setLabel('bottom', 'Data packages',
@@ -272,40 +282,35 @@ class MyWindow(QtWidgets.QWidget):
         self.curve_3 = self.time_plot.plot(pen='b', name="Line 3")
 
         self.curve_1.setData([2, 3, 4, 5, 6], [1, 2, 3, 1, 5])
-        self.curve_2.setData([8, 3, 3, 4, 5])
-        self.curve_3.setData([8, 2, 3, 2, 5, 6, 4, 8])
-        # self.curve3.setData([1, 2, 3, 4, 8])
 
-        self.plot_groupbox_layout.addWidget(self.time_plot)
+        self.plot_groupbox_layout.addWidget(self.time_plot, 3, 0, 1, 3)
         self.time_plot.getPlotItem().ctrl.fftCheck.setChecked(False)  # fft
-        self.data_plot = np.array([])
-        self.fft_button = QtWidgets.QPushButton("&Time")
-        self.plot_groupbox_layout.addWidget(self.fft_button)
 
-        # self.subblock1rightright.setSizeConstraint(
-        #   self.subblock1rightright.SizeConstraint.SetMaximumSize)
-        self.plot_groupbox.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Expanding,
-            QtWidgets.QSizePolicy.Policy.Expanding)
+        self.fft_button = QtWidgets.QPushButton("&Time")
+        self.plot_groupbox_layout.addWidget(self.fft_button, 4, 0, 1, 3)
+
         self.plot_groupbox.setLayout(self.plot_groupbox_layout)
 
 # ------ Set main grid --------------------------------------------------------
 
-        self.main_grid_layout.addWidget(self.com_param_groupbox, 0, 0, 1, 1)
-        self.main_grid_layout.addWidget(self.measurements_groupbox, 1, 0, 1, 1)
-        self.main_grid_layout.addWidget(self.saving_measurements_groupbox, 2, 0, 3, 1)
+        self.main_grid_layout.addWidget(self.com_param_groupbox,
+                                        0, 0, 1, 1)
+        self.main_grid_layout.addWidget(self.measurements_groupbox,
+                                        1, 0, 2, 1)
+        self.main_grid_layout.addWidget(self.saving_measurements_groupbox,
+                                        3, 0, 3, 1)
 
-        self.main_grid_layout.addWidget(self.text_output_groupbox, 0, 1, 3, 1)
-        self.main_grid_layout.addWidget(self.start_button, 3, 1, 1, 1)
-        self.main_grid_layout.addWidget(self.stop_button, 4, 1, 1, 1)
+        self.main_grid_layout.addWidget(self.text_output_groupbox,
+                                        0, 1, 4, 1)
+        self.main_grid_layout.addWidget(self.start_button,
+                                        4, 1, 1, 1)
+        self.main_grid_layout.addWidget(self.stop_button,
+                                        5, 1, 1, 1)
 
-        self.main_grid_layout.addWidget(self.plot_groupbox, 0, 3, 5, 2)
-
-        # self.main_grid.addWidget(self.log_text_box.widget, 0, 5, 5, 20)
+        self.main_grid_layout.addWidget(self.plot_groupbox,
+                                        0, 3, 6, 1)
 
         self.setLayout(self.main_grid_layout)
-        # self.main_grid.setSizeConstraint(
-        #     self.main_grid.SizeConstraint.SetDefaultConstraint)
 
 # ------ Style ----------------------------------------------------------------
 
@@ -326,7 +331,7 @@ class MyWindow(QtWidgets.QWidget):
 
 # ------ Connect --------------------------------------------------------------
 
-        self.start_button.clicked.connect(self.start)  # test_serail  start
+        self.start_button.clicked.connect(self.start)
         self.stop_button.clicked.connect(self.stop)
         self.clear_button.clicked.connect(self.clear_logs)
         self.choose_file.clicked.connect(self.get_data_from_file)

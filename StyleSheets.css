@@ -4,8 +4,8 @@
 */
 
 QWidget{
-    background-color: #262626;
-    color: #FFFFFF;
+    background-color: #111111;
+    color: #FFFFF1;
     font-size: 18px;
     text-align: center;
     /* qproperty-alignment: AlignCenter; align everything */
