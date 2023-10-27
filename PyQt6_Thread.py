@@ -18,12 +18,15 @@ class MyThread(QtCore.QThread):
         self.flag_recieve = False
         self.rx: bytes = b''
 
-        self.all_data = np.array([], dtype=np.int32)
-        self.ftt_data = np.array([])  #, dtype=np.complex128)
+        # self.all_data = np.array([], dtype=np.int32)
+        self.step = 20000
 
     def run(self):
+        self.num_rows = 0
         self.package_num = 0
-        first = True
+        self.all_data = np.ndarray((self.step, 5), dtype=int)
+        self.ftt_data = np.array([])  #, dtype=np.complex128)
+        # first = True
         while self.flag_start or self.flag_recieve:
             if not self.flag_recieve:
                 self.msleep(5)
@@ -31,26 +34,26 @@ class MyThread(QtCore.QThread):
                 i = self.rx.find(0x72)
                 logging.info(f"thread_run_start, len {len(self.rx)}")
 
-                if first:
-                    first = False
-                    self.all_data = np.array(
-                        [self.int_from_bytes(self.rx, i, self.package_num)])
-                    i += 14
-                    self.package_num += 1
-
                 while ((i + 13) < len(self.rx)
                        and (self.rx[i] == 0x72 and self.rx[i + 13] == 0x27)):
                     # check flag
                     nums = np.array(
                         [self.int_from_bytes(self.rx, i, self.package_num)])
                     i += 14
-                    self.all_data = np.vstack([self.all_data, nums])
+                    self.all_data[self.package_num, :] = nums
+                    # self.all_data = np.vstack([self.all_data, nums])
                     self.package_num += 1
+                    if self.package_num >= self.num_rows:
+                        self.num_rows += self.step
+                        self.all_data = np.resize(self.all_data,
+                                                  (self.num_rows, 5))
 
                 logging.info(f"len = {self.all_data.size}")
                 # print("dt_0 = ", time.time() - t1)
                 self.package_num_signal.emit(self.package_num)
                 self.flag_recieve = False
+                
+        self.all_data = np.resize(self.all_data, (self.package_num, 5))
         with open(self.filename, 'a') as file:
             np.savetxt(file, self.all_data, delimiter='\t', fmt='%d')
 

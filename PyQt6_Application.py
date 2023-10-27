@@ -77,7 +77,8 @@ class MyWindow(QtWidgets.QWidget):
         self.Serial.setParity(QSerialPort.Parity.NoParity)
         self.Serial.setStopBits(QSerialPort.StopBits.OneStop)
 
-        logging.getLogger().setLevel(logging.INFO)
+        logging.getLogger().setLevel(logging.WARNING)
+        # logging.getLogger().setLevel(logging.INFO)
         # logging.info(f"Start")
 
 ###############################################################################
@@ -89,7 +90,8 @@ class MyWindow(QtWidgets.QWidget):
         self.com_param_groupbox = QtWidgets.QGroupBox(
             "&Настройки порта")
 
-        self.com_param_groupbox_layout = QtWidgets.QFormLayout()
+        # self.com_param_groupbox_layout = QtWidgets.QFormLayout()
+        self.com_param_groupbox_layout = QtWidgets.QGridLayout()
 
         self.com_list_widget = QtWidgets.QComboBox()
         self.available_ports = QSerialPortInfo.availablePorts()
@@ -97,7 +99,9 @@ class MyWindow(QtWidgets.QWidget):
             for self.port in self.available_ports:
                 self.com_list_widget.addItem(self.port.portName())
 
-        self.com_param_groupbox_layout.addRow('COM:', self.com_list_widget)
+        # self.com_param_groupbox_layout.addRow('COM:', self.com_list_widget)
+        self.com_param_groupbox_layout.addWidget(self.com_list_widget, 0, 1)
+        self.com_param_groupbox_layout.addWidget(QtWidgets.QLabel('COM:'), 0, 0)
 
         self.com_boderate_widget = QtWidgets.QComboBox()
         self.com_boderate_widget.setEditable(True)
@@ -106,13 +110,16 @@ class MyWindow(QtWidgets.QWidget):
             self.com_boderate_widget.addItems(
                 self.settings.value("COM_speed_list"))
         else:
-            self.com_boderate_widget.addItems(["921600", "115200"])
+            self.com_boderate_widget.addItems(['921600', '115200', '00000'])
+
         if self.settings.contains("COM_index"):
             self.com_boderate_widget.setCurrentIndex(
                 self.settings.value("COM_index"))
 
-        self.com_param_groupbox_layout.addRow(
-            '&Speed:', self.com_boderate_widget)
+        self.com_param_groupbox_layout.addWidget(self.com_boderate_widget, 1, 1)
+        self.com_param_groupbox_layout.addWidget(QtWidgets.QLabel('Speed:'), 1, 0)
+        # self.com_param_groupbox_layout.addRow(
+        #     '&Speed:', self.com_boderate_widget)
         # self.COMparamBox.addRow(self.COMparamBox)
 
         # self.subblock1_com_param.setFieldGrowthPolicy(self.subblock1_com_param.FieldGrowthPolicy.AllNonFixedFieldsGrow)
@@ -181,9 +188,9 @@ class MyWindow(QtWidgets.QWidget):
 # ------ Logger ---------------------------------------------------------------
 
         self.log_text_box = QTextEditLogger(self)
+        logging.getLogger().addHandler(self.log_text_box)
         # self.logTextBox.setFormatter(
         #   logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-        logging.getLogger().addHandler(self.log_text_box)
         # You can control the logging level
         # logging.getLogger().setLevel(logging.INFO)
         # logging.getLogger().setLevel(logging.WARNING)
@@ -264,7 +271,7 @@ class MyWindow(QtWidgets.QWidget):
         self.curve_2 = self.time_plot.plot(pen='g', name="Line 2")
         self.curve_3 = self.time_plot.plot(pen='b', name="Line 3")
 
-        self.curve_1.setData([1, 2, 3, 1, 5])
+        self.curve_1.setData([2, 3, 4, 5, 6], [1, 2, 3, 1, 5])
         self.curve_2.setData([8, 3, 3, 4, 5])
         self.curve_3.setData([8, 2, 3, 2, 5, 6, 4, 8])
         # self.curve3.setData([1, 2, 3, 4, 8])
@@ -349,9 +356,9 @@ class MyWindow(QtWidgets.QWidget):
     def start(self):
         self.exp_package_num = 0
 
-        self.curve_1.setData([])
-        self.curve_2.setData([])
-        self.curve_3.setData([])
+        self.curve_1.setData([], [])
+        self.curve_2.setData([], [])
+        self.curve_3.setData([], [])
         self.progress_bar.setValue(0)
         self.progress_value = 0
         self.count = 0
@@ -407,7 +414,7 @@ class MyWindow(QtWidgets.QWidget):
         logging.info(line := f"self.cycleNum = {self.total_cycle_num}")
         # self.text_logs.append(
         #   line := f">>> {time.strftime("%H:%M:%S")} Start")
-        logging.info(line)
+        logging.info(line := f">>> {time.strftime("%H:%M:%S")} Start")
         logging.warning(line)
 
         self.Serial.clear()
@@ -505,8 +512,6 @@ expected package num {self.exp_package_num}")
         self.count = 0
 
     def stop(self):
-        self.data_prosessing_thr.flag_start = False
-
         self.avaliable_butttons(False)
         if self.timer_sent_com.isActive():
             self.timer_sent_com.stop()
@@ -530,6 +535,8 @@ expected package num {self.exp_package_num}")
                 str(self.Serial.waitForBytesWritten(1000)))
             logging.info(line)
             self.Serial.close()
+
+        self.data_prosessing_thr.flag_start = False
 
 ###############################################################################
     def plot_show(self):
@@ -577,15 +584,21 @@ expected package num {self.exp_package_num}")
 package_num = {self.package_num}")
         self.package_number_label.setText(
             str(self.package_num))
-        
+
         num_of_points_shown = 20000
         if self.package_num > num_of_points_shown:
-            start_ind = -num_of_points_shown
+            start_ind = self.package_num - num_of_points_shown
         else:
             start_ind = 0
-        self.curve_1.setData(self.data_prosessing_thr.all_data[start_ind:, 2])
-        self.curve_2.setData(self.data_prosessing_thr.all_data[start_ind:, 2]*2)
-        self.curve_3.setData(self.data_prosessing_thr.all_data[start_ind:, 2]/2)
+        self.curve_1.setData(
+            self.data_prosessing_thr.all_data[start_ind:self.package_num, 0],
+            self.data_prosessing_thr.all_data[start_ind:self.package_num, 2])
+        self.curve_2.setData(
+            self.data_prosessing_thr.all_data[start_ind:self.package_num, 0],
+            self.data_prosessing_thr.all_data[start_ind:self.package_num, 2]*2)
+        self.curve_3.setData(
+            self.data_prosessing_thr.all_data[start_ind:self.package_num, 0],
+            self.data_prosessing_thr.all_data[start_ind:self.package_num, 2]/2)
         # self.curve_1.setData(self.data_prosessing_thr.all_data[:, 2])
         # self.curve_2.setData(self.data_prosessing_thr.all_data[:, 2]*2)
         # self.curve_3.setData(self.data_prosessing_thr.all_data[:, 2]/2)
