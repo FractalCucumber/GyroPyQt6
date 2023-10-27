@@ -32,10 +32,17 @@ class MyThread(QtCore.QThread):
                 self.msleep(5)
             if self.flag_recieve:
                 i = self.rx.find(0x72)
-                logging.info(f"thread_run_start, len {len(self.rx)}")
+                logging.info(f"thread_run_start, len rx = {len(self.rx)}, i = {i}")
 
-                while ((i + 13) < len(self.rx)
-                       and (self.rx[i] == 0x72 and self.rx[i + 13] == 0x27)):
+                # while ((i + 13) < len(self.rx)
+                #        and (self.rx[i] == 0x72 and self.rx[i + 13] == 0x27)):
+                while (i + 13) < len(self.rx):
+                    if not (self.rx[i] == 0x72 and self.rx[i + 13] == 0x27):
+                        logging.info(f"before i = {i}, 0x72:{self.rx[i] == 0x72}, 0x27:{self.rx[i + 13] == 0x27}")
+                        i += self.rx[i:].find(0x27) + 1
+                        logging.info(f"now i = {i}, 0x72:{self.rx[i] == 0x72}, 0x27:{self.rx[i + 13] == 0x27}")
+                        continue  # ???
+                        
                     # check flag
                     nums = np.array(
                         [self.int_from_bytes(self.rx, i, self.package_num)])
@@ -48,7 +55,7 @@ class MyThread(QtCore.QThread):
                         self.all_data = np.resize(self.all_data,
                                                   (self.num_rows, 5))
 
-                logging.info(f"len = {self.all_data.size}")
+                logging.info(f"\t\treal package_num = {self.package_num}")
                 # print("dt_0 = ", time.time() - t1)
                 self.package_num_signal.emit(self.package_num)
                 self.flag_recieve = False
@@ -57,11 +64,25 @@ class MyThread(QtCore.QThread):
         with open(self.filename, 'a') as file:
             np.savetxt(file, self.all_data, delimiter='\t', fmt='%d')
 
-        self.fft_data(gyro=self.all_data[:, 2],
-                      encoder=self.all_data[:, 2],
-                      FS=2000)
+        # self.fft_data(gyro=self.all_data[:, 2],
+        #               encoder=self.all_data[:, 2],
+        #               FS=2000)
 
     def data_for_fft_graph(self, data: np.ndarray, gyro: np.ndarray, Fs):
+    #     ftt_data = np.array([]) 
+    #     bourder = np.array([0, 0]) 
+    #     i = 0
+    #     flag_wait = False
+    #     if flag_sent:
+    #         flag_wait = True
+    #         i +=1
+    #         if i > 5:
+    #             bourder[0] = i
+    #     if flag_wait:
+    #         if not flag_sent:
+    #             flag_wait = False
+    #             bourder[1] = i
+        
         # data = dlmread(fullfile(PathName,FileName));
         # encoder = data(:,3)./1000;
         # %
@@ -144,14 +165,13 @@ class MyThread(QtCore.QThread):
 
         return [Freq, Amp, dPh, tau]
 
-    def fft_data(self, gyro: np.ndarray, encoder: np.ndarray, FS):
+    def fft_data(self, gyro: np.ndarray, encoder: np.ndarray, FS):   
         #   AmpPhF Summary of this function goes here
         #   Detailed explanation goes here
         #   Amp [безразмерна¤]- соотношение амплитуд воздействи¤ (encoder)
         #   и реакции гироскопа(gyro) = gyro/encoder
         #   dPhase [радианы] - разница фаз = gyro - encoder
         #   Freq [√ц] - частота гармоники (воздействия)
-        #
         #   gyro [град/с] - показани¤ гироскопа во время гармонического воздействия
         #   encoder [град/с] - показани¤ энкодера, задающего гармоническое воздействие
         #   FS [√ц] - частота дискретизации
@@ -160,34 +180,36 @@ class MyThread(QtCore.QThread):
         L = len(gyro)  # L = size(gyro,1);  # длина записи
         # t = (0:L-1)*T  # вектор времени
         # t = np.arrange(0, L - 1, 1) * T
-        NFFT = np.array([])
-        for i in range(L):
-            NFFT = np.append(NFFT, self.next_power_of_2(i))  # 2^nextpow2(L)   # показатель степени 2 дл¤ числа длины записи
-        logging.info(f"NFFT {NFFT}")
+        NFFT = np.array([], dtype=int)
+        next_power = np.ceil(np.log2(L))  # показатель степени 2 дл¤ числа длины записи
+        NFFT = int(np.power(2, next_power))
+        logging.warning(f"\nNFFT {NFFT}")
         Yg = np.fft.fft(gyro, NFFT)/L  # преобразование Фурье сигнала гироскопа
+        logging.warning(f"\nYg {Yg}")
         Ye = np.fft.fft(encoder, NFFT)/L  # преобразование Фурье сигнала энкодера
-        f = FS/2 * np.linspace(0, 1, NFFT/2 + 1, endpoint=True)  # получение вектора частот
-        logging.info(f"Yg {Yg}")
+        f = FS/2 * np.linspace(0, 1, int(NFFT/2 + 1), endpoint=True)  # получение вектора частот
+        logging.info(f"\nYg {Yg}")
         #  delta_phase = asin(2*mean(encoder1.*gyro1)/(mean(abs(encoder1))*mean(abs(gyro1))*pi^2/4))*180/pi
         # [Mg, ng] = max(2*abs(Yg[1:(NFFT/2 + 1)]))
-        ng = np.argmax(2*abs(Yg[0:(NFFT/2)]))
-        Mg = Yg[ng]
-
-        Freq = f[0, ng]
-        [Me, ne] = max(2*abs(Ye[0:(NFFT/2)]))
+        ng = np.argmax(Yg[0:int(NFFT/2)])
+        Mg = 2*abs(Yg[ng])
+        logging.info(f"Mg {Mg}")
+        Freq = f[ng]
+        
+        ne = np.argmax(Ye[0:int(NFFT/2)])
+        Me = 2*abs(Ye[ne])
+        logging.info(f"Me {Me}")
         # Fe = f[1, ne]
 
-        dPhase = (np.angle((Yg(ng, 0)), deg=False) -
-                  np.angle((Ye(ne, 0)), deg=False))
+        dPhase = np.angle(Yg[ng], deg=False) - np.angle(Ye[ne], deg=False)
+        logging.info(f"Phase {dPhase}")
         #  dPhase = (atan2(imag(Yg(ng,1)), real(Yg(ng,1)))-atan2(imag(Ye(ne,1)), real(Ye(ne,1))));
         Amp = Mg/Me
+        logging.info(f"Amp {Amp}")
         #  Amp = std(gyro)/std(encoder)% пошуму (метод —урова)
         with open("fft.txt", 'a') as file:
             np.savetxt(file, [Amp, dPhase, Freq], delimiter='\t', fmt='%d')
         return [Amp, dPhase, Freq]
-
-    def next_power_of_2(self, x):
-        return 1 if x == 0 else 2**(x - 1).bit_length()
 
     def int_from_bytes(self, rx, i, package_num):
         ints = np.array([package_num], dtype=np.int32)

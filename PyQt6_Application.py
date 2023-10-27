@@ -37,10 +37,8 @@ class QTextEditLogger(logging.Handler):
     def emit(self, record):
         msg = self.format(record)
         self.widget.append(msg)
-        # self.logTextBox = QTextEditLogger(self)
         # self.logTextBox.setFormatter(
         #   logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-        # logging.getLogger().addHandler(self.logTextBox)
 
 
 class MyWindow(QtWidgets.QWidget):
@@ -52,7 +50,6 @@ class MyWindow(QtWidgets.QWidget):
             QtCore.Qt.ApplicationAttribute.
             AA_UseStyleSheetPropagationInWidgetStyles,
             True)  # наследование свойств оформления потомков от родителей
-        
 
 # ------ Timres ---------------------------------------------------------------
 
@@ -66,7 +63,7 @@ class MyWindow(QtWidgets.QWidget):
         self.timer_sent_com.timeout.connect(self.timer_event_sent_com)
 
 # ------ Init vars ------------------------------------------------------------
-        self.PAUSE_INTERVAL_MS = 1000
+        self.PAUSE_INTERVAL_MS = 500
         self.count = 0
         self.progress_bar_value = 0
         self.total_time = 0
@@ -77,8 +74,8 @@ class MyWindow(QtWidgets.QWidget):
         self.Serial.setParity(QSerialPort.Parity.NoParity)
         self.Serial.setStopBits(QSerialPort.StopBits.OneStop)
 
-        logging.getLogger().setLevel(logging.WARNING)
-        # logging.getLogger().setLevel(logging.INFO)
+        # logging.getLogger().setLevel(logging.WARNING)
+        logging.getLogger().setLevel(logging.INFO)
         # logging.info(f"Start")
         style_sheets_filename = "StyleSheets.css"
 ###############################################################################
@@ -249,22 +246,22 @@ class MyWindow(QtWidgets.QWidget):
         self.plot_groupbox_layout.addWidget(self.progress_bar, 0, 0, 1, 3)
 
         self.package_number_label = QtWidgets.QLabel("Package number:")
-        self.plot_groupbox_layout.addWidget(self.package_number_label, 1, 0, 1, 1)
+        self.plot_groupbox_layout.addWidget(self.package_number_label, 0, 3, 1, 2)
         self.package_number_label = QtWidgets.QLabel()
-        self.plot_groupbox_layout.addWidget(self.package_number_label, 1, 1, 1, 1)
+        self.plot_groupbox_layout.addWidget(self.package_number_label, 0, 5, 1, 1)
 
-        self.show_graph_1 = QtWidgets.QCheckBox("Line 1")
+        self.show_graph_1 = QtWidgets.QCheckBox("gyro 1")
         self.show_graph_1.setCheckState(QtCore.Qt.CheckState.Checked)
         self.show_graph_1.setObjectName("show_graph_1")
-        self.plot_groupbox_layout.addWidget(self.show_graph_1, 2, 0, 1, 1)
-        self.show_graph_2 = QtWidgets.QCheckBox("Line 2")
+        self.plot_groupbox_layout.addWidget(self.show_graph_1, 2, 0, 1, 2)
+        self.show_graph_2 = QtWidgets.QCheckBox("gyro 2")
         self.show_graph_2.setCheckState(QtCore.Qt.CheckState.Checked)
         self.show_graph_2.setObjectName("show_graph_2")
-        self.plot_groupbox_layout.addWidget(self.show_graph_2, 2, 1, 1, 1)
-        self.show_graph_3 = QtWidgets.QCheckBox("Line 3")
+        self.plot_groupbox_layout.addWidget(self.show_graph_2, 2, 2, 1, 2)
+        self.show_graph_3 = QtWidgets.QCheckBox("gyro 3")
         self.show_graph_3.setCheckState(QtCore.Qt.CheckState.Checked)
         self.show_graph_3.setObjectName("show_graph_3")
-        self.plot_groupbox_layout.addWidget(self.show_graph_3, 2, 2, 1, 1)
+        self.plot_groupbox_layout.addWidget(self.show_graph_3, 2, 4, 1, 2)
 
         self.time_plot = pg.plot()
         self.time_plot.setTitle("Velosity Graph", size="14pt")
@@ -277,17 +274,17 @@ class MyWindow(QtWidgets.QWidget):
         self.time_plot.setLabel('bottom', 'Data packages',
                                 units='')
 
-        self.curve_1 = self.time_plot.plot(pen='r', name="Line 1")
-        self.curve_2 = self.time_plot.plot(pen='g', name="Line 2")
-        self.curve_3 = self.time_plot.plot(pen='b', name="Line 3")
+        self.curve_1 = self.time_plot.plot(pen='r', name="gyro 1")
+        self.curve_2 = self.time_plot.plot(pen='g', name="gyro 2")
+        self.curve_3 = self.time_plot.plot(pen='b', name="gyro 3")
 
         self.curve_1.setData([2, 3, 4, 5, 6], [1, 2, 3, 1, 5])
 
-        self.plot_groupbox_layout.addWidget(self.time_plot, 3, 0, 1, 3)
+        self.plot_groupbox_layout.addWidget(self.time_plot, 3, 0, 1, 6)
         self.time_plot.getPlotItem().ctrl.fftCheck.setChecked(False)  # fft
 
         self.fft_button = QtWidgets.QPushButton("&Time")
-        self.plot_groupbox_layout.addWidget(self.fft_button, 4, 0, 1, 3)
+        self.plot_groupbox_layout.addWidget(self.fft_button, 4, 0, 1, 6)
 
         self.plot_groupbox.setLayout(self.plot_groupbox_layout)
 
@@ -299,17 +296,14 @@ class MyWindow(QtWidgets.QWidget):
                                         1, 0, 2, 1)
         self.main_grid_layout.addWidget(self.saving_measurements_groupbox,
                                         3, 0, 3, 1)
-
         self.main_grid_layout.addWidget(self.text_output_groupbox,
                                         0, 1, 4, 1)
         self.main_grid_layout.addWidget(self.start_button,
                                         4, 1, 1, 1)
         self.main_grid_layout.addWidget(self.stop_button,
                                         5, 1, 1, 1)
-
         self.main_grid_layout.addWidget(self.plot_groupbox,
                                         0, 3, 6, 1)
-
         self.setLayout(self.main_grid_layout)
 
 # ------ Style ----------------------------------------------------------------
@@ -361,9 +355,14 @@ class MyWindow(QtWidgets.QWidget):
     def start(self):
         self.exp_package_num = 0
 
-        self.curve_1.setData([], [])
-        self.curve_2.setData([], [])
-        self.curve_3.setData([], [])
+        self.i = 0
+        self.flag_wait = False
+        self.bourder = np.array([0, 0])
+        self.amp_and_freq = np.ndarray([])
+
+        self.curve_1.setData([])
+        self.curve_2.setData([])
+        self.curve_3.setData([])
         self.progress_bar.setValue(0)
         self.progress_value = 0
         self.count = 0
@@ -372,7 +371,7 @@ class MyWindow(QtWidgets.QWidget):
         self.flag_sent = False
         self.data_prosessing_thr.flag_start = True
 
-        logging.info(F"PORT: {(self.com_list_widget.currentText())}\n")
+        logging.info(F"\nPORT: {(self.com_list_widget.currentText())}\n")
         if not len(self.com_list_widget.currentText()):
             self.available_ports = QSerialPortInfo.availablePorts()
             for port in self.available_ports:
@@ -391,7 +390,6 @@ class MyWindow(QtWidgets.QWidget):
 
         self.Serial.setBaudRate(
             int(self.com_boderate_widget.currentText()))
-
         self.Serial.setPortName(
             self.com_list_widget.currentText())
 
@@ -413,6 +411,8 @@ class MyWindow(QtWidgets.QWidget):
         self.cycle_num_value_change()
         self.progress_bar_set_max()
         self.avaliable_butttons(True)
+        self.amp_and_freq = np.resize(self.amp_and_freq,
+                                      (len(self.list_time), 2))
 
         # self.timer.setInterval(self.timer_interval)
         logging.info(line := f"{self.com_list_widget.currentText()} open")
@@ -422,12 +422,15 @@ class MyWindow(QtWidgets.QWidget):
         logging.info(line := f">>> {time.strftime("%H:%M:%S")} Start")
         logging.warning(line)
 
+        # self.Serial.readAll()
         self.Serial.clear()
-        self.Serial.flush()
+        # self.Serial.flush()
         # self.timer.setInterval(0)
-        self.timer.start()
-        self.timer_sent_com.setInterval(0)
+        
+        # self.timer_sent_com.setInterval(0)
+        self.timer_event_sent_com()
         self.timer_sent_com.start()
+        self.timer.start()
 
         self.data_prosessing_thr.start()
 
@@ -470,7 +473,6 @@ expected package num {self.exp_package_num}")
         #         " COM isn't open")
         #     logging.info(line)
         #     return
-
         logging.info(f"---sent_command--- Open? {self.Serial.isOpen()}")
         if self.flag_sent:
             if self.count >= len(self.list_time):
@@ -488,6 +490,7 @@ expected package num {self.exp_package_num}")
             self.Serial.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
             self.timer_sent_com.setInterval(self.PAUSE_INTERVAL_MS)
             self.flag_sent = True
+        logging.info(f"---end_sent_command")
 
     def sent_command(self):
         F_H = self.list_freq[self.count] >> 8
@@ -601,12 +604,87 @@ package_num = {self.package_num}")
         self.curve_2.setData(
             self.data_prosessing_thr.all_data[start_ind:self.package_num, 0],
             self.data_prosessing_thr.all_data[start_ind:self.package_num, 2]*2)
-        self.curve_3.setData(
-            self.data_prosessing_thr.all_data[start_ind:self.package_num, 0],
-            self.data_prosessing_thr.all_data[start_ind:self.package_num, 2]/2)
-        # self.curve_1.setData(self.data_prosessing_thr.all_data[:, 2])
-        # self.curve_2.setData(self.data_prosessing_thr.all_data[:, 2]*2)
+        # self.curve_3.setData(
+        #     self.data_prosessing_thr.all_data[start_ind:self.package_num, 0],
+        #     self.data_prosessing_thr.all_data[start_ind:self.package_num, 2]/2)
+
         # self.curve_3.setData(self.data_prosessing_thr.all_data[:, 2]/2)
+        self.data_for_fft_graph(
+            self.data_prosessing_thr.all_data[:, 2],
+            self.data_prosessing_thr.all_data[:, 2]*2,
+            2000, start_ind)
+
+    def data_for_fft_graph(self, encoder: np.ndarray, gyro: np.ndarray, Fs, start_ind):
+        # fft_data = np.array([]) 
+        
+        # self.i
+        
+        logging.info(f"flag_sent = {self.flag_sent}")
+        if not self.flag_sent:
+            self.flag_wait = True
+            # logging.info(f"flag_wait = {self.flag_wait}, i= {self.i}")
+            self.i += 1
+            if self.i < 1*1000/self.TIMER_INTERVAL:
+                self.bourder[0] = self.package_num
+                # logging.info(f"bourder[0] = {self.bourder[0]}")
+        if self.flag_wait:
+            if self.flag_sent:
+                self.flag_wait = False
+                self.bourder[1] = self.package_num
+                self.i = 0
+                logging.info(f"\n\tbourders = {self.bourder}, self.count = {self.count}")
+
+                [Amp, dPhase, Freq] = self.fft_data(
+                    gyro[self.bourder[0]:self.bourder[1]],
+                    encoder[self.bourder[0]:self.bourder[1]],
+                    2000)
+
+                self.amp_and_freq[(self.count - 1), :] = [Freq, Amp]
+                self.time_plot.plot([self.bourder[0], self.bourder[1], self.bourder[0], self.bourder[1]],
+                                    [-50000*Amp, 50000*Amp, 50000*Amp, -50000*Amp], pen='b', name="vsdfdsf1")
+                self.curve_3.setData(self.amp_and_freq[:(self.count), 0], self.amp_and_freq[:(self.count), 1])
+                print(self.amp_and_freq[:(self.count), :])
+
+    def fft_data(self, gyro: np.ndarray, encoder: np.ndarray, FS):
+        #   AmpPhF Summary of this function goes here
+        #   Detailed explanation goes here
+        #   Amp [безразмерна¤]- соотношение амплитуд воздействи¤ (encoder)
+        #   и реакции гироскопа(gyro) = gyro/encoder
+        #   dPhase [радианы] - разница фаз = gyro - encoder
+        #   Freq [√ц] - частота гармоники (воздействия)
+        #   gyro [град/с] - показани¤ гироскопа во время гармонического воздействия
+        #   encoder [град/с] - показани¤ энкодера, задающего гармоническое воздействие
+        #   FS [√ц] - частота дискретизации
+
+        # T = 1/FS
+        L = len(gyro)  # L = size(gyro,1);  # длина записи
+        # t = (0:L-1)*T  # вектор времени
+        # t = np.arrange(0, L - 1, 1) * T
+        NFFT = np.array([], dtype=int)
+        next_power = np.ceil(np.log2(L))  # показатель степени 2 дл¤ числа длины записи
+        NFFT = int(np.power(2, next_power))
+        logging.warning(f"\nNFFT {NFFT}, next_power {next_power}, len(gyro) {len(gyro)}")
+        Yg = np.fft.fft(gyro, NFFT)/L  # преобразование Фурье сигнала гироскопа
+        Ye = np.fft.fft(encoder, NFFT)/L  # преобразование Фурье сигнала энкодера
+        f = FS/2 * np.linspace(0, 1, int(NFFT/2 + 1), endpoint=True)  # получение вектора частот
+        logging.info(f"\nYe {Ye}\tYg {Yg}")
+        #  delta_phase = asin(2*mean(encoder1.*gyro1)/(mean(abs(encoder1))*mean(abs(gyro1))*pi^2/4))*180/pi
+        ng = np.argmax(Yg[0:int(NFFT/2)])
+        Mg = 2*abs(Yg[ng])
+        Freq = f[ng]
+        
+        ne = np.argmax(Ye[0:int(NFFT/2)])
+        Me = 2*abs(Ye[ne])
+        logging.info(f"\tMe {Me} \tMg {Mg}")
+
+        dPhase = np.angle(Yg[ng], deg=False) - np.angle(Ye[ne], deg=False)
+        Amp = Mg/Me
+        logging.info(f"FFt results\tPhase {dPhase}\tAmp {Amp}\tFreq {Freq}")
+        #  Amp = std(gyro)/std(encoder)% пошуму (метод —урова)
+        with open("fft.txt", 'a') as file:
+            np.savetxt(file, [Amp, dPhase, Freq], delimiter='\t', fmt='%d')
+        return [Amp, dPhase, Freq]
+#---------------------------------------------------------
 
     def combobox_changed(self, value):
         self.com_boderate_widget.setItemText(
@@ -707,7 +785,7 @@ if __name__ == "__main__":
     #                     format="%(asctime)s %(levelname)s %(message)s",
     #                     datefmt='%d-%b-%y %H:%M:%S')
     logging.basicConfig(level=logging.INFO,
-                        filename="pyqt6_log.log", filemode="w",
+                        filename="pyqt6_logging.log", filemode="w",
                         format="%(asctime)s %(levelname)s %(message)s")
     # logging.disable(logging.INFO) # disable logging for certain level
     app = QtWidgets.QApplication(sys.argv)
