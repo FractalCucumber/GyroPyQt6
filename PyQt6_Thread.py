@@ -28,7 +28,6 @@ class MyThread(QtCore.QThread):
                 
                 logging.info(f"thread_run_start, len {len(self.rx)}")
                 package_num_prev = self.package_num
-                # rx = self.rx
                 i = self.rx.find(0x72)
                 self.nums_united = np.array([], dtype=np.int32)
                 
@@ -62,13 +61,13 @@ class MyThread(QtCore.QThread):
                 with open(self.filename, 'a') as file:
                     np.savetxt(file, self.nums_united, delimiter='\t', fmt='%d')
 
-                # self.time_plot.plot(
-                #     nums_united[:, 0], nums_united[:, 2])
-                    # t, velosity_amp, symbol='o', pen={'color': 0.8, 'width': 1})
-
                 self.sec_count.emit(self.package_num)
 
                 # print("dt = ", time.time() - t1)
                 
             self.msleep(20)
         # self.rx = b''
+
+    def fft_data(self):
+        pass
+

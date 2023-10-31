@@ -75,12 +75,10 @@ class MyWindow(QtWidgets.QWidget):
                 self.com_list_widget.addItem(self.port.portName())
 
         self.subblock1_com_param.addRow('COM:', self.com_list_widget)
-
+        
         self.com_boderate_widget = QtWidgets.QComboBox()
         self.com_boderate_widget.setEditable(True)
         self.settings = QtCore.QSettings("COM_speed")
-        # self.com_boderate_widget.addItems(["921600", "115200"])
-        # self.com_boderate_widget.addItems(["921600", "115200"])
         if self.settings.contains("COM_speed_list"):
             self.com_boderate_widget.addItems(
                 self.settings.value("COM_speed_list"))
@@ -210,16 +208,37 @@ class MyWindow(QtWidgets.QWidget):
 
         self.subblock1rightright.addWidget(self.progress_bar)
 
+        self.package_number_label = QtWidgets.QLabel("Package number")
+        self.subblock1rightright.addWidget(self.package_number_label)
         self.package_number_label = QtWidgets.QLabel()
         self.subblock1rightright.addWidget(self.package_number_label)
 
+        self.show_graph_1 = QtWidgets.QCheckBox("Line 1")
+        self.show_graph_1.setObjectName("show_graph_1")
+        self.subblock1rightright.addWidget(self.show_graph_1)
+        self.show_graph_2 = QtWidgets.QCheckBox("Line 2")
+        self.show_graph_2.setObjectName("show_graph_2")
+        self.subblock1rightright.addWidget(self.show_graph_2)
+        self.show_graph_3 = QtWidgets.QCheckBox("Line 3")
+        self.show_graph_3.setObjectName("show_graph_3")
+        self.subblock1rightright.addWidget(self.show_graph_3)
+
         self.time_plot = pg.plot()
+        # self.time_plot.QSizePolicy
         self.time_plot.showGrid(x=True, y=True)
 
         self.time_plot.addLegend()
         self.time_plot.setLabel('left', 'Velosity Amplitude', units='smth')
         self.time_plot.setLabel('bottom', 'Horizontal Values', units='smth')
-        
+        self.curve = []
+        self.curve = self.time_plot.plot(pen='r')
+        arr = np.array([1, 3, 4])
+        arr2 = np.array([3, 5, 6])
+        arr3 = np.array([5, 6, 7])
+        self.curve[0].setData(arr)
+        self.curve.setData(arr2)
+        # self.curve.setData[0](arr)
+        # self.curve.setData[1](np.array([4, 2, 3]))
         self.subblock1rightright.addWidget(self.time_plot)
         self.time_plot.getPlotItem().ctrl.fftCheck.setChecked(False) # fft
 
@@ -279,11 +298,14 @@ class MyWindow(QtWidgets.QWidget):
         self.fft_button.clicked.connect(self.plot_change)
         self.com_boderate_widget.currentTextChanged.connect(
             self.combobox_changed)
-
+        self.show_graph_1.stateChanged.connect(self.plot_show)
+        self.show_graph_2.stateChanged.connect(self.plot_show)
+        self.show_graph_3.stateChanged.connect(self.plot_show)
+        # self.sender()
 # ------ Timres ---------------------------------------------------------------
 
         self.timer = QtCore.QTimer()
-        self.timer_interval = 125*4
+        self.timer_interval = 125*2
         self.timer.setInterval(self.timer_interval)
         self.timer.timeout.connect(self.timerEvent)
 
@@ -308,7 +330,7 @@ class MyWindow(QtWidgets.QWidget):
                 QSerialPort.StopBits.OneStop)
         self.data_prosessing_thr.sec_count.connect(self.signal_from_thread)
 
-        logging.getLogger().setLevel(logging.WARNING)
+        logging.getLogger().setLevel(logging.INFO)
         logging.info(f"Start")
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
@@ -375,17 +397,14 @@ class MyWindow(QtWidgets.QWidget):
         # self.timer.setInterval(self.timer_interval)
         logging.info(line := f"{self.com_list_widget.currentText()} open")
         logging.info(line := f"self.cycleNum = {self.total_cycle_num}")
-        self.text_logs.append(
-            line := f">>> {time.strftime("%H:%M:%S")} Start")
-        logging.info(line)
-        logging.warning(line)
+        # self.text_logs.append(line := f">>> {time.strftime("%H:%M:%S")} Start")
+        # logging.info(line)
+        # logging.warning(line)
 
         self.Serial.clear()
-        self.Serial.clearError()
         self.Serial.flush()
         # self.timer.setInterval(0)
         self.timer.start()
-
         self.timer_sent_com.setInterval(0)
         self.timer_sent_com.start()
 
@@ -405,6 +424,7 @@ class MyWindow(QtWidgets.QWidget):
     def read_serial(self):
         if (bytes_num := self.Serial.bytesAvailable()) <= 14:
             logging.info("no data from COM port!")
+            # logging.warning(f"> {time.strftime("%H:%M:%S")} No data from {self.com_list_widget.currentText()}")
             return
         if self.data_prosessing_thr.flag_recieve:
             logging.info("thread still work with previous datad!")
@@ -435,6 +455,7 @@ expected package num {self.exp_package_num}")
         #     logging.info(line)
         #     return
 
+        logging.info(f"---sent_command--- Open? {self.Serial.isOpen()}")
         if self.flag_sent:
             if self.count >= len(self.list_time):
                 if self.current_cylce < self.total_cycle_num:
@@ -447,12 +468,10 @@ expected package num {self.exp_package_num}")
                 self.list_data_from_file_widget.index(self.count))
             self.sent_command()
             self.flag_sent = False
-            logging.info(f"---sent_command--- Open? {self.Serial.isOpen()}")
         else:
             self.Serial.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
             self.timer_sent_com.setInterval(1000)
             self.flag_sent = True
-            logging.info(f"-sent_pause_command- Open? {self.Serial.isOpen()}")
 
     def sent_command(self):
         F_H = self.list_freq[self.count] >> 8
@@ -462,7 +481,7 @@ expected package num {self.exp_package_num}")
 
         self.Serial.write(
             bytes([77, 0, F_L, F_H, A_L, A_H, 0, 0]))
-
+        logging.info("- Command was sent -")
         self.timer_sent_com.setInterval(
             self.list_time[self.count] * 1000)
         self.count += 1
@@ -476,7 +495,6 @@ expected package num {self.exp_package_num}")
             + str(self.current_cylce) + " of " +
             str(self.total_cycle_num))
         logging.info(line)
-
         logging.warning(line)
 
         self.current_cylce += 1
@@ -506,8 +524,22 @@ expected package num {self.exp_package_num}")
                 str(self.Serial.waitForBytesWritten(1000)))
             logging.info(line)
             self.Serial.close()
-
+        
 ###############################################################################
+    def plot_show(self):
+        # print(self.sender().findChild())
+        print(self.sender().objectName())
+        if self.sender().objectName() == "show_graph_1":
+            print(self.sender())
+        if self.sender().objectName() == "show_graph_2":
+
+            if self.time_plot.isVisible():
+                self.time_plot.hide() 
+            else:
+                self.time_plot.show()
+
+        if self.sender().objectName() == "show_graph_3":
+            print(self.sender())
 
     def cycle_num_value_change(self):
         if not self.timer.isActive(): # is this required?
@@ -530,9 +562,25 @@ package_num = {self.data_prosessing_thr.package_num}")
         self.package_number_label.setText(
             str(self.data_prosessing_thr.package_num))
 
-        self.time_plot.plot(
-            self.data_prosessing_thr.nums_united[:, 0],
-            self.data_prosessing_thr.nums_united[:, 2])#,
+        
+        # self.pen1 = pg.mkPen(color='r')
+        # name1 = "1"
+        # self.pen2 = pg.mkPen(color='g')
+        # name2 = "2"
+        # self.pen3 = pg.mkPen(color='g')
+        # name3 = "3"
+        # self.time_plot.plot(
+        #     self.data_prosessing_thr.nums_united[:, 0],
+        #     self.data_prosessing_thr.nums_united[:, 2],
+        #     pen=self.pen1, name=name1)
+        # self.time_plot.plot(
+        #     self.data_prosessing_thr.nums_united[:, 0],
+        #     self.data_prosessing_thr.nums_united[:, 2]/2,
+        #     pen=self.pen2, name=name2)
+        # self.time_plot.plot(
+        #     self.data_prosessing_thr.nums_united[:, 0],
+        #     self.data_prosessing_thr.nums_united[:, 2]/4,
+        #     pen=self.pen3, name=name3)
             #pen=(255, 0, 0), name="Red curve")
         
         # self.time_plot.plot(
