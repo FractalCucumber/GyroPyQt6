@@ -1,4 +1,4 @@
-
+# https://github.com/FractalCucumber/GyroPyQt6.git
 import logging
 import sys
 
@@ -24,27 +24,82 @@ import numpy as np
 # -------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-class QTextEditLogger(logging.Handler):
+class QTextEditLogger():
     def __init__(self, parent):
         super().__init__()
-        # self.widget = QtWidgets.QPlainTextEdit(parent)
-        # self.widget.setReadOnly(True)
+ 
+        # def create_logger(path, widget: QtWidgets.QTextEdit):
+
+        # logging.disable(logging.INFO) # disable logging for certain level
 
         self.widget = QtWidgets.QTextEdit(parent)
         self.widget.setReadOnly(True)
+        
+        log = logging.getLogger('main')
+        log.setLevel(logging.INFO)
+
+        file_formatter = logging.Formatter(
+            ('#%(levelname)-s, %(pathname)s, line %(lineno)d, [%(asctime)s]: '
+            '%(message)s'), datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        # file_handler = logging.FileHandler('./log')
+        logging.basicConfig(filename='pyqt6_log.log',
+                            filemode='w',
+                            format= ('#%(levelname)-s, %(pathname)s, line %(lineno)d, [%(asctime)s]: '
+                            '%(message)s'),
+                            level=logging.INFO)
+        # file_handler = logging.FileHandler('pyqt6_log.log')
+        # file_handler.setLevel(logging.INFO)
+        # file_handler.setFormatter(file_formatter)
+
+        # console_formatter = logging.Formatter(('#%(levelname)-s, %(pathname)s, '
+                                            # 'line %(lineno)d: %(message)s'))
+        # console_handler = logging.StreamHandler()
+        # console_handler.setFormatter(console_formatter)
+        # console_handler.setLevel(logging.DEBUG)
+        # console_handler.setFormatter(console_formatter)
+
+        log_window_formatter = logging.Formatter(
+            ('>>> %(asctime)s %(message)s\n'), datefmt='%H:%M:%S'
+        )
+        log_window_handler = logging.Handler()
+        log_window_handler.emit = lambda record: self.widget.insertPlainText(
+            log_window_handler.format(record)
+        )
+        log_window_handler.setLevel(logging.WARNING)
+        
+        log_window_handler.setFormatter(log_window_formatter)
+    
+        # log.addHandler(file_handler)
+        # log.addHandler(console_handler)
+        log.addHandler(log_window_handler)
+ 
+        
+        # def test():
+        #     logger = logging.getLogger('main')
+        #     logger.error('ошибка 1')
+        #     logger.error('ошибка 2')
+        #     logger.critical('критическая ошибка 1')
+
+        # self.widget = QtWidgets.QPlainTextEdit(parent)
+        # self.widget.setReadOnly(True)
+
+
         # logging.basicConfig(level=logging.INFO,
         #                     filemode="w",
         #                     format="%(asctime)s %(levelname)s %(message)s",
         #                     datefmt='%d-%b-%y %H:%M:%S')
 
-    def emit(self, record):
-        msg = self.format(record)
-        # self.widget.appendPlainText(msg)
-        # self.widget.appendPlainText(msg)
-        self.widget.append(msg)
-        # self.logTextBox = QTextEditLogger(self)
-        # self.logTextBox.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-        # logging.getLogger().addHandler(self.logTextBox)
+    # def emit(self, record):
+        # msg = self.format(record)
+    #     # self.widget.appendPlainText(msg)
+    #     # self.widget.appendPlainText(msg)
+        # self.widget.append(msg)
+    #     # self.logTextBox = QTextEditLogger(self)
+    #     # self.logTextBox.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    #     logging.getLogger().addHandler(self.widget)
+    #     self.wid = logging.Handler(self.widget)
+    #     self.wid.setLevel(logging.INFO)
 
 
 class MyWindow(QtWidgets.QWidget):
@@ -158,7 +213,7 @@ class MyWindow(QtWidgets.QWidget):
         self.log_text_box = QTextEditLogger(self)
         # self.logTextBox.setFormatter(
         #   logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-        logging.getLogger().addHandler(self.log_text_box)
+        # logging.getLogger().addHandler(self.log_text_box)
         # You can control the logging level
         # logging.getLogger().setLevel(logging.INFO)
         # logging.getLogger().setLevel(logging.WARNING)
@@ -199,7 +254,9 @@ class MyWindow(QtWidgets.QWidget):
 # ------ PLot -----------------------------------------------------------------
 
         self.block1rightright = QtWidgets.QGroupBox("&График")
-        self.subblock1rightright = QtWidgets.QFormLayout()
+        # self.subblock1rightright = QtWidgets.QFormLayout()
+        self.subblock1rightright = QtWidgets.QGridLayout()
+
 
         self.progress_bar = QtWidgets.QProgressBar()
         self.progress_bar.setValue(0)
@@ -222,25 +279,59 @@ class MyWindow(QtWidgets.QWidget):
         self.show_graph_3 = QtWidgets.QCheckBox("Line 3")
         self.show_graph_3.setObjectName("show_graph_3")
         self.subblock1rightright.addWidget(self.show_graph_3)
-
-        self.time_plot = pg.plot()
+        
+        # self.plot = pg.PlotDataItem([1, 2], [3, 4])
+        # self.time_plot = pg.plot()
+        
+        self.time_plot = pg.PlotItem()
+        self.curve = self.time_plot.plot(pen='r')
+        # self.curve.setData
+        # pg.PlotDataItem.setData()
+        # pg.
+        # from pyqtgraph import PlotDataItem as pd
+        # pd.setData
         # self.time_plot.QSizePolicy
         self.time_plot.showGrid(x=True, y=True)
 
         self.time_plot.addLegend()
         self.time_plot.setLabel('left', 'Velosity Amplitude', units='smth')
         self.time_plot.setLabel('bottom', 'Horizontal Values', units='smth')
-        self.curve = []
-        self.curve = self.time_plot.plot(pen='r')
+        # self.curve = []
+        # self.curve = self.time_plot.plot(pen='r')
         arr = np.array([1, 3, 4])
         arr2 = np.array([3, 5, 6])
         arr3 = np.array([5, 6, 7])
-        self.curve[0].setData(arr)
-        self.curve.setData(arr2)
+        # self.curve[0].setData(arr)
+        self.curve.setData([0, 0, 1, 1, 0], [0, 1, 1, 0, 0])
         # self.curve.setData[0](arr)
         # self.curve.setData[1](np.array([4, 2, 3]))
-        self.subblock1rightright.addWidget(self.time_plot)
-        self.time_plot.getPlotItem().ctrl.fftCheck.setChecked(False) # fft
+        self.plot = pg.PlotWidget(plotItem=self.time_plot)
+        self.subblock1rightright.addWidget(self.plot, 5, 0)
+
+        self.time_plot2 = pg.PlotItem()
+        # self.time_plot.QSizePolicy
+        self.time_plot2.showGrid(x=True, y=True)
+
+        self.time_plot2.addLegend()
+        self.time_plot2.setLabel('left', 'Velosity Amplitude', units='smth')
+        self.time_plot2.setLabel('bottom', 'Horizontal Values', units='smth')
+        self.curve = []
+        self.curve2 = self.time_plot2.plot(pen='r')
+        arr = np.array([1, 3, 4])
+        arr2 = np.array([3, 5, 6])
+        arr3 = np.array([5, 6, 7])
+        # self.curve[0].setData(arr)
+        self.curve2.setData([0, 0, 2, 2, 0], [0, 2, 2, 0, 0])
+        # self.curve.setData[0](arr)
+        # self.curve.setData[1](np.array([4, 2, 3]))
+        self.plot2 = pg.PlotWidget(plotItem=self.time_plot2)
+        # self.plot2.plotItem.addItem
+        self.subblock1rightright.addWidget(self.plot2, 5, 0)
+        self.plot.hide()
+        self.plot2.hide()
+        self.plot.show()
+
+        self.time_plot.ctrl.fftCheck.setChecked(False) # fft
 
         self.fft_button = QtWidgets.QPushButton("&Time")
         self.subblock1rightright.addWidget(self.fft_button)
@@ -277,7 +368,7 @@ class MyWindow(QtWidgets.QWidget):
         self.stop_button.setObjectName("stop_button")
         # self.choose_file.setObjectName("choose_file")
         self.start_button.setObjectName("start_button")
-        with open("StyleSheets.css", "r") as StyleSheetsFile:
+        with open("StyleSheets copy.css", "r") as StyleSheetsFile:
             self.setStyleSheet(StyleSheetsFile.read())
 
         app_icon = QtGui.QIcon()
@@ -330,8 +421,11 @@ class MyWindow(QtWidgets.QWidget):
                 QSerialPort.StopBits.OneStop)
         self.data_prosessing_thr.sec_count.connect(self.signal_from_thread)
 
-        logging.getLogger().setLevel(logging.INFO)
-        logging.info(f"Start")
+
+        # logging.getLogger().setLevel(logging.WARNING)
+        self.logger = logging.getLogger('main')
+        self.logger.info(f"Start")
+        self.logger.warning(f"Start11")
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
 #
@@ -353,14 +447,14 @@ class MyWindow(QtWidgets.QWidget):
         self.flag_sent = False
         self.data_prosessing_thr.flag_start = True
         
-        logging.info(F"PORT: {(self.com_list_widget.currentText())}\n")
+        self.logger.info(F"PORT: {(self.com_list_widget.currentText())}\n")
         if not len(self.com_list_widget.currentText()):
             self.available_ports = QSerialPortInfo.availablePorts()
             for port in self.available_ports:
                 self.com_list_widget.addItem(port.portName())
-                logging.info(F"PORT: {(self.com_list_widget.currentText())}\n")
+                self.logger.info(F"PORT: {(self.com_list_widget.currentText())}\n")
         if not len(self.com_list_widget.currentText()):
-            logging.info("Can't find COM port")
+            self.logger.info("Can't find COM port")
             QtWidgets.QMessageBox.critical(
                 None, "Ошибка", "COM порт не найден")
             return
@@ -381,13 +475,13 @@ class MyWindow(QtWidgets.QWidget):
             self.cycle_num_value_change()
             self.get_data_from_file()
             if not self.total_time:
-                logging.info("No data from file")
+                self.logger.info("No data from file")
                 return
         
-        logging.info("Data from file was loaded")
+        self.logger.info("Data from file was loaded")
 
         if not self.Serial.open(QtCore.QIODevice.OpenModeFlag.ReadWrite):
-            logging.info(f"Can't open {self.com_list_widget.currentText()}")
+            self.logger.info(f"Can't open {self.com_list_widget.currentText()}")
             return
 
         self.cycle_num_value_change()
@@ -395,11 +489,11 @@ class MyWindow(QtWidgets.QWidget):
         self.avaliable_butttons(True)
 
         # self.timer.setInterval(self.timer_interval)
-        logging.info(line := f"{self.com_list_widget.currentText()} open")
-        logging.info(line := f"self.cycleNum = {self.total_cycle_num}")
-        # self.text_logs.append(line := f">>> {time.strftime("%H:%M:%S")} Start")
-        # logging.info(line)
-        # logging.warning(line)
+        self.logger.info(line := f"{self.com_list_widget.currentText()} open")
+        self.logger.info(line := f"self.cycleNum = {self.total_cycle_num}")
+        self.logger.warning(f"Start")
+        # self.logger.info(line)
+        # self.logger.warning(line)
 
         self.Serial.clear()
         self.Serial.flush()
@@ -415,7 +509,7 @@ class MyWindow(QtWidgets.QWidget):
     def timerEvent(self):
         self.progress_value += self.timer_interval/1000
         self.progress_bar.setValue(int(self.progress_value))
-        logging.info(f"Progress: {self.progress_value}")
+        self.logger.info(f"Progress: {self.progress_value}")
         # self.Serial.readyRead.connect(
         #     self.read_serial,
         #     QtCore.Qt.ConnectionType.SingleShotConnection)
@@ -423,21 +517,21 @@ class MyWindow(QtWidgets.QWidget):
 
     def read_serial(self):
         if (bytes_num := self.Serial.bytesAvailable()) <= 14:
-            logging.info("no data from COM port!")
-            # logging.warning(f"> {time.strftime("%H:%M:%S")} No data from {self.com_list_widget.currentText()}")
+            self.logger.info("no data from COM port!")
+            # self.logger.warning(f"> {time.strftime("%H:%M:%S")} No data from {self.com_list_widget.currentText()}")
             return
         if self.data_prosessing_thr.flag_recieve:
-            logging.info("thread still work with previous datad!")
+            self.logger.info("thread still work with previous datad!")
             return
 
         self.exp_package_num += int(bytes_num/14)
-        logging.info(
+        self.logger.info(
             f"ready to read, bytes num = {bytes_num}, \
 expected package num {self.exp_package_num}")
         self.data_prosessing_thr.rx = self.Serial.readAll().data()
         # self.Serial.flush()
         self.data_prosessing_thr.flag_recieve = True
-        logging.info(f"thread_start, count = {self.count}")
+        self.logger.info(f"thread_start, count = {self.count}")
 
 # ------- Timer2 --------------------------------------------------------------
 
@@ -446,16 +540,16 @@ expected package num {self.exp_package_num}")
         #     self.text_logs.append(
         #         line := ">>> " + str(time.strftime("%H:%M:%S")) +
         #         " Cannot sent data")
-        #     logging.info(line)
+        #     self.logger.info(line)
         #     return
         # if not self.Serial.isOpen():
         #     self.text_logs.append(
         #         line := ">>> " + str(time.strftime("%H:%M:%S")) +
         #         " COM isn't open")
-        #     logging.info(line)
+        #     self.logger.info(line)
         #     return
 
-        logging.info(f"---sent_command--- Open? {self.Serial.isOpen()}")
+        self.logger.info(f"---sent_command--- Open? {self.Serial.isOpen()}")
         if self.flag_sent:
             if self.count >= len(self.list_time):
                 if self.current_cylce < self.total_cycle_num:
@@ -481,7 +575,7 @@ expected package num {self.exp_package_num}")
 
         self.Serial.write(
             bytes([77, 0, F_L, F_H, A_L, A_H, 0, 0]))
-        logging.info("- Command was sent -")
+        self.logger.info("- Command was sent -")
         self.timer_sent_com.setInterval(
             self.list_time[self.count] * 1000)
         self.count += 1
@@ -490,12 +584,11 @@ expected package num {self.exp_package_num}")
 
     def cycle_end(self):
         self.text_logs.append(
-            line :=
-            ">>> " + str(time.strftime("%H:%M:%S")) + " End of cycle "
+            line := "End of cycle "
             + str(self.current_cylce) + " of " +
             str(self.total_cycle_num))
-        logging.info(line)
-        logging.warning(line)
+        # self.logger.info(line)
+        self.logger.warning(line)
 
         self.current_cylce += 1
         self.count = 0
@@ -510,19 +603,17 @@ expected package num {self.exp_package_num}")
         if self.timer.isActive():
             self.timer.stop()
             self.text_logs.append(
-                line :=
-                ">>> " + str(time.strftime("%H:%M:%S")) +
-                " End of measurements\n")
+                line := "End of measurements\n")
             # print(line)
-            logging.info(line)
-            logging.warning(line)
+            # self.logger.info(line)
+            self.logger.warning(line)
 
         if self.Serial.isOpen():
             self.Serial.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
             print(
                 line := "COM close? " +
                 str(self.Serial.waitForBytesWritten(1000)))
-            logging.info(line)
+            self.logger.info(line)
             self.Serial.close()
         
 ###############################################################################
@@ -557,7 +648,7 @@ expected package num {self.exp_package_num}")
         self.choose_file.setDisabled(flag_start)
 
     def signal_from_thread(self, s):  # по этому сигналу можно в логи писать
-        logging.info(f"thread_stop, count = {self.count}\n\
+        self.logger.info(f"thread_stop, count = {self.count}\n\
 package_num = {self.data_prosessing_thr.package_num}")
         self.package_number_label.setText(
             str(self.data_prosessing_thr.package_num))
@@ -600,12 +691,16 @@ package_num = {self.data_prosessing_thr.package_num}")
 
     def plot_change(self):
         if self.fft_button.text() == "FFT":
+            self.plot2.hide()
+            self.plot.show()
             self.fft_button.setText("Time")
-            self.time_plot.getPlotItem().ctrl.fftCheck.setChecked(False)
+            # self.time_plot.ctrl.fftCheck.setChecked(False)
             self.time_plot.setLabel('bottom', 'Horizontal Values', units='smth')
         else:
+            self.plot.hide()
+            self.plot2.show()
             self.fft_button.setText("FFT")
-            self.time_plot.getPlotItem().ctrl.fftCheck.setChecked(True)
+            # self.time_plot.ctrl.fftCheck.setChecked(True)
             self.time_plot.setLabel('bottom', 'Frequency', units='Hz')
 
     def clear_logs(self):
@@ -670,8 +765,8 @@ package_num = {self.data_prosessing_thr.package_num}")
         self.settings.setValue(
             "COM_index", self.com_boderate_widget.currentIndex())
         print("\nExit\n")
-        logging.info("\nExit\n")
-        logging.warning("\nExit\n")
+        # self.logger.info("\nExit\n")
+        self.logger.warning("Exit\n")
 
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
@@ -683,15 +778,6 @@ package_num = {self.data_prosessing_thr.package_num}")
 
 
 if __name__ == "__main__":
-
-    # logging.basicConfig(level=logging.INFO,
-    #                     filename="pyqt6_log.log", filemode="w",
-    #                     format="%(asctime)s %(levelname)s %(message)s",
-    #                     datefmt='%d-%b-%y %H:%M:%S')
-    logging.basicConfig(level=logging.INFO,
-                        filename="pyqt6_log.log", filemode="w",
-                        format="%(asctime)s %(levelname)s %(message)s")
-    # logging.disable(logging.INFO) # disable logging for certain level
     app = QtWidgets.QApplication(sys.argv)
     app.setStyle('Fusion') # 'Fusion' ... QtWidgets.QStyle
     window = MyWindow()

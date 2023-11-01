@@ -14,7 +14,7 @@ class MyThread(QtCore.QThread):
     def __init__(self):
         # QtCore.QThread.__init__(self)
         super(MyThread, self).__init__()
-        self.filename = []
+        self.filename: str = ""
         self.flag_start = False
         self.flag_recieve = False
         self.package_num = 0
@@ -22,11 +22,14 @@ class MyThread(QtCore.QThread):
 
         self.nums_united = np.array([], dtype=np.int32)
 
+        self.logger = logging.getLogger('main')
+        self.logger.info('Thread init')
+
     def run(self):
         while self.flag_start:
             if self.flag_recieve:
                 
-                logging.info(f"thread_run_start, len {len(self.rx)}")
+                self.logger.info(f"thread_run_start, len {len(self.rx)}")
                 package_num_prev = self.package_num
                 i = self.rx.find(0x72)
                 self.nums_united = np.array([], dtype=np.int32)
@@ -54,7 +57,7 @@ class MyThread(QtCore.QThread):
                     self.package_num += 1
 
                 self.flag_recieve = False
-                logging.info(f"len = {self.nums_united.size}")
+                self.logger.info(f"len = {self.nums_united.size}")
                 self.nums_united = np.reshape(
                     self.nums_united, [self.package_num - package_num_prev, 5])
                 # print("dt_0 = ", time.time() - t1)
