@@ -6,7 +6,6 @@ from PyQt6.QtWidgets import QFileDialog
 # from PyQt6.QtCore import pyqtSignal, QThread, QIODevice
 import os
 import re
-# import time
 # from pyqtgraph.Qt import QtCore, QtGui
 from PyQt6.QtSerialPort import QSerialPort, QSerialPortInfo
 from PyQt6 import QtGui
@@ -69,6 +68,11 @@ class MyWindow(QtWidgets.QWidget):
         self.com_param_groupbox_layout = QtWidgets.QGridLayout()
 
         self.com_list_widget = QtWidgets.QComboBox()
+        self.com_list_widget.setEditable(True)
+        self.com_list_widget.lineEdit().setAlignment(
+            QtCore.Qt.AlignmentFlag.AlignCenter)
+        # self.com_list_widget.setEditable(False)
+        self.com_list_widget.lineEdit().setReadOnly(True)
         self.available_ports = QSerialPortInfo.availablePorts()
         if self.available_ports:
             for self.port in self.available_ports:
@@ -81,6 +85,8 @@ class MyWindow(QtWidgets.QWidget):
 
         self.com_boderate_widget = QtWidgets.QComboBox()
         self.com_boderate_widget.setEditable(True)
+        self.com_boderate_widget.lineEdit().setAlignment(
+            QtCore.Qt.AlignmentFlag.AlignCenter)
         self.settings = QtCore.QSettings("COM_speed")
         if self.settings.contains("COM_speed_list"):
             self.com_boderate_widget.addItems(
@@ -91,12 +97,15 @@ class MyWindow(QtWidgets.QWidget):
         if self.settings.contains("COM_index"):
             self.com_boderate_widget.setCurrentIndex(
                 self.settings.value("COM_index"))
+        # QtGui.QRegExpValidator()
+        # self.int_validator = QtGui.QValidator("1[0-2]|[1-9]")
+        self.int_validator = QtGui.QIntValidator()
+        self.com_boderate_widget.setValidator(self.int_validator)
 
         self.com_param_groupbox_layout.addWidget(QtWidgets.QLabel('Speed:'),
                                                  1, 0)
         self.com_param_groupbox_layout.addWidget(self.com_boderate_widget,
                                                  1, 1)
-
         # self.FS_for_FFT = QtWidgets.QComboBox()
         # self.FS_for_FFT.setEditable(True)
         # self.settings = QtCore.QSettings("COM_speed")
@@ -109,7 +118,10 @@ class MyWindow(QtWidgets.QWidget):
         # if self.settings.contains("FS_index"):
         #     self.FS_for_FFT.setCurrentIndex(
         #         self.settings.value("FS_index"))
+
         self.FS_for_FFT = QtWidgets.QLineEdit("2000")
+        # self.int_validator = QtGui.QIntValidator()
+        self.FS_for_FFT.setValidator(self.int_validator)
         self.com_param_groupbox_layout.addWidget(QtWidgets.QLabel('FS, Hz:'),
                                                  2, 0)
         self.com_param_groupbox_layout.addWidget(self.FS_for_FFT,
@@ -181,8 +193,6 @@ class MyWindow(QtWidgets.QWidget):
 
         self.log_text_box = PyQt6_Logger.QTextEditLogger(self)
         self.logger = logging.getLogger('main')
-        # self.logger.info(f"Start")
-        # self.logger.warning(f"Start11")
 
 # ------ Output logs and data from file ---------------------------------------
 
@@ -243,9 +253,9 @@ class MyWindow(QtWidgets.QWidget):
 
         self.time_plot_item.addLegend()
         self.time_plot_item.setLabel('left', 'Velosity',
-                                units='degress*100 per second')
+                                     units='degress*100 per second')
         self.time_plot_item.setLabel('bottom', 'Time',
-                                units='seconds')
+                                     units='seconds')
         self.curve_gyro1 = self.time_plot_item.plot(pen='r', name="gyro 1")
         self.curve_gyro2 = self.time_plot_item.plot(pen='g', name="gyro 2")
         self.curve_gyro3 = self.time_plot_item.plot(pen='b', name="gyro 3")
@@ -253,7 +263,7 @@ class MyWindow(QtWidgets.QWidget):
 
         self.region = pg.LinearRegionItem([4, 7])
         self.time_plot_item.addItem(self.region)
-        self.region.setRegion([1, 2])
+        self.region.setRegion([0, 2])
         self.region.setMovable(False)
 
         # self.curve_gyro1.setData([0, 0, 1, 1, 0], [0, 1, 1, 0, 0])
@@ -265,9 +275,9 @@ class MyWindow(QtWidgets.QWidget):
 
         self.amp_plot_item.addLegend()
         self.amp_plot_item.setLabel('left', 'Amplitude',
-                               units='')
+                                    units='')
         self.amp_plot_item.setLabel('bottom', 'Frequency',
-                               units='Hz')
+                                    units='Hz')
         # symbol_size = 6
         self.amp_curve_gyro1 = self.amp_plot_item.plot(
             pen='r', name="gyro 1", symbol="o", symbolSize=6, symbolBrush='r')
@@ -282,9 +292,9 @@ class MyWindow(QtWidgets.QWidget):
 
         self.phase_plot_item.addLegend()
         self.phase_plot_item.setLabel('left', 'Phase',
-                                 units='')
+                                      units='')
         self.phase_plot_item.setLabel('bottom', 'Frequency',
-                                 units='Hz')
+                                      units='Hz')
         self.phase_curve_gyro1 = self.phase_plot_item.plot(
             pen='r', name="gyro 1", symbol="o", symbolSize=6, symbolBrush='r')
         self.phase_curve_gyro2 = self.phase_plot_item.plot(
@@ -312,7 +322,7 @@ class MyWindow(QtWidgets.QWidget):
         self.plot_groupbox_layout.addWidget(self.phase_plot,
                                             1, 0, 1, 9)
         # self.time_plot.ctrl.fftCheck.setChecked(False)  # fft
-        self.show_fft_button = QtWidgets.QPushButton("&Time")
+        self.show_fft_button = QtWidgets.QPushButton("Time plot")
         self.plot_groupbox_layout.addWidget(self.show_fft_button,
                                             2, 0, 1, 9)
 
@@ -371,7 +381,7 @@ class MyWindow(QtWidgets.QWidget):
 # ------ Thread --------------------------------------------------------------
         self.prosessing_thr = PyQt6_Thread.MyThread()
         self.prosessing_thr.package_num_signal.connect(
-            self.signal_from_thread)
+            self.plot_time_graph)
         self.prosessing_thr.fft_data_emit.connect(
             self.plot_fft)
 
@@ -500,16 +510,19 @@ expected package num {self.exp_package_num}")
         self.prosessing_thr.rx = self.Serial.readAll().data()
         self.prosessing_thr.flag_recieve = True
         self.prosessing_thr.count = self.count
-        self.prosessing_thr.flag_sent = self.flag_sent
+        self.prosessing_thr.flag_pause = self.flag_sent
 
 # ------- Timer2 --------------------------------------------------------------
 
     def timer_event_sent_com(self):
+        """
+        Sent command with frequency and amplitude or stop vibration
+        """
         # if not self.Serial.isOpen():
         #     self.text_logs.append(line := "COM isn't open")
         #     self.logger.info(line)
         #     return
-        self.logger.info(f"---sent_command--- Open? {self.Serial.isOpen()}")
+        # self.logger.info(f"---sent_command--- Open? {self.Serial.isOpen()}")
         if self.flag_sent:
             if self.count >= len(self.list_time):
                 if self.current_cylce < self.total_cycle_num:
@@ -611,7 +624,7 @@ expected package num {self.exp_package_num}")
         self.stop_button.setDisabled(not flag_start)
         self.choose_file.setDisabled(flag_start)
 
-    def signal_from_thread(self, s):
+    def plot_time_graph(self, s):
         self.package_num = s
         self.logger.info(f"thread_stop, count = {self.count}\n\
 package_num = {self.package_num}")
@@ -634,7 +647,7 @@ package_num = {self.package_num}")
             self.prosessing_thr.all_data[start_i:self.package_num, 2]/2)
 
         # self.curve_3.setData(self.data_prosessing_thr.all_data[:, 2]/2)
-
+        
         # self.data_for_fft_graph(
         #     self.data_prosessing_thr.all_data[:, 2],
         #     self.data_prosessing_thr.all_data[:, 2]*2,
@@ -669,19 +682,19 @@ package_num = {self.package_num}")
             self.com_boderate_widget.currentIndex(), value)
 
     def plot_change(self):
-        if self.show_fft_button.text() == "FFT":
-            self.time_plot.hide()
-            self.amp_plot.show()
-            self.phase_plot.show()
-            self.show_fft_button.setText("Time")
+        if self.show_fft_button.text() == "Frequency plot":
+            self.time_plot.show()
+            self.amp_plot.hide()
+            self.phase_plot.hide()
+            self.show_fft_button.setText("Time plot")
             # self.time_plot.ctrl.fftCheck.setChecked(False)
             # self.time_plot.setLabel(
             #     'bottom', 'Horizontal Values', units='smth')
         else:
-            self.time_plot.show()
-            self.amp_plot.hide()
-            self.phase_plot.hide()
-            self.show_fft_button.setText("FFT")
+            self.time_plot.hide()
+            self.amp_plot.show()
+            self.phase_plot.show()
+            self.show_fft_button.setText("Frequency plot")
             # self.time_plot.ctrl.fftCheck.setChecked(True)
             # self.time_plot.setLabel(
             #     'bottom', 'Frequency', units='Hz')
