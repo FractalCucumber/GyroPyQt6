@@ -1,14 +1,15 @@
 from PyQt6 import QtCore
 # import PyQt6.QtCore.QThread.pyqtSignalSlot
 import numpy as np
-from PyQt6.QtSerialPort import QSerialPort
-import pyqtgraph as pg
+# from PyQt6.QtSerialPort import QSerialPort
+# import pyqtgraph as pg
 import logging
-import time
+# import time
 
 
 class MyThread(QtCore.QThread):
     package_num_signal = QtCore.pyqtSignal(int)
+    fft_data_emit = QtCore.pyqtSignal(bool)
 
     def __init__(self):
         # QtCore.QThread.__init__(self)
@@ -17,11 +18,10 @@ class MyThread(QtCore.QThread):
         self.flag_start = False
         self.flag_recieve = False
         self.rx: bytes = b''
-        self.amp_and_freq = np.ndarray([]) # ???
+        self.amp_and_freq = np.ndarray([])  # ???
         # self.all_data = np.array([], dtype=np.int32)
         self.size_change_step = 20000
 
-        # for fft
         self.FS = []
         self.TIMER_INTERVAL = []
         self.flag_sent = []
@@ -32,15 +32,13 @@ class MyThread(QtCore.QThread):
         self.num_rows = 0
         self.package_num = 0
         self.all_data = np.ndarray((self.size_change_step, 5), dtype=int)
-        self.ftt_data = np.array([])  #, dtype=np.complex128)
+        self.ftt_data = np.array([])
 
         self.count = 1
         self.i = 0
         self.flag_wait = False
         self.flag_sent = False
         self.bourder = np.array([0, 0])
-        # self.amp_and_freq = np.ndarray([]) # ???
-        # first = True
         while self.flag_start or self.flag_recieve:
             if not self.flag_recieve:
                 self.msleep(5)
@@ -52,17 +50,20 @@ class MyThread(QtCore.QThread):
                 #        and (self.rx[i] == 0x72 and self.rx[i + 13] == 0x27)):
                 while (i + 13) < len(self.rx):
                     if not (self.rx[i] == 0x72 and self.rx[i + 13] == 0x27):
-                        self.logger.info(f"before i = {i}, 0x72:{self.rx[i] == 0x72}, 0x27:{self.rx[i + 13] == 0x27}")
+                        self.logger.info(f"before i = {
+                            i}, 0x72:{self.rx[i] == 0x72}, 0x27:{
+                                self.rx[i + 13] == 0x27}")
                         i += self.rx[i:].find(0x27) + 1
-                        self.logger.info(f"now i = {i}, 0x72:{self.rx[i] == 0x72}, 0x27:{self.rx[i + 13] == 0x27}")
+                        self.logger.info(f"now i = {
+                            i}, 0x72:{self.rx[i] == 0x72}, 0x27:{
+                                self.rx[i + 13] == 0x27}")
                         continue  # ???
-                        
+
                     # check flag
-                    nums = np.array(
+                    self.all_data[self.package_num, :] = np.array(
                         [self.int_from_bytes(self.rx, i, self.package_num)])
-                    i += 14
-                    self.all_data[self.package_num, :] = nums
                     # self.all_data = np.vstack([self.all_data, nums])
+                    i += 14
                     self.package_num += 1
                     if self.package_num >= self.num_rows:
                         self.num_rows += self.size_change_step
@@ -70,7 +71,6 @@ class MyThread(QtCore.QThread):
                                                   (self.num_rows, 5))
 
                 self.logger.info(f"\t\treal package_num = {self.package_num}")
-                # print("dt_0 = ", time.time() - t1)
                 self.package_num_signal.emit(self.package_num)
                 self.flag_recieve = False
 
@@ -78,14 +78,14 @@ class MyThread(QtCore.QThread):
                     self.all_data[:, 2],
                     self.all_data[:, 2],
                     self.FS)
-                
+
         self.all_data = np.resize(self.all_data, (self.package_num, 5))
         with open(self.filename, 'w') as file:
             np.savetxt(file, self.all_data, delimiter='\t', fmt='%d')
 
         self.logger.info(f"\t\tFFT = {self.amp_and_freq}")
-        with open("FFT2.txt", 'w') as file:
-            np.savetxt(file, self.amp_and_freq, delimiter='\t', fmt='%d')
+        with open("FFT.txt", 'w') as file:
+            np.savetxt(file, self.amp_and_freq, delimiter='\t', fmt='%.3f')
 
         # self.fft_data(gyro=self.all_data[:, 2],
         #               encoder=self.all_data[:, 2],
@@ -189,7 +189,7 @@ class MyThread(QtCore.QThread):
         return [Freq, Amp, dPh, tau]
 
     def data_for_fft_graph(self, encoder: np.ndarray, gyro: np.ndarray, FS):
-        # fft_data = np.array([]) 
+        # fft_data = np.array([])
         if not self.flag_sent:
             self.flag_wait = True
             self.i += 1
@@ -202,7 +202,11 @@ class MyThread(QtCore.QThread):
                 self.i = 0
                 self.logger.info(
                     f"\n\tbourders = {self.bourder}, self.count = {self.count}")
-
+                self.bourder[1] = self.bourder[0] + ((self.bourder[1] - self.bourder[0]) // self.FS) * self.FS
+                # d = ((self.bourder[1] - self.bourder[0]) // self.FS) * self.bourder[0]
+                # g = (self.bourder[1] - self.bourder[0])
+                self.logger.info(
+                    f"\n\tnew bourders = {self.bourder}")
                 [Amp, dPhase, Freq] = self.fft_data(
                     gyro[self.bourder[0]:self.bourder[1]],
                     encoder[self.bourder[0]:self.bourder[1]],
@@ -212,8 +216,9 @@ class MyThread(QtCore.QThread):
                 self.amp_and_freq = np.resize(self.amp_and_freq,
                                               (self.count, 3))
                 self.amp_and_freq[(self.count - 1), :] = [Amp, dPhase, Freq]
+
+                self.fft_data_emit.emit(True)
         # return [Amp, dPhase, Freq]
-        return [1, 2, 3]
 
     def fft_data(self, gyro: np.ndarray, encoder: np.ndarray, FS):
         #   AmpPhF Summary of this function goes here
@@ -233,7 +238,8 @@ class MyThread(QtCore.QThread):
         NFFT = np.array([], dtype=int)
         next_power = np.ceil(np.log2(L))  # показатель степени 2 дл¤ числа длины записи
         NFFT = int(np.power(2, next_power))
-        self.logger.warning(f"\nNFFT {NFFT}, next_power {next_power}, len(gyro) {len(gyro)}")
+        self.logger.info(
+            f"\nNFFT {NFFT}, next_power {next_power}, len(gyro) {len(gyro)}")
         Yg = np.fft.fft(gyro, NFFT)/L  # преобразование Фурье сигнала гироскопа
         Ye = np.fft.fft(encoder, NFFT)/L  # преобразование Фурье сигнала энкодера
         f = FS/2 * np.linspace(0, 1, int(NFFT/2 + 1), endpoint=True)  # получение вектора частот
@@ -242,7 +248,7 @@ class MyThread(QtCore.QThread):
         ng = np.argmax(Yg[0:int(NFFT/2)])
         Mg = 2*abs(Yg[ng])
         Freq = f[ng]
-        
+
         ne = np.argmax(Ye[0:int(NFFT/2)])
         Me = 2*abs(Ye[ne])
         self.logger.info(f"\tMe {Me} \tMg {Mg}")
