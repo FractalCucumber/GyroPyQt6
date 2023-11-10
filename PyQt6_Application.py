@@ -23,6 +23,25 @@ import PyQt6_Thread
 # -----------------------------------------------------------------------------
 
 
+class CustomViewBox(pg.ViewBox):
+    def __init__(self, *args, **kwds):
+        kwds['enableMenu'] = False
+        pg.ViewBox.__init__(self, *args, **kwds)
+        self.setMouseMode(self.RectMode)
+        
+    # reimplement right-click to zoom out
+    def mouseClickEvent(self, ev):
+        if ev.button() == QtCore.Qt.MouseButton.RightButton:
+            self.autoRange()
+    
+    ## reimplement mouseDragEvent to disable continuous axis zoom
+    def mouseDragEvent(self, ev, axis=None):
+        if axis is not None and ev.button() == QtCore.Qt.MouseButton.RightButton:
+            ev.ignore()
+        else:
+            pg.ViewBox.mouseDragEvent(self, ev, axis=axis)
+
+
 class MyWindow(QtWidgets.QWidget):
     def __init__(self, parent=None):
 
@@ -35,10 +54,10 @@ class MyWindow(QtWidgets.QWidget):
 
 # ------ Timres ---------------------------------------------------------------
 
-        self.timer = QtCore.QTimer()
+        self.timer_recieve = QtCore.QTimer()
         self.TIMER_INTERVAL = 125*2
-        self.timer.setInterval(self.TIMER_INTERVAL)
-        self.timer.timeout.connect(self.timerEvent)
+        self.timer_recieve.setInterval(self.TIMER_INTERVAL)
+        self.timer_recieve.timeout.connect(self.timerEvent)
 
         self.timer_sent_com = QtCore.QTimer()
         self.timer_sent_com.setTimerType(QtCore.Qt.TimerType.PreciseTimer)
@@ -63,7 +82,7 @@ class MyWindow(QtWidgets.QWidget):
 # ------ Com Settings ---------------------------------------------------------
 
         self.com_param_groupbox = QtWidgets.QGroupBox(
-            "&Настройки порта")
+            "Настройки порта")
         self.com_param_groupbox.setMaximumWidth(300)
         self.com_param_groupbox_layout = QtWidgets.QGridLayout()
 
@@ -71,7 +90,6 @@ class MyWindow(QtWidgets.QWidget):
         self.com_list_widget.setEditable(True)
         self.com_list_widget.lineEdit().setAlignment(
             QtCore.Qt.AlignmentFlag.AlignCenter)
-        # self.com_list_widget.setEditable(False)
         self.com_list_widget.lineEdit().setReadOnly(True)
         self.available_ports = QSerialPortInfo.availablePorts()
         if self.available_ports:
@@ -97,8 +115,6 @@ class MyWindow(QtWidgets.QWidget):
         if self.settings.contains("COM_index"):
             self.com_boderate_widget.setCurrentIndex(
                 self.settings.value("COM_index"))
-        # QtGui.QRegExpValidator()
-        # self.int_validator = QtGui.QValidator("1[0-2]|[1-9]")
         self.int_validator = QtGui.QIntValidator()
         self.com_boderate_widget.setValidator(self.int_validator)
 
@@ -119,8 +135,7 @@ class MyWindow(QtWidgets.QWidget):
         #     self.FS_for_FFT.setCurrentIndex(
         #         self.settings.value("FS_index"))
 
-        self.FS_for_FFT = QtWidgets.QLineEdit("2000")
-        # self.int_validator = QtGui.QIntValidator()
+        self.FS_for_FFT = QtWidgets.QLineEdit("1000")
         self.FS_for_FFT.setValidator(self.int_validator)
         self.com_param_groupbox_layout.addWidget(QtWidgets.QLabel('FS, Hz:'),
                                                  2, 0)
@@ -169,12 +184,12 @@ class MyWindow(QtWidgets.QWidget):
 # ------ File -----------------------------------------------------------------
 
         self.saving_measurements_groupbox = QtWidgets.QGroupBox(
-            "&Сохранение измерений")
+            "Сохранение измерений")
         self.saving_measurements_groupbox.setMaximumWidth(300)
         self.saving_measurements_groupbox_layout = QtWidgets.QGridLayout()
 
         self.saving_measurements_groupbox_layout.addWidget(
-            QtWidgets.QLabel("Папка:"), 0, 0)
+            QtWidgets.QLabel('Папка:'), 0, 0)
         self.current_folder = QtWidgets.QLineEdit(os.getcwd())
         self.current_folder.setReadOnly(True)
         self.saving_measurements_groupbox_layout.addWidget(
@@ -182,7 +197,7 @@ class MyWindow(QtWidgets.QWidget):
 
         self.saving_measurements_groupbox_layout.addWidget(
             QtWidgets.QLabel("<b>Имя файла:</b>"), 1, 0)
-        self.file_name = QtWidgets.QLineEdit("test")
+        self.file_name = QtWidgets.QLineEdit('test')
         self.saving_measurements_groupbox_layout.addWidget(
             self.file_name, 1, 1)
         self.saving_measurements_groupbox.setLayout(
@@ -209,26 +224,34 @@ class MyWindow(QtWidgets.QWidget):
         # self.text_logs = QtWidgets.QTextEdit()
         # self.text_logs.setReadOnly(True)
 
-        self.text_output_groupbox_layout.addRow("&Содержимое\nфайла",
+        self.text_output_groupbox_layout.addRow("Содержимое\nфайла",
                                                 self.list_view_from_file)
-        self.text_output_groupbox_layout.addRow("&Logs:",
+        self.text_output_groupbox_layout.addRow("Logs:",
                                                 self.log_text_box.widget)
         self.text_output_groupbox_layout.addRow(
             self.text_output_groupbox_layout)
 
-        self.clear_button = QtWidgets.QPushButton("&Clear logs")
+        self.clear_button = QtWidgets.QPushButton("Clear logs")
         self.text_output_groupbox_layout.addWidget(self.clear_button)
 
-        self.start_button = QtWidgets.QPushButton("&START")
+        self.start_button = QtWidgets.QPushButton("START")
 
-        self.stop_button = QtWidgets.QPushButton("&STOP")
+        self.stop_button = QtWidgets.QPushButton("STOP")
         self.stop_button.setDisabled(True)
 
         self.text_output_groupbox.setLayout(self.text_output_groupbox_layout)
 ###############################################################################
 # ------ PLot -----------------------------------------------------------------
-
-        self.plot_groupbox = QtWidgets.QGroupBox("&График")
+######################################################################
+        self.tab_widget = QtWidgets.QTabWidget() 
+        self.tab_widget.addTab(QtWidgets.QLabel("Coдepжимoe вкладки l"), "Вкладка &l") 
+        self.tab_widget.addTab(QtWidgets.QLabel("Coдepжимoe вкладки 2"), "Вкладка &2") 
+        self.tab_widget.addTab(QtWidgets.QLabel("Coдepжимoe вкладки 3"), "Вкладка &3") 
+        self.tab_widget.setCurrentIndex(0) 
+        # vbox = QtWidgets.QVBoxLayout() 
+        self.plot_groupbox_layout.addWidget(self.tab_widget) 
+#########################################################
+        self.plot_groupbox = QtWidgets.QGroupBox("График")
         self.plot_groupbox.setMinimumWidth(395)
         self.plot_groupbox_layout = QtWidgets.QGridLayout()
 
@@ -247,81 +270,97 @@ class MyWindow(QtWidgets.QWidget):
         self.plot_groupbox_layout.addWidget(self.current_package_number_label,
                                             3, 8, 1, 1)
 # ---------------------------------------------------------------------------
-        self.time_plot_item = pg.PlotItem()
+        self.time_plot_item = pg.PlotItem(viewBox=CustomViewBox())
         self.time_plot_item.setTitle("Velosity Graph", size="12pt")
         self.time_plot_item.showGrid(x=True, y=True)
+        label_style = {'color': '#FFF', 'font-size': '14px'}
 
-        self.time_plot_item.addLegend()
+        self.time_plot_item.addLegend(offset=(-1, 1), labelTextSize='12pt',
+                                      labelTextColor=pg.mkColor('w'))
+        # self.time_plot_item.addLegend().setLabelTextColor
         self.time_plot_item.setLabel('left', 'Velosity',
-                                     units='degress*100 per second')
+                                     units='degress*100 per second',
+                                     **label_style)
         self.time_plot_item.setLabel('bottom', 'Time',
-                                     units='seconds')
+                                     units='seconds', **label_style)
+
+        self.curve_encoder = self.time_plot_item.plot(pen='w', name="encoder")
         self.curve_gyro1 = self.time_plot_item.plot(pen='r', name="gyro 1")
         self.curve_gyro2 = self.time_plot_item.plot(pen='g', name="gyro 2")
         self.curve_gyro3 = self.time_plot_item.plot(pen='b', name="gyro 3")
+
         self.curve_gyro_rectangle = self.time_plot_item.plot()
 
-        self.region = pg.LinearRegionItem([4, 7])
+        self.region = pg.LinearRegionItem([0, 1])
         self.time_plot_item.addItem(self.region)
-        self.region.setRegion([0, 2])
+        # self.region.setRegion([0, 2])
         self.region.setMovable(False)
 
         # self.curve_gyro1.setData([0, 0, 1, 1, 0], [0, 1, 1, 0, 0])
-        self.curve_gyro1.setData([2, 1, 3, 4, 5], [2, 4, 6, 8, 10])
+        # self.curve_gyro1.appendData([3, 4], [3, 7])
+        # self.curve_gyro1.setData([2, 1, 3, 4, 5], [2, 4, 6, 8, 10])
 # -----------------------------------------------------------------------------
-        self.amp_plot_item = pg.PlotItem()
+        self.amp_plot_item = pg.PlotItem(viewBox=CustomViewBox())
         self.amp_plot_item.setTitle("Amp Graph", size="12pt")
         self.amp_plot_item.showGrid(x=True, y=True)
 
-        self.amp_plot_item.addLegend()
+        self.amp_plot_item.addLegend(offset=(-1, 1), labelTextSize='12pt',
+                                     labelTextColor=pg.mkColor('w'))
         self.amp_plot_item.setLabel('left', 'Amplitude',
-                                    units='')
+                                    units='', **label_style)
         self.amp_plot_item.setLabel('bottom', 'Frequency',
-                                    units='Hz')
-        # symbol_size = 6
+                                    units='Hz', **label_style)
+        symbol_size = 6
         self.amp_curve_gyro1 = self.amp_plot_item.plot(
-            pen='r', name="gyro 1", symbol="o", symbolSize=6, symbolBrush='r')
+            pen='r', name="gyro 1", symbol="o",
+            symbolSize=symbol_size, symbolBrush='r')
         self.amp_curve_gyro2 = self.amp_plot_item.plot(
-            pen='g', name="gyro 2", symbol="o", symbolSize=6, symbolBrush='g')
+            pen='g', name="gyro 2", symbol="o",
+            symbolSize=symbol_size, symbolBrush='g')
         self.amp_curve_gyro3 = self.amp_plot_item.plot(
-            pen='b', name="gyro 3", symbol="o", symbolSize=6, symbolBrush='b')
+            pen='b', name="gyro 3", symbol="o",
+            symbolSize=symbol_size, symbolBrush='b')
 # ----------------------------------------------------------------------------
-        self.phase_plot_item = pg.PlotItem()
+        self.phase_plot_item = pg.PlotItem(viewBox=CustomViewBox())
         self.phase_plot_item.setTitle("Phase Graph", size="12pt")
         self.phase_plot_item.showGrid(x=True, y=True)
 
-        self.phase_plot_item.addLegend()
+        self.phase_plot_item.addLegend(offset=(-1, 1), labelTextSize='12pt',
+                                       labelTextColor=pg.mkColor('w'))
+
         self.phase_plot_item.setLabel('left', 'Phase',
-                                      units='')
+                                      units='', **label_style)
         self.phase_plot_item.setLabel('bottom', 'Frequency',
-                                      units='Hz')
+                                      units='Hz', **label_style)
         self.phase_curve_gyro1 = self.phase_plot_item.plot(
-            pen='r', name="gyro 1", symbol="o", symbolSize=6, symbolBrush='r')
+            pen='r', name="gyro 1", symbol="o",
+            symbolSize=symbol_size, symbolBrush='r')
         self.phase_curve_gyro2 = self.phase_plot_item.plot(
-            pen='g', name="gyro 2", symbol="o", symbolSize=6, symbolBrush='g')
+            pen='g', name="gyro 2", symbol="o",
+            symbolSize=symbol_size, symbolBrush='g')
         self.phase_curve_gyro3 = self.phase_plot_item.plot(
-            pen='b', name="gyro 3", symbol="o", symbolSize=6, symbolBrush='b')
+            pen='b', name="gyro 3", symbol="o",
+            symbolSize=symbol_size, symbolBrush='b')
 
-        self.phase_curve_gyro1.setData([0, 0, 1, 1, 0], [0, 1, 1, 0, 0])
-
-        self.time_plot = pg.PlotWidget(plotItem=self.time_plot_item)
-        # self.time_plot.hide()
-        # self.plot.show()
+        # self.phase_curve_gyro1.setData([0, 0, 1, 1, 0], [0, 1, 1, 0, 0])
+#  ----------------------------------------------------------------------------
+# pw = pg.PlotWidget(viewBox=vb, enableMenu=False)
+        self.time_plot = pg.PlotWidget(plotItem=self.time_plot_item, enableMenu=False)
+        self.spectrum_button = QtWidgets.QPushButton("FFT (doesn't work)")
+        # 
         self.amp_plot = pg.PlotWidget(plotItem=self.amp_plot_item)
         self.phase_plot = pg.PlotWidget(plotItem=self.phase_plot_item)
-        # self.fr_plot.hide()
-        # self.amp_plot.show()
         self.amp_plot.hide()
-        # self.phase_plot.show()
         self.phase_plot.hide()
-        # self.plot.addItem(self.amp_plot)
+
         self.plot_groupbox_layout.addWidget(self.time_plot,
-                                            0, 0, 2, 9)
+                                            0, 0, 1, 9)
+        self.plot_groupbox_layout.addWidget(self.spectrum_button,
+                                            1, 0, 1, 9)
         self.plot_groupbox_layout.addWidget(self.amp_plot,
                                             0, 0, 1, 9)
         self.plot_groupbox_layout.addWidget(self.phase_plot,
                                             1, 0, 1, 9)
-        # self.time_plot.ctrl.fftCheck.setChecked(False)  # fft
         self.show_fft_button = QtWidgets.QPushButton("Time plot")
         self.plot_groupbox_layout.addWidget(self.show_fft_button,
                                             2, 0, 1, 9)
@@ -384,6 +423,8 @@ class MyWindow(QtWidgets.QWidget):
             self.plot_time_graph)
         self.prosessing_thr.fft_data_emit.connect(
             self.plot_fft)
+        self.prosessing_thr.approximate_data_emit.connect(
+            self.plot_fft_final)
 
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
@@ -398,6 +439,7 @@ class MyWindow(QtWidgets.QWidget):
         self.exp_package_num = 0
 
         self.curve_gyro_rectangle.setData([])
+        self.curve_encoder.setData([])
         self.curve_gyro1.setData([])
         self.amp_curve_gyro1.setData([])
         self.phase_curve_gyro1.setData([])
@@ -428,11 +470,6 @@ class MyWindow(QtWidgets.QWidget):
                 None, "Ошибка", "COM порт не найден")
             return
 
-        if not self.com_boderate_widget.currentText().isdecimal():
-            QtWidgets.QMessageBox.critical(
-                None, "Ошибка", "Некорректная скорость порта")
-            return
-
         self.Serial.setBaudRate(
             int(self.com_boderate_widget.currentText()))
         self.Serial.setPortName(
@@ -445,7 +482,6 @@ class MyWindow(QtWidgets.QWidget):
             if not self.total_time:
                 self.logger.info("No data from file")
                 return
-
         self.logger.info("Data from file was loaded")
 
         if not self.Serial.open(QtCore.QIODevice.OpenModeFlag.ReadWrite):
@@ -457,19 +493,18 @@ class MyWindow(QtWidgets.QWidget):
         self.progress_bar_set_max()
         self.avaliable_butttons(True)
 
-        # self.timer.setInterval(self.timer_interval)
+        # self.timer_recieve.setInterval(self.timer_interval)
         self.logger.info(f"{self.com_list_widget.currentText()} open")
         self.logger.info(f"self.cycleNum = {self.total_cycle_num}")
         self.logger.warning("Start")
 
         # self.Serial.readAll()
         self.Serial.clear()
-        # self.timer.setInterval(0)
-
+        # self.timer_recieve.setInterval(0)
         # self.timer_sent_com.setInterval(0)
         self.timer_event_sent_com()
         self.timer_sent_com.start()
-        self.timer.start()
+        self.timer_recieve.start()
 
         self.FS = int(self.FS_for_FFT.text())
         self.prosessing_thr.FS = self.FS
@@ -483,9 +518,6 @@ class MyWindow(QtWidgets.QWidget):
         self.progress_value += self.TIMER_INTERVAL/1000
         self.progress_bar.setValue(int(self.progress_value))
         self.logger.info(f"Progress: {self.progress_value}")
-        # self.Serial.readyRead.connect(
-        #     self.read_serial,
-        #     QtCore.Qt.ConnectionType.SingleShotConnection)
         self.read_serial()
 
     def read_serial(self):
@@ -494,14 +526,13 @@ class MyWindow(QtWidgets.QWidget):
                 self.com_list_widget.currentText()}")
             return
         if self.prosessing_thr.flag_recieve:
-            self.logger.info("thread still work with previous datad!")
+            self.logger.info("thread still work with previous data!")
             return
 
         self.exp_package_num += int(bytes_num/14)
         self.logger.info(
             f"ready to read, bytes num = {bytes_num}, \
 expected package num {self.exp_package_num}")
-
         # self.data_prosessing_thr.flag_recieve = True
         self.copy_varibles_to_thread()
         self.logger.info(f"thread_start, count = {self.count}")
@@ -518,11 +549,6 @@ expected package num {self.exp_package_num}")
         """
         Sent command with frequency and amplitude or stop vibration
         """
-        # if not self.Serial.isOpen():
-        #     self.text_logs.append(line := "COM isn't open")
-        #     self.logger.info(line)
-        #     return
-        # self.logger.info(f"---sent_command--- Open? {self.Serial.isOpen()}")
         if self.flag_sent:
             if self.count >= len(self.list_time):
                 if self.current_cylce < self.total_cycle_num:
@@ -531,29 +557,27 @@ expected package num {self.exp_package_num}")
                     self.stop()
                     return
 
+        if self.flag_sent:
             self.list_view_from_file.setCurrentIndex(
                 self.list_data_from_file_widget.index(self.count))
             self.sent_command()
-            self.flag_sent = False
         else:
             self.Serial.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
             self.timer_sent_com.setInterval(self.PAUSE_INTERVAL_MS)
-            self.flag_sent = True
+        self.flag_sent = not self.flag_sent
         self.logger.info("---end_sent_command")
-        # self.data_prosessing_thr.flag_sent = self.flag_sent
 
     def sent_command(self):
         F = int.to_bytes(self.list_freq[self.count],
                          length=2, byteorder='little', signed=False)
         A = int.to_bytes(self.list_amp[self.count],
                          length=2, byteorder='little', signed=False)
-
         self.Serial.write(
             bytes([77, 0, F[0], F[1], A[0], A[1], 0, 0]))
-        self.logger.info("- Command was sent -")
         self.timer_sent_com.setInterval(
             self.list_time[self.count] * 1000)
         self.count += 1
+        self.logger.info("- Command was sent -")
 
 # --------------------------------------------------------------------------------
 
@@ -561,7 +585,6 @@ expected package num {self.exp_package_num}")
         self.logger.warning("End of cycle "
                             + str(self.current_cylce) + " of " +
                             str(self.total_cycle_num))
-
         self.current_cylce += 1
         self.count = 0
 
@@ -570,8 +593,8 @@ expected package num {self.exp_package_num}")
         if self.timer_sent_com.isActive():
             self.timer_sent_com.stop()
 
-        if self.timer.isActive():
-            self.timer.stop()
+        if self.timer_recieve.isActive():
+            self.timer_recieve.stop()
             self.logger.warning("End of measurements\n")
 
         if self.Serial.isOpen():
@@ -608,11 +631,11 @@ expected package num {self.exp_package_num}")
     #         return
 
     def cycle_num_value_change(self):
-        if not self.timer.isActive():  # is this required?
+        if not self.timer_recieve.isActive():  # is this required?
             self.total_cycle_num = self.cycle_num_widget.value()
 
     def progress_bar_set_max(self):
-        if self.total_time and not self.timer.isActive():  # is this required?
+        if self.total_time and not self.timer_recieve.isActive():  # is this required?
             self.progress_bar.setMaximum(int(
                 self.PAUSE_INTERVAL_MS/1000 + self.total_cycle_num *
                 (self.total_time +
@@ -636,15 +659,19 @@ package_num = {self.package_num}")
             start_i = self.package_num - num_of_points_shown
         else:
             start_i = 0
+
+        self.curve_encoder.setData(
+            self.prosessing_thr.all_data[start_i:self.package_num, 0]/self.FS,
+            self.prosessing_thr.all_data[start_i:self.package_num, 2]/1000)
         self.curve_gyro1.setData(
             self.prosessing_thr.all_data[start_i:self.package_num, 0]/self.FS,
-            self.prosessing_thr.all_data[start_i:self.package_num, 2])
-        self.curve_gyro2.setData(
-            self.prosessing_thr.all_data[start_i:self.package_num, 0]/self.FS,
-            self.prosessing_thr.all_data[start_i:self.package_num, 2]*2)
-        self.curve_gyro3.setData(
-            self.prosessing_thr.all_data[start_i:self.package_num, 0]/self.FS,
-            self.prosessing_thr.all_data[start_i:self.package_num, 2]/2)
+            self.prosessing_thr.all_data[start_i:self.package_num, 1]/(-100))
+        # self.curve_gyro2.setData(
+        #     self.prosessing_thr.all_data[start_i:self.package_num, 0]/self.FS,
+        #     self.prosessing_thr.all_data[start_i:self.package_num, 2])
+        # self.curve_gyro3.setData(
+        #     self.prosessing_thr.all_data[start_i:self.package_num, 0]/self.FS,
+        #     self.prosessing_thr.all_data[start_i:self.package_num, 3])
 
         # self.curve_3.setData(self.data_prosessing_thr.all_data[:, 2]/2)
         
@@ -652,6 +679,7 @@ package_num = {self.package_num}")
         #     self.data_prosessing_thr.all_data[:, 2],
         #     self.data_prosessing_thr.all_data[:, 2]*2,
         #     2000)
+
     def plot_fft(self, s):
         self.logger.info("plot_fft")
         # self.fft_curve.setData(
@@ -675,6 +703,13 @@ package_num = {self.package_num}")
 
         # self.prosessing_thr.all_data[start_i:self.package_num, 0]/self.FS,
         # self.prosessing_thr.all_data[start_i:self.package_num, 2])
+
+    def plot_fft_final(self, s):
+        self.logger.info("Plot final graphic")
+        self.amp_curve_gyro1.setData(self.prosessing_thr.approximate[2, :],
+                                     self.prosessing_thr.approximate[0, :])
+        self.phase_curve_gyro1.setData(self.prosessing_thr.approximate[2, :],
+                                       self.prosessing_thr.approximate[1, :])
 # ----------------------------------------------------------------------------=
 
     def combobox_changed(self, value):
@@ -684,6 +719,7 @@ package_num = {self.package_num}")
     def plot_change(self):
         if self.show_fft_button.text() == "Frequency plot":
             self.time_plot.show()
+            self.spectrum_button.show()
             self.amp_plot.hide()
             self.phase_plot.hide()
             self.show_fft_button.setText("Time plot")
@@ -692,6 +728,7 @@ package_num = {self.package_num}")
             #     'bottom', 'Horizontal Values', units='smth')
         else:
             self.time_plot.hide()
+            self.spectrum_button.hide()
             self.amp_plot.show()
             self.phase_plot.show()
             self.show_fft_button.setText("Frequency plot")
@@ -699,11 +736,19 @@ package_num = {self.package_num}")
             # self.time_plot.setLabel(
             #     'bottom', 'Frequency', units='Hz')
 
+    def spectrum_show(self):
+        t = ""
+        if t == "Frequency plot":
+            self.time_plot.ctrl.fftCheck.setChecked(False)
+        else:
+            self.time_plot.ctrl.fftCheck.setChecked(True)
+        pass
+
     def clear_logs(self):
         self.log_text_box.widget.clear()
 # -----------------------------------------------------------------------------
 
-    def check_filename(self):
+    def check_filename(self):  # change for three files
         filename = self.file_name.text()
         if not len(filename):
             filename = 'test'
@@ -733,7 +778,6 @@ package_num = {self.package_num}")
             self.list_freq = []
             self.list_amp = []
             self.list_time = []
-            print("\n\n")
             for line in f:
                 f_a_t = list(filter(None, re.split("F|A|T|\n", line)))
                 if (len(f_a_t) == 3 and f_a_t[0].isdecimal() and

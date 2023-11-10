@@ -10,6 +10,7 @@ import logging
 class MyThread(QtCore.QThread):
     package_num_signal = QtCore.pyqtSignal(int)
     fft_data_emit = QtCore.pyqtSignal(bool)
+    approximate_data_emit = QtCore.pyqtSignal(bool)
 
     def __init__(self):
         # QtCore.QThread.__init__(self)
@@ -28,6 +29,8 @@ class MyThread(QtCore.QThread):
 
         self.logger = logging.getLogger('main')
 
+        # self.approximate = np.array([])
+
     def run(self):
         self.num_rows = 0
         self.package_num = 0
@@ -40,11 +43,13 @@ class MyThread(QtCore.QThread):
         self.flag_pause = False
         self.bourder = np.array([0, 0])
 
-        self.threshold = 6000
-        k = 0
-        flag_start = False
-        flag_end = True
-        self.bourder1 = np.array([0, 0])
+        self.approximate = np.array([])
+
+        # self.threshold = 6000
+        # k = 0
+        # flag_start = False
+        # flag_end = True
+        # self.bourder1 = np.array([0, 0])
         while self.flag_start or self.flag_recieve:
             if not self.flag_recieve:
                 self.msleep(5)
@@ -114,15 +119,15 @@ class MyThread(QtCore.QThread):
                 self.package_num_signal.emit(self.package_num)
                 self.flag_recieve = False
 
-                self.data_for_fft_graph(self.all_data[:, 2],
-                                        self.all_data[:, 2],
-                                        self.FS)
+                self.data_for_fft_graph(encoder=self.all_data[:, 2],
+                                        gyro=self.all_data[:, 1],
+                                        FS=self.FS)
 
         self.all_data = np.resize(self.all_data, (self.package_num, 5))
         with open(self.filename, 'w') as file:
             np.savetxt(file, self.all_data, delimiter='\t', fmt='%d')
 
-        self.logger.info(f"\t\tFFT = {self.amp_and_freq}")
+        self.logger.info(f"\tFFT = {str(self.amp_and_freq)}")
         if self.amp_and_freq.size:
             with open("FFT.txt", 'w') as file:
                 np.savetxt(file, self.amp_and_freq, delimiter='\t', fmt='%.3f')
@@ -130,31 +135,55 @@ class MyThread(QtCore.QThread):
         # self.fft_data(gyro=self.all_data[:, 2],
         #               encoder=self.all_data[:, 2],
         #               FS=2000)
+        self.approximate = np.array(self.fft_approximation(self.amp_and_freq[:, 0],
+                                    self.amp_and_freq[:, 2],
+                                    self.amp_and_freq[:, 1]))
+        self.approximate_data_emit.emit(True)
 
-    def fft_approximation(self):
-        k_list = np.polyfit(self.amp_and_freq[:, 0], self.amp_and_freq[:, 2], 5)
-        fun = np.poly1d(k_list)
-        np.roots(k_list)
-        freq_values = np.linspace(self.amp_and_freq[0, 0], self.amp_and_freq[-1, 0], 200)
-        amp_approximation = fun(freq_values)
+    @staticmethod
+    def int_from_bytes(rx, i, package_num):
+        ints = np.array([package_num], dtype=np.int32)
+        # ints = np.resize(ints, (1, 5))
+        for shift in [1, 4, 7, 10]:
+            res = int.from_bytes(
+                rx[(i + shift):(i + shift + 3)],
+                byteorder='big', signed=True)
+            ints = np.append(ints, res)
+        return ints
 
-        f = [1, 5, 20, 50]
-        amp = [1, 0.9, 0.7, 0.2]
-        k_list = np.polyfit(f, amp, 5)
+    def fft_approximation(self, freq, amp, phase):
+        freq_approximation = np.linspace(freq[0], freq[-1], num=100)
+        order = 4
+        k_list = np.polyfit(freq, amp, order)
         fun = np.poly1d(k_list)
+        # np.roots(k_list)
+        # amp_approximation = fun(freq_values)
+        # f = [1, 5, 20, 50]
+        # amp = [1, 0.9, 0.7, 0.2]
+        # k_list = np.polyfit(f, amp, 5)
+        # fun = np.poly1d(k_list)
         # R = np.roots(k_list)
-        freq_values = np.linspace(f[0], f[-1], 20)
-        amp_approximation = fun(freq_values)
+        # freq_values = np.linspace(f[0], f[-1], 20)
+        amp_approximation = np.array(fun(freq_approximation))
         abs_amp = np.abs(amp_approximation - 0.707)
-        bandwidth_index = abs_amp.argmin()
-        print(amp_approximation)
+        bandwidth_index = np.argmin(abs_amp)
+        self.logger.info(
+            f"bandwidth_freq = {freq_approximation[bandwidth_index]}")
+        # print(amp_approximation)
         # print(R)
-        print(bandwidth_index)
-        print(amp_approximation[bandwidth_index])
+        # print(bandwidth_index)
+        # print(amp_approximation[bandwidth_index])
 
-        print(f := np.deg2rad(f))
-        f = np.unwrap(f)
-        print(f)
+        k_list = np.polyfit(freq, phase, order)
+        fun = np.poly1d(k_list)
+        phase_approximation = np.array(fun(freq_approximation))
+        # f = np.deg2rad(f)
+        phase_approximation = np.unwrap(phase_approximation)
+        # phase_approximation = np.rad2deg(phase_approximation)
+        result = np.array([amp_approximation,
+                           phase_approximation, freq_approximation])
+        return result
+
 
     def data_for_fft_graph_____(self, data: np.ndarray, gyro: np.ndarray, Fs):
     #     ftt_data = np.array([]) 
@@ -266,7 +295,7 @@ class MyThread(QtCore.QThread):
             self.i = 0
             self.logger.info(
                 f"\n\tbourders = {self.bourder}, self.count = {self.count}")
-            
+
             self.bourder[1] = self.bourder[0] + ((self.bourder[1] - self.bourder[0]) // self.FS) * self.FS
             self.logger.info(
                 f"\n\tnew bourders = {self.bourder}")
@@ -278,7 +307,7 @@ class MyThread(QtCore.QThread):
             self.logger.info(
                 f"\nAmp = {Amp}, self.dPhase = {dPhase}, freq = {Freq}")
             self.amp_and_freq = np.resize(self.amp_and_freq,
-                                            (self.count, 3))
+                                          (self.count, 3))
             self.amp_and_freq[(self.count - 1), :] = [Amp, dPhase, Freq]
 
             self.amp_and_freq = self.amp_and_freq[self.amp_and_freq[:, 2].argsort()]
@@ -296,50 +325,42 @@ class MyThread(QtCore.QThread):
         encoder [град/с] - показани¤ энкодера, задающего гармоническое воздействие
         FS [√ц] - частота дискретизации
         """
-        # gyro = np.array(-gyro) # after !!!!
-        # encoder = np.divide(encoder, 1000)
+        gyro = np.array(-gyro)
+        encoder = np.divide(encoder, 10)
 
-        # T = 1/FS
-        L = len(gyro)  # L = size(gyro,1);  # длина записи
-        # t = (0:L-1)*T  # вектор времени
-        # t = np.arrange(0, L - 1, 1) * T
-        NFFT = np.array([], dtype=int)
+        L = len(gyro)  # длина записи
         next_power = np.ceil(np.log2(L))  # показатель степени 2 дл¤ числа длины записи
+        NFFT = np.array([], dtype=int)
         NFFT = int(np.power(2, next_power))
         self.logger.info(
             f"\nNFFT {NFFT}, next_power {next_power}, len(gyro) {len(gyro)}")
         Yg = np.fft.fft(gyro, NFFT)/L  # преобразование Фурье сигнала гироскопа
         Ye = np.fft.fft(encoder, NFFT)/L  # преобразование Фурье сигнала энкодера
-        # f = FS/2 * np.linspace(0, 1, int(NFFT/2 + 1), endpoint=True)  # получение вектора частот
-        f = FS/2 * np.linspace(0, 1, int(NFFT/2 + 1), endpoint=False)  # получение вектора частот
-        # self.logger.info(f"\nYe {Ye}\tYg {Yg}")
+        f = FS/2 * np.linspace(0, 1, int(NFFT/2 + 1), endpoint=True)  # получение вектора частот
         #  delta_phase = asin(2*mean(encoder1.*gyro1)/(mean(abs(encoder1))*mean(abs(gyro1))*pi^2/4))*180/pi
-        ng = np.argmax(Yg[0:int(NFFT/2)])
-        # ng = np.argmax(Yg)
+        ng = np.argmax(abs(Yg[0:int(NFFT/2)]))
         Mg = 2*abs(Yg[ng])
         Freq = f[ng]
 
-        ne = np.argmax(Ye[0:int(NFFT/2)])
-        # ne = np.argmax(Ye)
+        ne = np.argmax(abs(Ye[0:int(NFFT/2)]))
         Me = 2*abs(Ye[ne])
         self.logger.info(f"\tne {ne}, Me {Me}\tng {ng}, Mg {Mg}")
 
+        # with open("FFT_res_e.txt", 'a') as file:
+        #     np.savetxt(file, np.array([Ye]), delimiter='\t', fmt='%.3f')
+        # with open("FFT_res_g.txt", 'a') as file:
+        #     np.savetxt(file, np.array([Yg]), delimiter='\t', fmt='%.3f')
+
         dPhase = np.angle(Yg[ng], deg=False) - np.angle(Ye[ne], deg=False)
         Amp = Mg/Me
-        self.logger.info(f"FFt results\tPhase {dPhase}\tAmp {Amp}\tFreq {Freq}")
+        self.logger.info(
+            f"FFt results\tPhase {dPhase}\tAmp {Amp}\tFreq {Freq}")
         #  Amp = std(gyro)/std(encoder)% пошуму (метод —урова)
 
-        # with open("fft.txt", 'a') as file:
-        #     np.savetxt(file, [Amp, dPhase, Freq], delimiter='\t', fmt='%d')
-
+        if dPhase > np.pi:
+            dPhase += -2*np.pi
+        if dPhase < -np.pi:
+            dPhase += 2*np.pi
         return [Amp, dPhase, Freq]
 
-    @staticmethod
-    def int_from_bytes(rx, i, package_num):
-        ints = np.array([package_num], dtype=np.int32)
-        for shift in [1, 4, 7, 10]:
-            res = int.from_bytes(
-                rx[(i + shift):(i + shift + 3)],
-                byteorder='big', signed=True)
-            ints = np.append(ints, res)
-        return ints
+
