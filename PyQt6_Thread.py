@@ -15,17 +15,17 @@ class MyThread(QtCore.QThread):
     def __init__(self):
         # QtCore.QThread.__init__(self)
         super(MyThread, self).__init__()
-        self.filename = []
+        self.filename: list(str) = ["", ""]
         self.flag_start = False
         self.flag_recieve = False
         self.rx: bytes = b''
-        self.amp_and_freq = np.ndarray([])  # ???
+        self.amp_and_freq = np.array([])  # ???
         # self.all_data = np.array([], dtype=np.int32)
         self.size_change_step = 20000
 
-        self.FS = []
+        self.fs = []
         self.TIMER_INTERVAL = []
-        self.flag_pause = []
+        self.flag_pause: bool = []
 
         self.logger = logging.getLogger('main')
 
@@ -35,14 +35,14 @@ class MyThread(QtCore.QThread):
         self.num_rows = 0
         self.package_num = 0
         self.all_data = np.ndarray((self.size_change_step, 5), dtype=np.int32)
-        self.ftt_data = np.array([])
+        # self.fft_data = np.ndarray((, 2))
 
         self.count = 1
         self.i = 0
         self.flag_sequence_start = False
         self.flag_pause = False
         self.bourder = np.array([0, 0])
-
+        self.amp_and_freq = np.array([])
         self.approximate = np.array([])
 
         # self.threshold = 6000
@@ -59,17 +59,11 @@ class MyThread(QtCore.QThread):
                 self.logger.info(
                     f"thread_run_start, len rx = {len(self.rx)}, i = {i}")
 
-                # while ((i + 13) < len(self.rx)
-                #        and (self.rx[i] == 0x72 and self.rx[i + 13] == 0x27)):
                 while (i + 13) < len(self.rx):
                     if not (self.rx[i] == 0x72 and self.rx[i + 13] == 0x27):
-                        self.logger.info(f"before i = {
-                            i}, 0x72:{self.rx[i] == 0x72}, 0x27:{
-                                self.rx[i + 13] == 0x27}")
+                        self.logger.info(f"before i = {i}, 0x72:{self.rx[i] == 0x72}, 0x27:{self.rx[i + 13] == 0x27}")
                         i += self.rx[i:].find(0x27) + 1
-                        self.logger.info(f"now i = {
-                            i}, 0x72:{self.rx[i] == 0x72}, 0x27:{
-                                self.rx[i + 13] == 0x27}")
+                        self.logger.info(f"now i = {i}, 0x72:{self.rx[i] == 0x72}, 0x27:{self.rx[i + 13] == 0x27}")
                         continue
 
                     self.all_data[self.package_num, :] = np.array(
@@ -121,24 +115,29 @@ class MyThread(QtCore.QThread):
 
                 self.data_for_fft_graph(encoder=self.all_data[:, 2],
                                         gyro=self.all_data[:, 1],
-                                        FS=self.FS)
+                                        FS=self.fs)
 
         self.all_data = np.resize(self.all_data, (self.package_num, 5))
-        with open(self.filename, 'w') as file:
+        with open(self.filename[0] + '_1' + self.filename[1], 'w') as file:
+            np.savetxt(file, self.all_data, delimiter='\t', fmt='%d')
+        with open(self.filename[0] + '_2' + self.filename[1], 'w') as file:
+            np.savetxt(file, self.all_data, delimiter='\t', fmt='%d')
+        with open(self.filename[0] + '_3' + self.filename[1], 'w') as file:
             np.savetxt(file, self.all_data, delimiter='\t', fmt='%d')
 
         self.logger.info(f"\tFFT = {str(self.amp_and_freq)}")
+        self.logger.info(f"\tfft size = {self.amp_and_freq.size}")
         if self.amp_and_freq.size:
-            with open("FFT.txt", 'w') as file:
+            with open(self.filename[0] + '_FFT' + self.filename[1], 'w') as file:
                 np.savetxt(file, self.amp_and_freq, delimiter='\t', fmt='%.3f')
-
-        # self.fft_data(gyro=self.all_data[:, 2],
-        #               encoder=self.all_data[:, 2],
-        #               FS=2000)
-        self.approximate = np.array(self.fft_approximation(self.amp_and_freq[:, 0],
-                                    self.amp_and_freq[:, 2],
-                                    self.amp_and_freq[:, 1]))
-        self.approximate_data_emit.emit(True)
+            # self.fft_data(gyro=self.all_data[:, 2],
+            #               encoder=self.all_data[:, 2],
+            #               FS=2000)
+            self.approximate = np.array(self.fft_approximation(self.amp_and_freq[:, 0],
+                                        self.amp_and_freq[:, 2],
+                                        self.amp_and_freq[:, 1]))
+            self.approximate_data_emit.emit(True)
+        self.logger.info("Tread stop")
 
     @staticmethod
     def int_from_bytes(rx, i, package_num):
@@ -184,9 +183,8 @@ class MyThread(QtCore.QThread):
                            phase_approximation, freq_approximation])
         return result
 
-
     def data_for_fft_graph_____(self, data: np.ndarray, gyro: np.ndarray, Fs):
-    #     ftt_data = np.array([]) 
+    #     fft_data = np.array([]) 
     #     bourder = np.array([0, 0]) 
     #     i = 0
     #     flag_wait = False
@@ -296,7 +294,7 @@ class MyThread(QtCore.QThread):
             self.logger.info(
                 f"\n\tbourders = {self.bourder}, self.count = {self.count}")
 
-            self.bourder[1] = self.bourder[0] + ((self.bourder[1] - self.bourder[0]) // self.FS) * self.FS
+            self.bourder[1] = self.bourder[0] + ((self.bourder[1] - self.bourder[0]) // self.fs) * self.fs
             self.logger.info(
                 f"\n\tnew bourders = {self.bourder}")
             if (self.bourder[1] - self.bourder[0]) < 500:

@@ -10,8 +10,8 @@ class QTextEditLogger():
 
         # logging.disable(logging.INFO) # disable logging for certain level
 
-        self.widget = QtWidgets.QTextEdit(parent)
-        self.widget.setReadOnly(True)
+        self.widget = QtWidgets.QTextEdit(parent, readOnly=True)
+        # self.widget.setReadOnly(True)
 
         log = logging.getLogger('main')
         log.setLevel(logging.INFO)
