@@ -308,6 +308,9 @@ class MyThread(QtCore.QThread):
                                           (self.count, 3))
             self.amp_and_freq[(self.count - 1), :] = [Amp, dPhase, Freq]
 
+            # if (self.count - 1) >= 1:
+                # if abs(self.amp_and_freq[(self.count - 2), 1] - self.amp_and_freq[(self.count - 1), 1]) > np.pi:
+
             self.amp_and_freq = self.amp_and_freq[self.amp_and_freq[:, 2].argsort()]
             self.fft_data_emit.emit(True)
         # return [Amp, dPhase, Freq]

@@ -229,7 +229,7 @@ class MyWindow(QtWidgets.QWidget):
         # # set prototype item for all items created from now
         # self.table_widget.setItemPrototype(protoItem)
 
-        # self.tableWidget.item().ed
+        # self.tableWidget.item().
         # self.tableWidget.horizontalHeader().setSectionResizeMode( 
             # QtWidgets.QHeaderView.Stretch) 
         # item = QtWidgets.QTableWidgetItem()
@@ -312,7 +312,7 @@ class MyWindow(QtWidgets.QWidget):
         self.time_plot_item.addItem(self.region)
 
         self.time_curves[0].setData([0, 0, 2, 2, 0], [0, 3, 3, 0, 0])
-        self.time_curves[1].setData([0, 0, 1.5, 1.5, 0], [0, 2, 2, 0, 0])
+        # self.time_curves[1].setData([0, 0, 1.5, 1.5, 0], [0, 2, 2, 0, 0])
 
 # ------ Tab widget ----------------------------------------------------------- 
         self.tab_widget = QtWidgets.QTabWidget(tabsClosable=True) 
@@ -333,12 +333,8 @@ class MyWindow(QtWidgets.QWidget):
         self.phase_plot_list: list[pg.PlotWidget] = []
         self.amp_plot_list: list[pg.PlotWidget] = []
         self.contact_page: list[QtWidgets.QWidget] = []
-        # ind += 1
+
         self.append_fft_plot_tab(0)
-        # self.current_cylce += 1
-        # self.append_tab()
-        # self.current_cylce += 1
-        # self.append_tab()
 
         self.phase_curves[0].setData([0, 0, 5, 2.5, 0], [0, 6, 6, 0, 0])
         # self.phase_curves[5].setData([0, 0, 2.5, 0.5, 0], [0, 3, 3, 0, 0])
@@ -456,6 +452,7 @@ class MyWindow(QtWidgets.QWidget):
     #         self.tab_widget.addTab(self.contact_page, "sp plot &3") 
     #     self.hhh = not self.hhh
 
+    @QtCore.pyqtSlot()
     def start(self):
         self.exp_package_num = 0
 
@@ -537,7 +534,7 @@ class MyWindow(QtWidgets.QWidget):
             self.phase_curves[i].setData([])
 
 # ------ Timer Recieve ------------------------------------------------------------
-
+    @QtCore.pyqtSlot()
     def timerEvent(self):
         """
         Read data from COM port. Generate warning if avaliable less than 14 bytes
@@ -570,7 +567,7 @@ expected package num {self.exp_package_num}")
         self.prosessing_thr.flag_pause = self.flag_sent
 
 # ------- Timer Sent ------------------------------------------------------------
-
+    @QtCore.pyqtSlot()
     def timer_event_sent_com(self):
         """
         Sent command with frequency and amplitude or stop vibration
@@ -595,7 +592,6 @@ expected package num {self.exp_package_num}")
     
     def sent_vibro_command(self):
         self.table_widget.selectRow(self.count)
-        # print(self.tableWidget.currentRow())
         F = int.to_bytes(int(self.table_widget.item(self.count, 0).data(
             QtCore.Qt.ItemDataRole.EditRole)),
                          length=2, byteorder='little', signed=False)
@@ -660,7 +656,7 @@ expected package num {self.exp_package_num}")
     #         else:
     #             self.curve_gyro3.show()
     #         return
-
+    @QtCore.pyqtSlot(int)
     def plot_time_graph(self, s):
         self.package_num = s
         self.logger.info(f"thread_stop, count = {self.count}\n\
@@ -685,7 +681,7 @@ package_num = {self.package_num}")
         # selftime_curves[3].setData(
         #     self.prosessing_thr.all_data[start_i:self.package_num, 0]/self.FS,
         #     self.prosessing_thr.all_data[start_i:self.package_num, 3])
-
+    @QtCore.pyqtSlot(bool)
     def plot_fft(self, _):
         self.logger.info("plot_fft")
         ind = (self.current_cylce - 1)*3
@@ -704,7 +700,7 @@ package_num = {self.package_num}")
                                         #   y=[-y0, y0, y0, -y0, -y0])
         # self.prosessing_thr.all_data[start_i:self.package_num, 0]/self.FS,
         # self.prosessing_thr.all_data[start_i:self.package_num, 2])
-
+    @QtCore.pyqtSlot(bool)
     def plot_fft_final(self, _):
         ind = (self.current_cylce - 1)*3
         self.logger.info("Plot final graphic")
@@ -713,6 +709,7 @@ package_num = {self.package_num}")
         self.phase_curves[ind].setData(self.prosessing_thr.approximate[2, :],
                                        self.prosessing_thr.approximate[1, :])
 # ----- plot change ------------------------------------------------------------
+    @QtCore.pyqtSlot()
     def plot_change(self):
         if self.spectrum_button.text() == "Frequency plot":
             self.spectrum_button.setText("Time plot")
@@ -721,7 +718,7 @@ package_num = {self.package_num}")
                 'bottom', 'Time', units='seconds')
         else:
             self.spectrum_button.setText("Frequency plot")
-            self.time_plot_item.ctrl.fftCheck.setChecked(False)
+            self.time_plot_item.ctrl.fftCheck.setChecked(True)
             self.time_plot_item.setLabel(
                 'bottom', 'Frequency', units='Hz')
 
@@ -795,14 +792,14 @@ package_num = {self.package_num}")
         self.start_button.setDisabled(flag_running)
         self.stop_button.setDisabled(not flag_running)
         self.choose_file.setDisabled(flag_running)
-
+    @QtCore.pyqtSlot()
     def combobox_changed(self, value):
         self.com_boderate_combo_box.setItemText(
             self.com_boderate_combo_box.currentIndex(), value)
         
     # def close_tab(self,index):
         # self.tab_widget.removeTab(index)
-
+    @QtCore.pyqtSlot()
     def clear_logs(self):
         self.log_text_box.widget.clear()
 
