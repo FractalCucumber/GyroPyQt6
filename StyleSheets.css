@@ -6,7 +6,7 @@
 QWidget{
     background-color: #111111;
     color: #FFFFF1;
-    font-size: 18px;
+    font-size: 17px;
     text-align: center;
     /* qproperty-alignment: AlignCenter; align everything */
 }
@@ -45,7 +45,7 @@ QComboBox {
     background-color: red;
 }
 QComboBox:!editable {
-    text-align: center;
+    /* text-align: center; */
     background-color: gray;
 }
 QComboBox::item {
@@ -68,6 +68,7 @@ QPushButton:pressed, QPushButton:pressed#start_button, QPushButton:pressed#stop_
 }
 QPushButton:disabled {
     border-color: rgb(90, 88, 88);
+    border-width: 0px;
 }
 QPushButton#start_button {
     background-color: rgb(0, 120, 0);
@@ -106,14 +107,22 @@ QLabel {
     max-width: 72px
     padding: 3px
 } */
+QLineEdit:read-only {
+    background-color: rgb(0, 0, 0);
+    border-width: 1px;
+}
 QLineEdit {
-    border: 1px solid grey;
+    border-style: outset;
+    border-width: 2px;
+    border-radius: 10px;
+    border-color: white;
+    padding: 3px;
+    background-color: rgb(32, 20, 20);
+    /* border: 1px solid rgb(204, 203, 203); */
     qproperty-alignment: AlignCenter;
     /* border-radius: 5px; */
 }
-QLineEdit:!read-only {
-    background-color: grey;
-}
+
 
 
 
