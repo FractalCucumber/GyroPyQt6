@@ -4,18 +4,33 @@
 */
 
 QWidget{
-    background-color: #262626;
-    color: #FFFFFF;
-    font-size: 18px;
+    background-color: #111111;
+    color: #FFFFF1;
+    font-size: 16px;
     text-align: center;
     /* qproperty-alignment: AlignCenter; align everything */
+    /* color: silver; */
+    /* background-color: #302F2F; */
+    /* selection-background-color:#3d8ec9; */
+    /* selection-color: black; */
+    background-clip: border;
+    border-image: none;
+    outline: 0;
 }
 /* 
     Grid
 */
+QSpinBox {
+    border-width: 2px;
+    /* border-radius: 10px; */
+    border-color: rgb(0, 0, 0);
+    padding: 3px;
+    background-color: rgb(8, 3, 27);
+}
 
 QGroupBox {
     /* text-align: center; */
+    /* padding: 15px; */
 }
 QGroupBox {
     /* background-color: rgb(20, 0, 0); */
@@ -42,15 +57,16 @@ QProgressBar::chunk {
 */
 
 QComboBox {
-    background-color: red;
+    /* background-color: rgb(93, 10, 10); */
+    background-color: rgb(8, 3, 27);
 }
 QComboBox:!editable {
-    text-align: center;
+    /* text-align: center; */
     background-color: gray;
 }
-QComboBox::item {
+/* QComboBox::item {
     text-align: center;
-}
+} */
 /* 
     Buttons
 */
@@ -61,19 +77,14 @@ QPushButton {
     border-radius: 10px;
     border-color: white;
     padding: 3px;
-}
-QPushButton {
-    border-style: outset;
-    border-width: 1px;
-    border-radius: 10px;
-    border-color: white;
-    padding: 3px;
+    background-color: rgb(49, 49, 49);
 }
 QPushButton:pressed, QPushButton:pressed#start_button, QPushButton:pressed#stop_button {
-    background-color: rgb(0, 0, 0);
+    background-color: rgb(14, 11, 11);
 }
 QPushButton:disabled {
     border-color: rgb(90, 88, 88);
+    border-width: 0px;
 }
 QPushButton#start_button {
     background-color: rgb(0, 120, 0);
@@ -95,14 +106,37 @@ QPushButton#stop_button {
 QLabel {
     qproperty-alignment: AlignCenter; 
 } 
-
-QLineEdit {
+/* QCheckBox {
+    border-width: 1px;
+    border-style: solid;
+    border-color: white;
+    padding: 9px
+} */
+/* QCheckBox::indicator {
     border: 1px solid grey;
+} */
+/* QCheckBox {
+    border-width: 1px;
+    border-style: solid;
+    border-color: white;
+    margin: 2px
+    max-width: 72px
+    padding: 3px
+} */
+QLineEdit:read-only {
+    background-color: rgb(0, 0, 0);
+    border-width: 1px;
+}
+QLineEdit {
+    border-style: outset;
+    border-width: 2px;
+    border-radius: 10px;
+    border-color: white;
+    padding: 3px;
+    background-color: rgb(32, 20, 20);
+    /* border: 1px solid rgb(204, 203, 203); */
     qproperty-alignment: AlignCenter;
     /* border-radius: 5px; */
-}
-QLineEdit:!read-only {
-    background-color: gray;
 }
 
 
