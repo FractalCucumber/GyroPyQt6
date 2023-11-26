@@ -205,10 +205,14 @@ class MyWindow(QtWidgets.QWidget):
         #     settings_name="file_settings",
         #     deafault_items_list=['', '', ''],
         #     editable_flag=False)
-        self.filename_and_path_widget = QtWidgets.QLineEdit(
-            readOnly=True, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
+        # QLineEdit readOnly=True, 
+        self.filename_and_path_widget = QtWidgets.QLabel(
+            alignment=QtCore.Qt.AlignmentFlag.AlignHCenter,
+            wordWrap=True, objectName="with_bourder")
+        self.filename_and_path_widget.setTextInteractionFlags(
+            QtCore.Qt.TextInteractionFlag.TextSelectableByMouse)
         self.measurements_groupbox_layout.addWidget(
-            self.filename_and_path_widget, 9, 0, 3, 2)
+            self.filename_and_path_widget, 9, 0, 1, 2)
         # self.measurements_groupbox_layout.setRowStretch(0, 3)
         # self.measurements_groupbox_layout.setRowStretch(1, 3)
         # self.measurements_groupbox_layout.setRowStretch(2, 1)
@@ -228,16 +232,19 @@ class MyWindow(QtWidgets.QWidget):
         self.saving_measurements_groupbox_layout = QtWidgets.QGridLayout()
 
         self.saving_measurements_groupbox_layout.addWidget(
-            QtWidgets.QLabel('<b>Папка:</b>'), 0, 0)
-        self.current_folder_label = QtWidgets.QLineEdit(os.getcwd(), readOnly=True)
+            QtWidgets.QLabel('<b>Папка:</b>'), 0, 0, 2, 1)
+        self.current_folder_label = QtWidgets.QLabel(
+            os.getcwd(), wordWrap=True, objectName="with_bourder")
+        self.current_folder_label.setTextInteractionFlags(
+            QtCore.Qt.TextInteractionFlag.TextSelectableByMouse)
         self.saving_measurements_groupbox_layout.addWidget(
-            self.current_folder_label, 0, 1)
+            self.current_folder_label, 0, 1, 2, 1)
 
         self.saving_measurements_groupbox_layout.addWidget(
-            QtWidgets.QLabel('Имя\nфайла:'), 1, 0)
+            QtWidgets.QLabel('Имя\nфайла:'), 2, 0, 3, 1)
         self.file_name_path = QtWidgets.QLineEdit('test')
         self.saving_measurements_groupbox_layout.addWidget(
-            self.file_name_path, 1, 1)
+            self.file_name_path, 2, 1, 3, 1)
         self.saving_measurements_groupbox.setLayout(
             self.saving_measurements_groupbox_layout)
 
@@ -250,7 +257,8 @@ class MyWindow(QtWidgets.QWidget):
 
         self.table_widget = QtWidgets.QTableWidget(
             columnCount=3,
-            editTriggers=QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
+            editTriggers=QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers,
+            selectionBehavior=QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
         # self.tableWidget.setRowCount(1)  # u"\u00b0"
         self.table_widget.setHorizontalHeaderLabels(
             ["F, Hz", "A, \u00b0/s", "T, s"])
@@ -258,19 +266,17 @@ class MyWindow(QtWidgets.QWidget):
             QtWidgets.QHeaderView.ResizeMode.Stretch)
         self.table_widget.verticalHeader().setSectionResizeMode(
             QtWidgets.QHeaderView.ResizeMode.Stretch)
-        self.table_widget.setSelectionBehavior(
-            QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
 
         self.text_output_groupbox_layout.addWidget(self.table_widget)
         self.text_output_groupbox.setLayout(self.text_output_groupbox_layout)
 
         self.logs_groupbox = QtWidgets.QGroupBox(
             'Logs:', maximumWidth=315)
-        self.logs_groupbox_layout = QtWidgets.QVBoxLayout()
 # ------ Logger ---------------------------------------------------------------
         """
         Logs widget
         """
+        self.logs_groupbox_layout = QtWidgets.QVBoxLayout()
         self.log_text_box = PyQt6_Logger.QTextEditLogger(self)
         self.logger = logging.getLogger('main')
 
@@ -279,8 +285,10 @@ class MyWindow(QtWidgets.QWidget):
         self.clear_button = QtWidgets.QPushButton('Clear logs')
         self.logs_groupbox_layout.addWidget(self.clear_button)
 
-        self.start_button = QtWidgets.QPushButton('START')
-        self.stop_button = QtWidgets.QPushButton('STOP', enabled=False)
+        self.start_button = QtWidgets.QPushButton(
+            'START',objectName="start_button")
+        self.stop_button = QtWidgets.QPushButton(
+            'STOP', enabled=False, objectName="stop_button")
 
         self.logs_groupbox.setLayout(self.logs_groupbox_layout)
 
@@ -327,11 +335,22 @@ class MyWindow(QtWidgets.QWidget):
             )/100
         self.time_curves[0].setData(x, amp)
 
-        # freq_approximation = np.linspace(1, 310, num=300)
-        # k_list = np.polyfit(x, amp, 6)
+        freq_approximation = np.linspace(1, 330, num=300)
+        k_list = np.polyfit(x, amp, 4)
+        print(k_list)
+        k_list[-1] = k_list[-1] + 0.1
+        k_list[-2] = k_list[-2]*0.2
+        k_list[-3] = k_list[-3]*0.8
+        print(k_list)
+        # аппроксимирующую функцию можно разбить на столько диапазонов,
+        # сколько учатков с разной амплитудой у нас имеется
+        amp_approximation = ((-4.75368112e-09)*freq_approximation**4 +
+                             (2.06569833e-06)*freq_approximation**3 +
+                             (2.02236573e-04)*freq_approximation**2 +
+                             1.60865286e-03*freq_approximation) + 9.41254199e-01
         # fun = np.poly1d(k_list)
         # amp_approximation = np.array(fun(freq_approximation))
-        # self.time_curves[1].setData(freq_approximation, amp_approximation)
+        self.time_curves[1].setData(freq_approximation, amp_approximation)
         # freq_approximation = np.linspace(1, 110, num=300)
         # r = 42
         # k_list = np.polyfit(x[0:-r], amp[0:-r], 6)
@@ -379,18 +398,17 @@ class MyWindow(QtWidgets.QWidget):
             format='%v/%m sec', maximum=1, value=self.progress_value)
         # self.progress_bar.setSizePolicy(QtWidgets.QSizePolicy.PolicyFlag.ExpandFlag)
         self.plot_groupbox_layout.addWidget(self.progress_bar,
-                                            5, 0, 2, 5)
+                                            6, 2, 1, 7)
 
         self.package_number_label = QtWidgets.QLabel('Package number:')
         self.plot_groupbox_layout.addWidget(self.package_number_label,
-                                            5, 5, 1, 3)
-        self.current_package_num_label = QtWidgets.QLabel()
-        self.current_package_num_label.setText('0')
+                                            5, 2, 1, 3)
+        self.current_package_num_label = QtWidgets.QLabel('0')
         self.plot_groupbox_layout.addWidget(self.current_package_num_label,
-                                            5, 8, 1, 1)
+                                            5, 5, 1, 1)
 
-        self.save_image_button = QtWidgets.QPushButton('Save image')
-        self.plot_groupbox_layout.addWidget(self.save_image_button, 6, 5, 1, 4)
+        self.save_image_button = QtWidgets.QPushButton('Save\nimage')
+        self.plot_groupbox_layout.addWidget(self.save_image_button, 5, 0, 2, 2)
 
         self.plot_groupbox.setLayout(self.plot_groupbox_layout)
 
@@ -425,11 +443,6 @@ class MyWindow(QtWidgets.QWidget):
 
 # ------ Style ----------------------------------------------------------------
 
-        # self.block1_com_param.setObjectName("group1")
-        # self.subblock1_com_param.setObjectName("group1")
-        self.stop_button.setObjectName("stop_button")
-        # self.choose_file.setObjectName("choose_file")
-        self.start_button.setObjectName("start_button")
         with open(self.res_path(STYLE_SHEETS_FILENAME), "r") as style_sheets:
             self.setStyleSheet(style_sheets.read())
 
@@ -669,28 +682,6 @@ expected package num {self.exp_package_num}")
 ###############################################################################
 # ----- plotting --------------------------------------------------------------
 
-    # def plot_show(self):
-    #     if self.sender().objectName() == "show_graph_1":
-    #         if self.curve_gyro1.isVisible():
-    #             self.curve_gyro1.hide()
-    #         else:
-    #             self.curve_gyro1.show()
-    #         return
-
-    #     if self.sender().objectName() == "show_graph_2":
-    #         if self.curve_gyro2.isVisible():
-    #             self.curve_gyro2.hide()
-    #         else:
-    #             self.curve_gyro2.show()
-    #         return
-
-    #     if self.sender().objectName() == "show_graph_3":
-    #         if self.curve_gyro3.isVisible():
-    #             self.curve_gyro3.hide()
-    #         else:
-    #             self.curve_gyro3.show()
-    #         return
-
     @QtCore.pyqtSlot(int)
     def plot_time_graph(self, s):
         self.package_num = s
@@ -703,56 +694,56 @@ package_num = {self.package_num}")
             start_i = self.package_num - num_of_points_shown
         else:
             start_i = 0
-
         self.time_curves[0].setData(
             self.prosessing_thr.all_data[start_i:self.package_num, 0]/self.fs,
             self.prosessing_thr.all_data[start_i:self.package_num, 2]/1000)
-        self.time_curves[1].setData(
-            self.prosessing_thr.all_data[start_i:self.package_num, 0]/self.fs,
-            self.prosessing_thr.all_data[start_i:self.package_num, 1]/(-100))
-        # selftime_curves[2].setData(
-        #    self.prosessing_thr.all_data[start_i:self.package_num, 0]/self.FS,
-        #     self.prosessing_thr.all_data[start_i:self.package_num, 2])
-        # selftime_curves[3].setData(
-        #    self.prosessing_thr.all_data[start_i:self.package_num, 0]/self.FS,
-        #     self.prosessing_thr.all_data[start_i:self.package_num, 3])
+        for i in range(self.GYRO_NUMBER):
+            self.time_curves[i + 1].setData(
+                self.prosessing_thr.all_data[start_i:self.package_num, 0]/self.fs,
+                self.prosessing_thr.all_data[start_i:self.package_num, 1]/(-100))
 
     @QtCore.pyqtSlot(bool)
-    def plot_fft(self, _):
+    def plot_fft(self, _):  # need current_cylce from the instead bool
         self.logger.info("plot_fft")
         ind = (self.current_cylce - 1)*3
-
-        self.amp_curves[ind].setData(self.prosessing_thr.amp_and_freq_for_plot[:, 2],
-                                     self.prosessing_thr.amp_and_freq_for_plot[:, 0])
-        # self.amp_curve_gyro2.setData( #  use for instead
-        self.phase_curves[ind].setData(self.prosessing_thr.amp_and_freq_for_plot[:, 2],
-                                       self.prosessing_thr.amp_and_freq_for_plot[:, 1])
-        # y0 = self.list_amp[self.count]*1000
-        # x1 = self.prosessing_thr.bourder[0]/self.FS
-        # x2 = self.prosessing_thr.bourder[1]/self.FS
+        for i in range(self.GYRO_NUMBER):
+            self.amp_curves[ind + i].setData(self.prosessing_thr.amp_and_freq_for_plot[:, 2],
+                                        self.prosessing_thr.amp_and_freq_for_plot[:, 0])
+            self.phase_curves[ind + i].setData(self.prosessing_thr.amp_and_freq_for_plot[:, 2],
+                                        self.prosessing_thr.amp_and_freq_for_plot[:, 1])
         self.region.setRegion([self.prosessing_thr.bourder[0]/self.fs,
                                self.prosessing_thr.bourder[1]/self.fs])
-        # self.curve_gyro_rectangle.setData(x=[x1, x1, x2, x2, x1],
-        #   y=[-y0, y0, y0, -y0, -y0])
-        # self.prosessing_thr.all_data[start_i:self.package_num, 0]/self.FS,
-        # self.prosessing_thr.all_data[start_i:self.package_num, 2])
 
     @QtCore.pyqtSlot(bool)
     def plot_fft_final(self, _):
-        pass
-        # self.append_fft_plot_tab(self.current_cylce)
-
-        # ind = (self.current_cylce - 1)*3
-        # self.logger.info("Plot final graphic")
+        self.logger.info("Final median plot")
+        self.append_fft_plot_tab(self.current_cylce)
+        self.tab_widget.setTabText(self.current_cylce + 1, "&FC")
+        # self.plot_fft(True)
+        ind = 3*self.current_cylce
+        for i in range(self.GYRO_NUMBER):
+            self.amp_curves[ind + i].setData(self.prosessing_thr.amp_and_freq[:, -2],
+                                        self.prosessing_thr.amp_and_freq[:, -4])
+            self.phase_curves[ind + i].setData(self.prosessing_thr.amp_and_freq[:, -2],
+                                        self.prosessing_thr.amp_and_freq[:, -3])
         # self.amp_curves[ind].setData(self.prosessing_thr.approximate[2, :],
         #                              self.prosessing_thr.approximate[0, :])
         # self.phase_curves[ind].setData(self.prosessing_thr.approximate[2, :],
         #                                self.prosessing_thr.approximate[1, :])
+        # app_icon = QtGui.QIcon()
+        # app_icon.addFile(self.res_path('icon_16.png'), QtCore.QSize(16, 16))
+        # app_icon.addFile(self.res_path('icon_24.png'), QtCore.QSize(24, 24))
+        # app_icon.addFile(self.res_path('icon_32.png'), QtCore.QSize(32, 32))
+        # app_icon.addFile(self.res_path('icon_48.png'), QtCore.QSize(48, 48))
+        # self.tab_widget.setTabIcon(self.current_cylce + 1, app_icon)
 
 # ----- plot change -----------------------------------------------------------
 
     @QtCore.pyqtSlot()
     def plot_change(self):
+        """
+        Switching between time plot and spectrum
+        """
         if self.spectrum_button.text() == "Frequency plot":
             self.spectrum_button.setText("Time plot")
             self.time_plot_item.ctrl.fftCheck.setChecked(False)
@@ -891,8 +882,7 @@ package_num = {self.package_num}")
         if not (os.path.exists(new_name_1) or
                 os.path.exists(new_name_2) or
                 os.path.exists(new_name_3)):
-            self.prosessing_thr.filename[0] = filename
-            self.prosessing_thr.filename[1] = extension
+            self.prosessing_thr.filename = [filename, extension]
             return
 
         i = 0
@@ -903,8 +893,7 @@ package_num = {self.package_num}")
             new_name_1 = filename + f"_1({i})" + extension
             new_name_2 = filename + f"_2({i})" + extension
             new_name_3 = filename + f"_3({i})" + extension
-        self.prosessing_thr.filename[0] = filename
-        self.prosessing_thr.filename[1] = f"({i})" + extension
+        self.prosessing_thr.filename = [filename, f"({i})" + extension]
 
     # def directory_changed(self, path):
     #     self.logger.info(f'Directory Changed: {path}')
