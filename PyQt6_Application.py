@@ -99,7 +99,7 @@ class MyWindow(QtWidgets.QWidget):
 # ------ Init vars ------------------------------------------------------------
         self.PLOT_TIME_INTERVAL_SEC = 10
         self.PAUSE_INTERVAL_MS = 500
-        self.TIMER_READ_INTERVAL = 125*2
+        self.READ_INTERVAL_MS = 125*2
         self.FOLDER_NAME = 'results'
         self.count = 0
         self.progress_bar_value = 0
@@ -108,19 +108,30 @@ class MyWindow(QtWidgets.QWidget):
         self.total_cycle_num = 1
         self.current_cylce = 0
         STYLE_SHEETS_FILENAME = 'StyleSheets.css'
+        FILE_LOG_FLAG = False
         self.GYRO_NUMBER = 1
-        self.Serial = QSerialPort(dataBits=QSerialPort.DataBits.Data8,
-                                  stopBits=QSerialPort.StopBits.OneStop,
-                                  parity=QSerialPort.Parity.NoParity)
         self.LABEL_STYLE = {'color': '#FFF', 'font-size': '16px'}
         self.COLOR_LIST = ['r', 'g', 'b']
         self.filename_path_watcher = ""
+        self.Serial = QSerialPort(dataBits=QSerialPort.DataBits.Data8,
+                                  stopBits=QSerialPort.StopBits.OneStop,
+                                  parity=QSerialPort.Parity.NoParity)
 # ------ Timres ---------------------------------------------------------------
-        self.timer_recieve = QtCore.QTimer(interval=self.TIMER_READ_INTERVAL)
+        self.timer_recieve = QtCore.QTimer(interval=self.READ_INTERVAL_MS)
         self.timer_recieve.timeout.connect(self.timerEvent)
         self.timer_sent_com = QtCore.QTimer(
             timerType=QtCore.Qt.TimerType.PreciseTimer)
         self.timer_sent_com.timeout.connect(self.timer_event_sent_com)
+# ------ File watcher --------------------------------------------------------
+        self.fs_watcher = QtCore.QFileSystemWatcher()
+        # self.fs_watcher.directoryChanged.connect(self.directory_changed)
+        self.fs_watcher.fileChanged.connect(self.file_changed)
+# ------ Thread --------------------------------------------------------------
+        self.prosessing_thr = PyQt6_Thread.MyThread(
+            gyro_number=self.GYRO_NUMBER)
+        self.prosessing_thr.package_num_signal.connect(self.plot_time_graph)
+        self.prosessing_thr.fft_data_emit.connect(self.plot_fft)
+        self.prosessing_thr.approximate_data_emit.connect(self.plot_fft_final)
 
 # ------ GUI ------------------------------------------------------------------
         self.main_grid_layout = QtWidgets.QGridLayout(self)
@@ -136,11 +147,8 @@ class MyWindow(QtWidgets.QWidget):
         self.com_list_widget.lineEdit().setAlignment(
             QtCore.Qt.AlignmentFlag.AlignCenter)
         self.com_list_widget.lineEdit().setReadOnly(True)
-
-        self.available_ports = QSerialPortInfo.availablePorts()
-        if self.available_ports:
-            for self.port in self.available_ports:
-                self.com_list_widget.addItem(self.port.portName())
+        
+        self.get_avaliable_com()
 
         self.com_param_groupbox_layout.addWidget(QtWidgets.QLabel('COM:'),
                                                  0, 0, 1, 1)
@@ -199,8 +207,6 @@ class MyWindow(QtWidgets.QWidget):
 
         self.measurements_groupbox_layout.addWidget(
             QtWidgets.QLabel('Filepath:'), 6, 0, 2, 1)
-        # self.measurements_groupbox_layout.addWidget(QtWidgets.QLabel('Filename:1111'), 6, 0, 1, 2)
-        # self.measurements_groupbox_layout.addWidget(QtWidgets.QLabel('Fiwqelename:1111'), 7, 0, 1, 2)
         # self.file_name_and_path_widget = CustomComboBox(
         #     settings_name="file_settings",
         #     deafault_items_list=['', '', ''],
@@ -208,9 +214,9 @@ class MyWindow(QtWidgets.QWidget):
         # QLineEdit readOnly=True, 
         self.filename_and_path_widget = QtWidgets.QLabel(
             alignment=QtCore.Qt.AlignmentFlag.AlignHCenter,
-            wordWrap=True, objectName="with_bourder")
-        self.filename_and_path_widget.setTextInteractionFlags(
-            QtCore.Qt.TextInteractionFlag.TextSelectableByMouse)
+            wordWrap=True, objectName="with_bourder",
+            textInteractionFlags=QtCore.Qt.
+            TextInteractionFlag.TextSelectableByMouse)
         self.measurements_groupbox_layout.addWidget(
             self.filename_and_path_widget, 9, 0, 1, 2)
         # self.measurements_groupbox_layout.setRowStretch(0, 3)
@@ -234,9 +240,12 @@ class MyWindow(QtWidgets.QWidget):
         self.saving_measurements_groupbox_layout.addWidget(
             QtWidgets.QLabel('<b>Папка:</b>'), 0, 0, 2, 1)
         self.current_folder_label = QtWidgets.QLabel(
-            os.getcwd(), wordWrap=True, objectName="with_bourder")
-        self.current_folder_label.setTextInteractionFlags(
-            QtCore.Qt.TextInteractionFlag.TextSelectableByMouse)
+            os.getcwd(), wordWrap=True, objectName="with_bourder",
+            textInteractionFlags=QtCore.Qt.
+            TextInteractionFlag.TextSelectableByMouse)
+
+        self.current_folder_label.setText(os.getcwd())
+
         self.saving_measurements_groupbox_layout.addWidget(
             self.current_folder_label, 0, 1, 2, 1)
 
@@ -257,9 +266,11 @@ class MyWindow(QtWidgets.QWidget):
 
         self.table_widget = QtWidgets.QTableWidget(
             columnCount=3,
-            editTriggers=QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers,
-            selectionBehavior=QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
-        # self.tableWidget.setRowCount(1)  # u"\u00b0"
+            editTriggers=QtWidgets.
+            QAbstractItemView.EditTrigger.NoEditTriggers,
+            selectionBehavior=QtWidgets.
+            QAbstractItemView.SelectionBehavior.SelectRows)
+        # self.tableWidget.setRowCount(1)
         self.table_widget.setHorizontalHeaderLabels(
             ["F, Hz", "A, \u00b0/s", "T, s"])
         self.table_widget.horizontalHeader().setSectionResizeMode(
@@ -277,7 +288,8 @@ class MyWindow(QtWidgets.QWidget):
         Logs widget
         """
         self.logs_groupbox_layout = QtWidgets.QVBoxLayout()
-        self.log_text_box = PyQt6_Logger.QTextEditLogger(self)
+        self.log_text_box = PyQt6_Logger.QTextEditLogger(self,
+                                                         file_log=FILE_LOG_FLAG)
         self.logger = logging.getLogger('main')
 
         self.logs_groupbox_layout.addWidget(self.log_text_box.widget)
@@ -467,23 +479,7 @@ class MyWindow(QtWidgets.QWidget):
         self.edit_file_button.clicked.connect(self.open_file)
         self.save_image_button.clicked.connect(self.save_image)
         # self.tab_widget.tabCloseRequested.connect(self.close_tab)
-# ------ Thread --------------------------------------------------------------
 
-        self.prosessing_thr = PyQt6_Thread.MyThread(
-            gyro_number=self.GYRO_NUMBER)
-        self.prosessing_thr.package_num_signal.connect(
-            self.plot_time_graph)
-        self.prosessing_thr.fft_data_emit.connect(
-            self.plot_fft)
-        self.prosessing_thr.approximate_data_emit.connect(
-            self.plot_fft_final)
-
-
-
-        # self.file_name_and_path_widget.text()
-        self.fs_watcher = QtCore.QFileSystemWatcher()
-        # self.fs_watcher.directoryChanged.connect(self.directory_changed)
-        self.fs_watcher.fileChanged.connect(self.file_changed)
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
 #
@@ -506,11 +502,9 @@ class MyWindow(QtWidgets.QWidget):
 
         self.logger.info(F"\nPORT: {(self.com_list_widget.currentText())}\n")
         if not len(self.com_list_widget.currentText()):
-            self.available_ports = QSerialPortInfo.availablePorts()
-            for port in self.available_ports:
-                self.com_list_widget.addItem(port.portName())
-                self.logger.info(
-                    f"PORT: {(self.com_list_widget.currentText())}\n")
+            self.get_avaliable_com()
+            self.logger.info(
+                f"PORT: {(self.com_list_widget.currentText())}\n")
         if not len(self.com_list_widget.currentText()):
             self.logger.info("Can't find COM port")
             QtWidgets.QMessageBox.critical(
@@ -554,7 +548,7 @@ class MyWindow(QtWidgets.QWidget):
         self.fs = int(self.fs_combo_box.currentText())
         self.prosessing_thr.fs = self.fs
         self.prosessing_thr.flag_start = True
-        self.prosessing_thr.TIMER_INTERVAL = self.TIMER_READ_INTERVAL
+        self.prosessing_thr.TIMER_INTERVAL = self.READ_INTERVAL_MS
         self.prosessing_thr.num_measurement_rows = self.num_rows
         self.prosessing_thr.start()
 
@@ -577,7 +571,7 @@ class MyWindow(QtWidgets.QWidget):
         Generate warning if avaliable less than 14 bytes
         """
         self.read_serial()
-        self.progress_value += self.TIMER_READ_INTERVAL/1000
+        self.progress_value += self.READ_INTERVAL_MS/1000
         self.progress_bar.setValue(int(self.progress_value))
         self.logger.info(f"Progress: {self.progress_value}")
 
@@ -685,8 +679,8 @@ expected package num {self.exp_package_num}")
     @QtCore.pyqtSlot(int)
     def plot_time_graph(self, s):
         self.package_num = s
-        self.logger.info(f"thread_stop, count = {self.count}\n\
-package_num = {self.package_num}")
+        self.logger.info(f"thread_stop, count = {self.count}\n" +
+                         f"package_num = {self.package_num}")
         self.current_package_num_label.setText(str(self.package_num))
 
         num_of_points_shown = self.PLOT_TIME_INTERVAL_SEC*self.fs
@@ -703,7 +697,7 @@ package_num = {self.package_num}")
                 self.prosessing_thr.all_data[start_i:self.package_num, 1]/(-100))
 
     @QtCore.pyqtSlot(bool)
-    def plot_fft(self, _):  # need current_cylce from the instead bool
+    def plot_fft(self, _):
         self.logger.info("plot_fft")
         ind = (self.current_cylce - 1)*3
         for i in range(self.GYRO_NUMBER):
@@ -715,7 +709,7 @@ package_num = {self.package_num}")
                                self.prosessing_thr.bourder[1]/self.fs])
 
     @QtCore.pyqtSlot(bool)
-    def plot_fft_final(self, _):
+    def plot_fft_final(self, _):  # better recieve current_cylce instead bool
         self.logger.info("Final median plot")
         self.append_fft_plot_tab(self.current_cylce)
         self.tab_widget.setTabText(self.current_cylce + 1, "&FC")
@@ -726,10 +720,6 @@ package_num = {self.package_num}")
                                         self.prosessing_thr.amp_and_freq[:, -4])
             self.phase_curves[ind + i].setData(self.prosessing_thr.amp_and_freq[:, -2],
                                         self.prosessing_thr.amp_and_freq[:, -3])
-        # self.amp_curves[ind].setData(self.prosessing_thr.approximate[2, :],
-        #                              self.prosessing_thr.approximate[0, :])
-        # self.phase_curves[ind].setData(self.prosessing_thr.approximate[2, :],
-        #                                self.prosessing_thr.approximate[1, :])
         # app_icon = QtGui.QIcon()
         # app_icon.addFile(self.res_path('icon_16.png'), QtCore.QSize(16, 16))
         # app_icon.addFile(self.res_path('icon_24.png'), QtCore.QSize(24, 24))
@@ -756,14 +746,6 @@ package_num = {self.package_num}")
             self.time_plot_item.setLabel(
                 'bottom', 'Frequency', units='Hz')
             self.region.hide()
-
-    # def spectrum_show(self):
-    #     t = ""
-    #     if t == "Frequency plot":
-    #         self.time_plot.ctrl.fftCheck.setChecked(False)
-    #     else:
-    #         self.time_plot.ctrl.fftCheck.setChecked(True)
-    #     pass
 
     def append_fft_plot_tab(self, index):
         self.contact_page.append(QtWidgets.QWidget(self))
@@ -855,19 +837,18 @@ package_num = {self.package_num}")
     def clear_logs(self):
         self.log_text_box.widget.clear()
 
+    def get_avaliable_com(self):
+        """
+        Append avaliable com ports to combo box widget
+        """
+        self.available_ports = QSerialPortInfo.availablePorts()
+        if self.available_ports:
+            for port in self.available_ports:
+                self.com_list_widget.addItem(port.portName())
+
 # ------ file name and data from file -----------------------------------------
 
-    def check_filename(self):  # change for three files
-        # filename = self.file_name.text()
-        # if not len(filename):
-        #     filename = 'test'
-        # extension = '.txt'
-        # new_name = filename + extension
-        # i = 1
-        # while os.path.exists(new_name):
-        #     new_name = filename + f"({i})" + extension
-        #     i += 1
-        # self.prosessing_thr.filename = new_name
+    def check_filename(self):  # changed for three files
         if not os.path.isdir(self.FOLDER_NAME):
             os.mkdir(self.FOLDER_NAME)
         if not len(self.file_name_path.text()):
@@ -920,7 +901,6 @@ package_num = {self.package_num}")
         self.filename_path_watcher = filename  # os.path.basename(filename)
         self.fs_watcher.addPath(self.filename_path_watcher)
         self.filename_and_path_widget.setText(filename)
-        self.current_folder_label.setText(os.getcwd())
         return self.get_data_from_file(self.filename_path_watcher)
 
     def get_data_from_file(self, filename_path_watcher):

@@ -136,34 +136,34 @@ class MyThread(QtCore.QThread):
         return ints
 
     def fft_approximation(self, freq, amp, phase,):
-        freq_approximation = np.linspace(freq[0], freq[-1], num=100)
-        order = 4
-        k_list = np.polyfit(freq, amp, order)
-        fun = np.poly1d(k_list)
-        # np.roots(k_list)
-        # amp_approximation = fun(freq_values)
-        # f = [1, 5, 20, 50]
-        # amp = [1, 0.9, 0.7, 0.2]
-        # k_list = np.polyfit(f, amp, 5)
+        # freq_approximation = np.linspace(freq[0], freq[-1], num=100)
+        # order = 4
+        # k_list = np.polyfit(freq, amp, order)
         # fun = np.poly1d(k_list)
-        # R = np.roots(k_list)
-        # freq_values = np.linspace(f[0], f[-1], 20)
-        amp_approximation = np.array(fun(freq_approximation))
-        abs_amp = np.abs(amp_approximation - 0.707)
-        bandwidth_index = np.argmin(abs_amp)
-        self.logger.info(
-            f"bandwidth_freq = {freq_approximation[bandwidth_index]}")
-        # self.logger.info(bandwidth_index)
-        # self.logger.info(amp_approximation[bandwidth_index])
+        # # np.roots(k_list)
+        # # amp_approximation = fun(freq_values)
+        # # f = [1, 5, 20, 50]
+        # # amp = [1, 0.9, 0.7, 0.2]
+        # # k_list = np.polyfit(f, amp, 5)
+        # # fun = np.poly1d(k_list)
+        # # R = np.roots(k_list)
+        # # freq_values = np.linspace(f[0], f[-1], 20)
+        # amp_approximation = np.array(fun(freq_approximation))
+        # abs_amp = np.abs(amp_approximation - 0.707)
+        # bandwidth_index = np.argmin(abs_amp)
+        # self.logger.info(
+        #     f"bandwidth_freq = {freq_approximation[bandwidth_index]}")
+        # # self.logger.info(bandwidth_index)
+        # # self.logger.info(amp_approximation[bandwidth_index])
 
-        k_list = np.polyfit(freq, phase, order)
-        fun = np.poly1d(k_list)
-        phase_approximation = np.array(fun(freq_approximation))
-        # f = np.deg2rad(f)
-        phase_approximation = np.unwrap(phase_approximation)
+        # k_list = np.polyfit(freq, phase, order)
+        # fun = np.poly1d(k_list)
+        # phase_approximation = np.array(fun(freq_approximation))
+        # # f = np.deg2rad(f)
+        # phase_approximation = np.unwrap(phase_approximation)
         # phase_approximation = np.rad2deg(phase_approximation)
-        result = np.array([amp_approximation,
-                           phase_approximation, freq_approximation])
+        # result = np.array([amp_approximation,
+        #                    phase_approximation, freq_approximation])
         
         #  этап 1 - проверка на то, что все частоты +- совпадают
         #  этап 2 - проверка на выбросы по амплитуде и частоте
@@ -185,7 +185,7 @@ class MyThread(QtCore.QThread):
         self.approximate_data_emit.emit(True)         
         # return result
 
-    def data_for_fft_graph(self, encoder: np.ndarray, gyro: np.ndarray, FS):
+    def data_for_fft_graph(self, encoder: np.ndarray, gyro: np.ndarray, FS: int):
         if not self.flag_pause:
             self.flag_sequence_start = True
             self.i += 1
@@ -202,7 +202,7 @@ class MyThread(QtCore.QThread):
                 (self.bourder[1] -self.bourder[0]) // self.fs
                 ) * self.fs
             self.logger.info(f"\n\tnew bourders = {self.bourder}")
-            if (self.bourder[1] - self.bourder[0]) < 500:
+            if (self.bourder[1] - self.bourder[0]) < self.fs:
                 return
             [amp, d_phase, freq, tau] = self.fft_data(
                 gyro[self.bourder[0]:self.bourder[1]],
@@ -212,12 +212,13 @@ class MyThread(QtCore.QThread):
 
             self.check_180_degrees(amp, d_phase, freq)
 
-            self.amp_and_freq_for_plot = np.resize(self.amp_and_freq_for_plot,
-                                    (self.count + self.add_points, 4))
+            self.amp_and_freq_for_plot = np.resize(
+                self.amp_and_freq_for_plot, (self.count + self.add_points, 4))
             self.amp_and_freq_for_plot[(
                 self.count + self.add_points - 1), :] = [amp, d_phase, freq, tau]
             self.amp_and_freq[(self.count - 1),
-                              4*(self.cycle_count - 1):4*self.cycle_count] = [amp, d_phase, freq, tau]
+                              4*(self.cycle_count - 1):
+                              4*self.cycle_count] = [amp, d_phase, freq, tau]
             # self.amp_and_freq_for_plot = self.amp_and_freq_for_plot[self.amp_and_freq_for_plot[:, 2].argsort()]
             self.fft_data_emit.emit(True)
         # return [amp, d_phase, freq]
@@ -246,7 +247,7 @@ class MyThread(QtCore.QThread):
                     d_phase += 2*np.pi
                     self.logger.info(f"prev ph = {phase_prev}, now ph = {d_phase}, amp = {amp180}")
 
-    def fft_data(self, gyro: np.ndarray, encoder: np.ndarray, FS):
+    def fft_data(self, gyro: np.ndarray, encoder: np.ndarray, FS: int):
         """
         Detailed explanation goes here:
         amp [безразмерная]- соотношение амплитуд воздействия (encoder)
@@ -279,11 +280,6 @@ class MyThread(QtCore.QThread):
         freq = f[ne]
         self.logger.info(f"\tne {ne}, Me {Me}\tng {ng}, Mg {Mg}")
 
-        # with open("FFT_res_e.txt", 'a') as file:
-        #     np.savetxt(file, np.array([Ye]), delimiter='\t', fmt='%.3f')
-        # with open("FFT_res_g.txt", 'a') as file:
-        #     np.savetxt(file, np.array([Yg]), delimiter='\t', fmt='%.3f')
-
         d_phase = np.angle(Yg[ng], deg=False) - np.angle(Ye[ne], deg=False)
         amp = Mg/Me
         self.logger.info(
@@ -299,7 +295,9 @@ class MyThread(QtCore.QThread):
         while d_phase < -2 * np.pi:
             d_phase += 2 * np.pi
         
-        tau = 1000*d_phase/freq/2/np.pi
+        # tau = 1000*d_phase/freq/2/np.pi
+        d_phase = 180/np.pi
+        tau = 1000*d_phase/freq/360
         return [amp, d_phase, freq, tau]
 
 # if (not flag_end) and (np.absolute(self.all_data[self.package_num, 2]) < self.threshold):

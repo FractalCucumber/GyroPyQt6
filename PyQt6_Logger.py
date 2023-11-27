@@ -3,15 +3,13 @@ from PyQt6.QtWidgets import QTextEdit
 
 
 class QTextEditLogger():
-    def __init__(self, parent):
+    def __init__(self, parent, file_log=True):
         super().__init__()
 
         # def create_logger(path, widget: QTextEdit):
 
         # logging.disable(logging.INFO) # disable logging for certain level
 
-        self.widget = QTextEdit(parent, readOnly=True)
-        # self.widget.setReadOnly(True)
 
         log = logging.getLogger('main')
         log.setLevel(logging.INFO)
@@ -21,11 +19,12 @@ class QTextEditLogger():
         #     '%(message)s'), datefmt='%Y-%m-%d %H:%M:%S'
         # )
         # file_handler = logging.FileHandler('./log')
-        logging.basicConfig(
-            filename='pyqt6_log.log',
-            filemode='w',
-            format=('#%(levelname)-s,\t%(pathname)s,\tline %(lineno)d,\t[%(asctime)s]: %(message)s'),
-            level=logging.INFO)
+        if file_log:
+            logging.basicConfig(
+                filename='pyqt6_log.log',
+                filemode='w',
+                format=('#%(levelname)-s,\t%(pathname)s,\tline %(lineno)d,\t[%(asctime)s]: %(message)s'),
+                level=logging.INFO)
         # file_handler = logging.FileHandler('pyqt6_log.log')
         # file_handler.setLevel(logging.INFO)
         # file_handler.setFormatter(file_formatter)
@@ -41,6 +40,7 @@ class QTextEditLogger():
             ('>>> %(asctime)s %(message)s\n'), datefmt='%H:%M:%S'
         )
         log_window_handler = logging.Handler()
+        self.widget = QTextEdit(parent, readOnly=True)
         log_window_handler.emit = lambda record: self.widget.insertPlainText(
             log_window_handler.format(record)
         )
