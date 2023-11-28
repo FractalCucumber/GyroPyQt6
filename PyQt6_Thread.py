@@ -98,6 +98,8 @@ class MyThread(QtCore.QThread):
             for i in range(self.GYRO_NUMBER):  # still 1 gyro
                 if self.cycle_count > 1:
                     self.fft_approximation(self.amp_and_freq)
+                self.check_f_c()  
+                
                 with open(self.filename[0] + '_FFT' + self.filename[1], 'w') as file:
                     np.savetxt(file, self.amp_and_freq,
                             delimiter='\t', fmt='%.3f')
@@ -136,35 +138,6 @@ class MyThread(QtCore.QThread):
         return ints
 
     def fft_approximation(self, freq, amp, phase,):
-        # freq_approximation = np.linspace(freq[0], freq[-1], num=100)
-        # order = 4
-        # k_list = np.polyfit(freq, amp, order)
-        # fun = np.poly1d(k_list)
-        # # np.roots(k_list)
-        # # amp_approximation = fun(freq_values)
-        # # f = [1, 5, 20, 50]
-        # # amp = [1, 0.9, 0.7, 0.2]
-        # # k_list = np.polyfit(f, amp, 5)
-        # # fun = np.poly1d(k_list)
-        # # R = np.roots(k_list)
-        # # freq_values = np.linspace(f[0], f[-1], 20)
-        # amp_approximation = np.array(fun(freq_approximation))
-        # abs_amp = np.abs(amp_approximation - 0.707)
-        # bandwidth_index = np.argmin(abs_amp)
-        # self.logger.info(
-        #     f"bandwidth_freq = {freq_approximation[bandwidth_index]}")
-        # # self.logger.info(bandwidth_index)
-        # # self.logger.info(amp_approximation[bandwidth_index])
-
-        # k_list = np.polyfit(freq, phase, order)
-        # fun = np.poly1d(k_list)
-        # phase_approximation = np.array(fun(freq_approximation))
-        # # f = np.deg2rad(f)
-        # phase_approximation = np.unwrap(phase_approximation)
-        # phase_approximation = np.rad2deg(phase_approximation)
-        # result = np.array([amp_approximation,
-        #                    phase_approximation, freq_approximation])
-        
         #  этап 1 - проверка на то, что все частоты +- совпадают
         #  этап 2 - проверка на выбросы по амплитуде и частоте
         #  формируется массив номеров опытов, которые требуется исключить
@@ -176,12 +149,17 @@ class MyThread(QtCore.QThread):
         self.amp_and_freq[:, cols_num:(cols_num + 4)] = np.nan
         # можно результирующие значения не в отдельном массиве, а рядом записать
         # self.temp = np.ndarray((self.amp_and_freq.size))
+        # w_c_flag = False
         for i in range(len(self.amp_and_freq[:, 1])):  # цикл по всем частотам
             for j in range(4):  # надо вычислить среднее для A, f, fi, tay
                 # self.temp = self.amp_and_freq[self.amp_and_freq[i, j:-1:4].argsort()]
                 # [i, j:-1:4] - строка i, столбец j с шагом 4 до конца массива
                 # так получиаем элементы из всех циклов
                 self.amp_and_freq[i, cols_num + j] = np.nanmedian(self.amp_and_freq[i, j:-1:4])
+            # self.check_180_degrees(self.amp_and_freq[i, cols_num + 0],
+            #                        self.amp_and_freq[i, cols_num + 1],
+            #                        self.amp_and_freq[i, cols_num + 2])
+            # self.freq180, self.freq_w_c = self.check_f_c(self.amp_and_freq[:, -4:])         
         self.approximate_data_emit.emit(True)         
         # return result
 
@@ -204,26 +182,52 @@ class MyThread(QtCore.QThread):
             self.logger.info(f"\n\tnew bourders = {self.bourder}")
             if (self.bourder[1] - self.bourder[0]) < self.fs:
                 return
-            [amp, d_phase, freq, tau] = self.fft_data(
+            [freq, amp, d_phase, tau] = self.fft_data(
                 gyro[self.bourder[0]:self.bourder[1]],
                 encoder[self.bourder[0]:self.bourder[1]], FS)
             self.logger.info(
                 f"\namp = {amp}, self.d_phase = {d_phase}, freq = {freq}")
 
-            self.check_180_degrees(amp, d_phase, freq)
+            self.check_180_degrees(freq, amp, d_phase)
 
             self.amp_and_freq_for_plot = np.resize(
                 self.amp_and_freq_for_plot, (self.count + self.add_points, 4))
             self.amp_and_freq_for_plot[(
-                self.count + self.add_points - 1), :] = [amp, d_phase, freq, tau]
+                self.count + self.add_points - 1), :] = [freq, amp, d_phase, tau]
             self.amp_and_freq[(self.count - 1),
                               4*(self.cycle_count - 1):
-                              4*self.cycle_count] = [amp, d_phase, freq, tau]
+                              4*self.cycle_count] = [freq, amp, d_phase, tau]
             # self.amp_and_freq_for_plot = self.amp_and_freq_for_plot[self.amp_and_freq_for_plot[:, 2].argsort()]
             self.fft_data_emit.emit(True)
         # return [amp, d_phase, freq]
 
-    def check_180_degrees(self, amp, d_phase, freq):
+    def check_f_c(self):
+        for i in range(len(self.amp_and_freq[:, 1])): 
+            freq = self.amp_and_freq[i, -4]
+            freq_prev = self.amp_and_freq[i - 1, -4],
+            amp = self.amp_and_freq[i, -3]
+            amp_prev = self.amp_and_freq[i - 1, -3],
+            d_phase = self.amp_and_freq[i, -2]
+            phase_prev = self.amp_and_freq[i - 1, -2]
+            if (self.count + self.add_points - 1) >= 1:
+                f = -180
+                if (phase_prev > f and d_phase < f) or (phase_prev < f and d_phase > f):
+                    k = (phase_prev - d_phase) / (freq_prev - freq)
+                    b = phase_prev - k * freq_prev
+                    self.freq180 = (- np.pi - b)/k
+                    self.logger.info(f"freq180 = {self.freq180}")
+                w_c = 0.707
+                if (amp_prev > w_c and amp < w_c) or (amp_prev < w_c and amp > w_c):
+                    k = (amp_prev - amp) / (freq_prev - freq)
+                    b = amp_prev - k * freq_prev
+                    self.freq_w_c = (w_c - b)/k
+                    self.logger.info(f"freq_w_c = {self.freq_w_c}")
+                    temp = self.freq_w_c
+                    if temp < self.freq_w_c:
+                        self.freq_w_c = temp  
+            return self.freq180, self.freq_w_c
+
+    def check_180_degrees(self, freq, amp, d_phase):
         if (self.count + self.add_points - 1) >= 1:
             # ind = self.count + self.add_points
             amp_prev = self.amp_and_freq_for_plot[(self.count + self.add_points - 2), 0]
@@ -298,7 +302,7 @@ class MyThread(QtCore.QThread):
         # tau = 1000*d_phase/freq/2/np.pi
         d_phase = 180/np.pi
         tau = 1000*d_phase/freq/360
-        return [amp, d_phase, freq, tau]
+        return [freq, amp, d_phase, tau]
 
 # if (not flag_end) and (np.absolute(self.all_data[self.package_num, 2]) < self.threshold):
 #     if k > 750 and flag_start: #  and (self.package_num - k > self.bourder1[0]):
@@ -429,3 +433,54 @@ class MyThread(QtCore.QThread):
         tau = 1000*dPh/freq/360 ## временная задержка
 
         return [freq, amp, dPh, tau]
+    
+
+        # def fft_approximation(self, freq, amp, phase,):
+        # # freq_approximation = np.linspace(freq[0], freq[-1], num=100)
+        # # order = 4
+        # # k_list = np.polyfit(freq, amp, order)
+        # # fun = np.poly1d(k_list)
+        # # # np.roots(k_list)
+        # # # amp_approximation = fun(freq_values)
+        # # # f = [1, 5, 20, 50]
+        # # # amp = [1, 0.9, 0.7, 0.2]
+        # # # k_list = np.polyfit(f, amp, 5)
+        # # # fun = np.poly1d(k_list)
+        # # # R = np.roots(k_list)
+        # # # freq_values = np.linspace(f[0], f[-1], 20)
+        # # amp_approximation = np.array(fun(freq_approximation))
+        # # abs_amp = np.abs(amp_approximation - 0.707)
+        # # bandwidth_index = np.argmin(abs_amp)
+        # # self.logger.info(
+        # #     f"bandwidth_freq = {freq_approximation[bandwidth_index]}")
+        # # # self.logger.info(bandwidth_index)
+        # # # self.logger.info(amp_approximation[bandwidth_index])
+
+        # # k_list = np.polyfit(freq, phase, order)
+        # # fun = np.poly1d(k_list)
+        # # phase_approximation = np.array(fun(freq_approximation))
+        # # # f = np.deg2rad(f)
+        # # phase_approximation = np.unwrap(phase_approximation)
+        # # phase_approximation = np.rad2deg(phase_approximation)
+        # # result = np.array([amp_approximation,
+        # #                    phase_approximation, freq_approximation])
+        
+        # #  этап 1 - проверка на то, что все частоты +- совпадают
+        # #  этап 2 - проверка на выбросы по амплитуде и частоте
+        # #  формируется массив номеров опытов, которые требуется исключить
+        # #  для данного значения частоты
+        # self.mediana = np.ndarray((self.amp_and_freq.size))
+        # cols_num = 4*(self.cycle_count + 1)
+        # self.amp_and_freq = np.resize(self.amp_and_freq,
+        #         (self.num_measurement_rows, cols_num))
+        # self.amp_and_freq[:, cols_num:(cols_num + 4)] = np.nan
+        # # можно результирующие значения не в отдельном массиве, а рядом записать
+        # # self.temp = np.ndarray((self.amp_and_freq.size))
+        # for i in range(len(self.amp_and_freq[:, 1])):  # цикл по всем частотам
+        #     for j in range(4):  # надо вычислить среднее для A, f, fi, tay
+        #         # self.temp = self.amp_and_freq[self.amp_and_freq[i, j:-1:4].argsort()]
+        #         # [i, j:-1:4] - строка i, столбец j с шагом 4 до конца массива
+        #         # так получиаем элементы из всех циклов
+        #         self.amp_and_freq[i, cols_num + j] = np.nanmedian(self.amp_and_freq[i, j:-1:4])
+        # self.approximate_data_emit.emit(True)         
+        # # return result

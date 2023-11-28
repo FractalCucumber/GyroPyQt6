@@ -27,17 +27,53 @@ QSpinBox {
     padding: 3px;
     background-color: rgb(8, 3, 27);
 }
-
+/*
+QTableWidget {
+     color: rgb(224, 224, 224); Foreground color: text color * /
+    gridline-color: rgb(60, 60, 60); /* Grid line color in the table */
+    /* background:rgb(0, 0, 0); */
+    /* To set alternate colors, you need to set in the function properties: tableWidget-> setAlternatingRowColors (true) */
+    /*alternate-background-color:red;   */
+    /* selection-color: rgb(137, 24, 24); Foreground color when selected by mouse: text color */
+    /* selection-background-color: lightgray; Background color when the mouse is selected * /
+    border: 1px solid rgb(60, 60, 60); /* Width and color of border line */
+    /* border: none; */ /* Remove the boundary line */
+    /*border-radius:5px;*/
+    /* padding: 10px 10px; */ /* The distance between the table and the border * /
+}
+QTableWidget QHeaderView::section {
+    background-color: #111111;  
+    /*color:black;*/
+    /*padding-left:4px;* /
+    border: 0.5px solid rgb(60, 60, 60); /* Width and color of header border line */
+    /*border:1px solid gray;
+}*/
 QGroupBox {
+    border: 0.5px solid rgb(114, 114, 114);
+    border-radius:6px;
+    Margin-Top: 21px;
+}
+QGroupBox:title {
+    color:rgb(201, 201, 201);
+    subcontrol-origin: margin;
+    /* left: 10px; */
+}
+/* QGroupBox { */
     /* text-align: center; */
     /* padding: 15px; */
+    /* border-color: rgb(255, 255, 255); */
+/* }
+QGroupBox:title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding-left: 10px;
+    padding-right: 10px; 
 }
 QGroupBox {
     /* background-color: rgb(20, 0, 0); */
     /* border-color: aqua;0 */
     /* text-align: center; */
     /* border: 20px solid rgb(158, 12, 12); */
-}
 /* 
     QProgressBar
 */

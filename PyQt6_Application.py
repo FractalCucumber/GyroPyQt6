@@ -194,6 +194,10 @@ class MyWindow(QtWidgets.QWidget):
             QtWidgets.QLabel('Cycle number:'), 0, 0, 3, 1)
         self.measurements_groupbox_layout.addWidget(self.cycle_num_widget,
                                                     0, 1, 3, 1)
+        self.cycle_num_settings = QtCore.QSettings("cycle_num_settings")
+        if self.cycle_num_settings.contains("cycle_num"):
+            self.cycle_num_widget.setValue(
+                self.cycle_num_settings.value("cycle_num"))
 
         # self.measurements_groupbox_layout.addWidget(
         #     QtWidgets.QLabel('Measurement\ncycle file:'), 1, 0, 1, 1)
@@ -322,8 +326,7 @@ class MyWindow(QtWidgets.QWidget):
         self.time_plot_item.addLegend(offset=(-1, 1), labelTextSize='12pt',
                                       labelTextColor=pg.mkColor('w'))
         self.time_plot_item.setLabel('left', 'Velosity',
-                                     units='\u00b0/second',
-                                     **self.LABEL_STYLE)
+                                     units='\u00b0/second', **self.LABEL_STYLE)
         self.time_plot_item.setLabel('bottom', 'Time',
                                      units='seconds', **self.LABEL_STYLE)
 
@@ -363,6 +366,7 @@ class MyWindow(QtWidgets.QWidget):
         # fun = np.poly1d(k_list)
         # amp_approximation = np.array(fun(freq_approximation))
         self.time_curves[1].setData(freq_approximation, amp_approximation)
+
         # freq_approximation = np.linspace(1, 110, num=300)
         # r = 42
         # k_list = np.polyfit(x[0:-r], amp[0:-r], 6)
@@ -400,6 +404,7 @@ class MyWindow(QtWidgets.QWidget):
 
         self.contact_page: list[QtWidgets.QWidget] = []
         self.append_fft_plot_tab(0)
+        # self.tab_widget.setTabText(self.tab_widget.count() - 1, "&FC")
         self.phase_curves[0].setData([0, 0, 5, 2.5, 0], [0, 6, 6, 0, 0])
         # self.phase_curves[5].setData([0, 0, 2.5, 0.5, 0], [0, 3, 3, 0, 0])
 
@@ -420,17 +425,27 @@ class MyWindow(QtWidgets.QWidget):
                                             5, 5, 1, 1)
 
         self.save_image_button = QtWidgets.QPushButton('Save\nimage')
-        self.plot_groupbox_layout.addWidget(self.save_image_button, 5, 0, 2, 2)
+        self.plot_groupbox_layout.addWidget(self.save_image_button, 5, 0, 2, 1)
 
+        self.save_settings_button = QtWidgets.QPushButton('Save settings')
+        self.plot_groupbox_layout.addWidget(self.save_settings_button, 5, 1, 1, 1)
+
+        self.autosave_checkbox = QtWidgets.QCheckBox('Autosave')
+        self.plot_groupbox_layout.addWidget(self.autosave_checkbox, 6, 1, 1, 1)
+        self.autosave_settings = QtCore.QSettings("autosave_settings")
+        if self.autosave_settings.contains("autosave"):
+            # print(self.autosave_settings.value("autosave"))
+            self.autosave_checkbox.setChecked(
+                self.autosave_settings.value("autosave"))
+            
         self.plot_groupbox.setLayout(self.plot_groupbox_layout)
 
-        self.settings = QtCore.QSettings("filename_settings")
-        if self.settings.contains("filename"):  # load prev file
-            if os.path.exists(name := self.settings.value("filename")):
+        self.filename_settings = QtCore.QSettings("filename_settings")
+        if self.filename_settings.contains("filename"):  # load prev file
+            if os.path.exists(name := self.filename_settings.value("filename")):
                 self.filename_and_path_widget.setText(name)
                 if self.get_data_from_file(name):
                     self.logger.warning("The previous file is loaded")
-
 # ------ Set main grid --------------------------------------------------------
 
         self.main_grid_layout.addWidget(self.com_param_groupbox,
@@ -459,10 +474,8 @@ class MyWindow(QtWidgets.QWidget):
             self.setStyleSheet(style_sheets.read())
 
         app_icon = QtGui.QIcon()
-        app_icon.addFile(self.res_path('icon_16.png'), QtCore.QSize(16, 16))
-        app_icon.addFile(self.res_path('icon_24.png'), QtCore.QSize(24, 24))
-        app_icon.addFile(self.res_path('icon_32.png'), QtCore.QSize(32, 32))
-        app_icon.addFile(self.res_path('icon_48.png'), QtCore.QSize(48, 48))
+        for i in [16, 24, 32, 48]:
+            app_icon.addFile(self.res_path(f'icon_{i}.png'), QtCore.QSize(i, i))
         QtWidgets.QApplication.setWindowIcon(app_icon)
 
 # ------ Signal Connect -------------------------------------------------------
@@ -478,6 +491,7 @@ class MyWindow(QtWidgets.QWidget):
             self.combobox_changed)
         self.edit_file_button.clicked.connect(self.open_file)
         self.save_image_button.clicked.connect(self.save_image)
+        self.save_settings_button.clicked.connect(self.save_all_settings)
         # self.tab_widget.tabCloseRequested.connect(self.close_tab)
 
 # ----------------------------------------------------------------------------------------------
@@ -698,13 +712,20 @@ expected package num {self.exp_package_num}")
 
     @QtCore.pyqtSlot(bool)
     def plot_fft(self, _):
+        """
+        Adds points to frequency graphs
+        """
         self.logger.info("plot_fft")
-        ind = (self.current_cylce - 1)*3
+        # ind = 3 * (self.current_cylce - 1)
         for i in range(self.GYRO_NUMBER):
-            self.amp_curves[ind + i].setData(self.prosessing_thr.amp_and_freq_for_plot[:, 2],
-                                        self.prosessing_thr.amp_and_freq_for_plot[:, 0])
-            self.phase_curves[ind + i].setData(self.prosessing_thr.amp_and_freq_for_plot[:, 2],
+            # self.amp_curves[ind + i].setData(self.prosessing_thr.amp_and_freq_for_plot[:, 0],
+            #                             self.prosessing_thr.amp_and_freq_for_plot[:, 1])
+            # self.phase_curves[ind + i].setData(self.prosessing_thr.amp_and_freq_for_plot[:, 0],
+            #                             self.prosessing_thr.amp_and_freq_for_plot[:, 2])
+            self.amp_curves[-1 - i].setData(self.prosessing_thr.amp_and_freq_for_plot[:, 0],
                                         self.prosessing_thr.amp_and_freq_for_plot[:, 1])
+            self.phase_curves[-1 - i].setData(self.prosessing_thr.amp_and_freq_for_plot[:, 0],
+                                        self.prosessing_thr.amp_and_freq_for_plot[:, 2])
         self.region.setRegion([self.prosessing_thr.bourder[0]/self.fs,
                                self.prosessing_thr.bourder[1]/self.fs])
 
@@ -714,17 +735,18 @@ expected package num {self.exp_package_num}")
         self.append_fft_plot_tab(self.current_cylce)
         self.tab_widget.setTabText(self.current_cylce + 1, "&FC")
         # self.plot_fft(True)
-        ind = 3*self.current_cylce
+        # ind = 3 * self.current_cylce
         for i in range(self.GYRO_NUMBER):
-            self.amp_curves[ind + i].setData(self.prosessing_thr.amp_and_freq[:, -2],
-                                        self.prosessing_thr.amp_and_freq[:, -4])
-            self.phase_curves[ind + i].setData(self.prosessing_thr.amp_and_freq[:, -2],
+#             self.amp_curves[ind + i].setData(self.prosessing_thr.amp_and_freq[:, -4],
+#                                         self.prosessing_thr.amp_and_freq[:, -3])
+#             self.phase_curves[ind + i].setData(self.prosessing_thr.amp_and_freq[:, -4],
+#                                         self.prosessing_thr.amp_and_freq[:, -2])
+            self.amp_curves[-1 - i].setData(self.prosessing_thr.amp_and_freq[:, -4],
                                         self.prosessing_thr.amp_and_freq[:, -3])
+            self.phase_curves[-1 - i].setData(self.prosessing_thr.amp_and_freq[:, -4],
+                                        self.prosessing_thr.amp_and_freq[:, -2])
         # app_icon = QtGui.QIcon()
-        # app_icon.addFile(self.res_path('icon_16.png'), QtCore.QSize(16, 16))
         # app_icon.addFile(self.res_path('icon_24.png'), QtCore.QSize(24, 24))
-        # app_icon.addFile(self.res_path('icon_32.png'), QtCore.QSize(32, 32))
-        # app_icon.addFile(self.res_path('icon_48.png'), QtCore.QSize(48, 48))
         # self.tab_widget.setTabIcon(self.current_cylce + 1, app_icon)
 
 # ----- plot change -----------------------------------------------------------
@@ -748,6 +770,9 @@ expected package num {self.exp_package_num}")
             self.region.hide()
 
     def append_fft_plot_tab(self, index):
+        """
+        Create new tab and append amplitude and grequency graphs
+        """
         self.contact_page.append(QtWidgets.QWidget(self))
         self.layout = QtWidgets.QVBoxLayout()
         self.append_phase_plot()
@@ -944,15 +969,23 @@ expected package num {self.exp_package_num}")
         Sending stop command to the vibrostand and saving user settings
         """
         self.stop()
+        self.autosave_settings.setValue("autosave",
+                                        self.autosave_checkbox.checkState().value)
+        if self.autosave_checkbox.checkState().value:
+            self.save_all_settings()
+        self.logger.warning("Saving the settings and exit")
+
+    def save_all_settings(self):
         self.com_boderate_combo_box.save_value()
         self.com_boderate_combo_box.save_index()
         self.fs_combo_box.save_value()
         self.fs_combo_box.save_index()
         # self.file_name_and_path_widget.save_value()
         # self.file_name_and_path_widget.save_index()
-        self.settings.setValue("filename",
-                               self.filename_and_path_widget.text())
-        self.logger.warning("Saving the settings and exit")
+        self.cycle_num_settings.setValue("cycle_num",
+                                        self.cycle_num_widget.value())
+        self.filename_settings.setValue("filename",
+                                        self.filename_and_path_widget.text())
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
