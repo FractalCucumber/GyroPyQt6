@@ -6,23 +6,25 @@ import os
 import re
 # from pyqtgraph.Qt import QtCore, QtGui
 # from datetime import datetime
-from PyQt6 import QtWidgets, QtCore, QtGui
-from PyQt6.QtSerialPort import QSerialPort, QSerialPortInfo
+# from PyQt6 import QtWidgets, QtCore, QtGui
+from PyQt5 import QtWidgets, QtCore, QtGui
+from PyQt5.QtSerialPort import QSerialPort, QSerialPortInfo
 import pyqtgraph.exporters
 import pyqtgraph as pg
-import numpy as np
+# import numpy as np
 import PyQt6_Logger
 import PyQt6_Thread
 
-
+# pyinstaller PyQt6_Application.spec
+# python setup.py build
 #  pyinstaller --onefile --noconsole PyQt6_Application.py
-#  pyinstaller --onefile --windowed --add-data="StyleSheets.css:."
 # --add-data="Vibro_1_resources/icon_16.png:."
 # --add-data="Vibro_1_resources/icon_24.png:."
 # --add-data="Vibro_1_resources/icon_32.png:."
 # --add-data="Vibro_1_resources/icon_48.png:." PyQt6_Application.py
-# pyinstaller --add-data "StyleSheets.css:." --add-data "icon_16.png:." --add-data "icon_24.png:." --add-data "icon_32.png:." --add-data "icon_48.png:." --onefile --windowed PyQt6_Application.py --exclude-module matplotlib --exclude-module hook --exclude-module setuptools --exclude-module DateTime --exclude-module pandas --exclude-module PyQt6.QtOpenGL --exclude-module PyQt6.QtOpenGLWidgets --exclude-module hooks --exclude-module hook --exclude-module pywintypes --exclude-module flask
-# pyinstaller --add-data "StyleSheets.css:." --onefile --windowed PyQt6_Application.py
+# pyinstaller --add-data "StyleSheets.css;." --add-data "icon_16.png;." --add-data "icon_24.png;." --add-data "icon_32.png;." --add-data "icon_48.png;." --onefile --windowed PyQt6_Application.py --exclude-module matplotlib --exclude-module hook --exclude-module setuptools --exclude-module DateTime --exclude-module pandas --exclude-module PyQt6.QtOpenGL --exclude-module PyQt6.QtOpenGLWidgets --exclude-module hooks --exclude-module hook --exclude-module pywintypes --exclude-module flask --exclude-module opengl32sw.dll
+# pyinstaller --add-data "StyleSheets.css;." --add-data "icon_16.png;." --add-data "icon_24.png;." --add-data "icon_32.png;." --add-data "icon_48.png;." --windowed PyQt6_Application.py
+# pyinstaller --add-data "StyleSheets.css;." --onefile --windowed PyQt6_Application.py
 # -----------------------------------------------------------------------------
 #
 # -----------------------------------------------------------------------------
@@ -35,7 +37,6 @@ class CustomComboBox(QtWidgets.QComboBox):
                  parent=None):
         super(CustomComboBox, self).__init__(parent)
         self.setEditable(True)
-        # self.currentIndex
         if not editable_flag:
             self.lineEdit().setReadOnly(True)
         # intValidator
@@ -49,6 +50,8 @@ class CustomComboBox(QtWidgets.QComboBox):
             self.setCurrentIndex(
                 self.settings.value("curr_index"))
 
+        self.lineEdit().setAlignment(
+            QtCore.Qt.AlignmentFlag.AlignCenter)
         self.currentTextChanged.connect(
             self.combobox_changed)
 
@@ -68,22 +71,22 @@ class CustomComboBox(QtWidgets.QComboBox):
 
 class CustomViewBox(pg.ViewBox):
     def __init__(self, *args, **kwds):
-        # kwds['enableMenu'] = True
-        kwds['enableMenu'] = False
+        kwds['enableMenu'] = True
+        # kwds['enableMenu'] = False
         pg.ViewBox.__init__(self, *args, **kwds)
         # self.setMouseMode(self.RectMode)
 
     #  reimplement right-click to zoom out
-    def mouseClickEvent(self, ev):
-        if ev.button() == QtCore.Qt.MouseButton.RightButton:
-            self.autoRange()
+    # def mouseClickEvent(self, ev):
+    #     if ev.button() == QtCore.Qt.MouseButton.RightButton:
+    #         self.autoRange()
 
-    #  reimplement mouseDragEvent to disable continuous axis zoom
-    def mouseDragEvent(self, ev, axis=None):
-        if axis is not None and ev.button() == QtCore.Qt.MouseButton.RightButton:
-            ev.ignore()
-        else:
-            pg.ViewBox.mouseDragEvent(self, ev, axis=axis)
+    # #  reimplement mouseDragEvent to disable continuous axis zoom
+    # def mouseDragEvent(self, ev, axis=None):
+    #     if axis is not None and ev.button() == QtCore.Qt.MouseButton.RightButton:
+    #         ev.ignore()
+    #     else:
+    #         pg.ViewBox.mouseDragEvent(self, ev, axis=axis)
 
 
 class MyWindow(QtWidgets.QWidget):
@@ -98,7 +101,7 @@ class MyWindow(QtWidgets.QWidget):
 # ------ Init vars ------------------------------------------------------------
         self.PLOT_TIME_INTERVAL_SEC = 10
         self.PAUSE_INTERVAL_MS = 500
-        self.TIMER_READ_INTERVAL = 125*2
+        self.READ_INTERVAL_MS = 125*2
         self.FOLDER_NAME = 'results'
         self.count = 0
         self.progress_bar_value = 0
@@ -107,19 +110,30 @@ class MyWindow(QtWidgets.QWidget):
         self.total_cycle_num = 1
         self.current_cylce = 0
         STYLE_SHEETS_FILENAME = 'StyleSheets.css'
+        FILE_LOG_FLAG = True
         self.GYRO_NUMBER = 1
-        self.Serial = QSerialPort(dataBits=QSerialPort.DataBits.Data8,
-                                  stopBits=QSerialPort.StopBits.OneStop,
-                                  parity=QSerialPort.Parity.NoParity)
         self.LABEL_STYLE = {'color': '#FFF', 'font-size': '16px'}
         self.COLOR_LIST = ['r', 'g', 'b']
         self.filename_path_watcher = ""
+        self.Serial = QSerialPort(dataBits=QSerialPort.DataBits.Data8,
+                                  stopBits=QSerialPort.StopBits.OneStop,
+                                  parity=QSerialPort.Parity.NoParity)
 # ------ Timres ---------------------------------------------------------------
-        self.timer_recieve = QtCore.QTimer(interval=self.TIMER_READ_INTERVAL)
+        self.timer_recieve = QtCore.QTimer(interval=self.READ_INTERVAL_MS)
         self.timer_recieve.timeout.connect(self.timerEvent)
         self.timer_sent_com = QtCore.QTimer(
             timerType=QtCore.Qt.TimerType.PreciseTimer)
         self.timer_sent_com.timeout.connect(self.timer_event_sent_com)
+# ------ File watcher --------------------------------------------------------
+        self.fs_watcher = QtCore.QFileSystemWatcher()
+        # self.fs_watcher.directoryChanged.connect(self.directory_changed)
+        self.fs_watcher.fileChanged.connect(self.file_changed)
+# ------ Thread --------------------------------------------------------------
+        self.prosessing_thr = PyQt6_Thread.MyThread(
+            gyro_number=self.GYRO_NUMBER)
+        self.prosessing_thr.package_num_signal.connect(self.plot_time_graph)
+        self.prosessing_thr.fft_data_emit.connect(self.plot_fft)
+        self.prosessing_thr.approximate_data_emit.connect(self.plot_fft_final)
 
 # ------ GUI ------------------------------------------------------------------
         self.main_grid_layout = QtWidgets.QGridLayout(self)
@@ -136,28 +150,25 @@ class MyWindow(QtWidgets.QWidget):
             QtCore.Qt.AlignmentFlag.AlignCenter)
         self.com_list_widget.lineEdit().setReadOnly(True)
 
-        self.available_ports = QSerialPortInfo.availablePorts()
-        if self.available_ports:
-            for self.port in self.available_ports:
-                self.com_list_widget.addItem(self.port.portName())
+        self.get_avaliable_com()
 
         self.com_param_groupbox_layout.addWidget(QtWidgets.QLabel('COM:'),
-                                                 0, 0)
+                                                 0, 0, 1, 1)
         self.com_param_groupbox_layout.addWidget(self.com_list_widget,
-                                                 0, 1)
+                                                 0, 1, 1, 1)
 
         self.com_boderate_combo_box = CustomComboBox(
             settings_name="COM_speed_settings",
             deafault_items_list=["921600", "115200", "0"],
             editable_flag=True)
 
-        self.int_validator = QtGui.QIntValidator()
+        self.int_validator = QtGui.QIntValidator(bottom=0)
         self.com_boderate_combo_box.setValidator(self.int_validator)
 
         self.com_param_groupbox_layout.addWidget(QtWidgets.QLabel('Speed:'),
-                                                 1, 0)
+                                                 1, 0, 1, 1)
         self.com_param_groupbox_layout.addWidget(self.com_boderate_combo_box,
-                                                 1, 1)
+                                                 1, 1, 1, 1)
 
         self.fs_combo_box = CustomComboBox(
             settings_name="fs_settings",
@@ -165,9 +176,9 @@ class MyWindow(QtWidgets.QWidget):
             editable_flag=True)
         self.fs_combo_box.setValidator(self.int_validator)
         self.com_param_groupbox_layout.addWidget(QtWidgets.QLabel('Fs, Hz:'),
-                                                 2, 0)
+                                                 2, 0, 1, 1)
         self.com_param_groupbox_layout.addWidget(self.fs_combo_box,
-                                                 2, 1)
+                                                 2, 1, 1, 1)
 
         self.com_param_groupbox.setLayout(self.com_param_groupbox_layout)
 
@@ -176,37 +187,47 @@ class MyWindow(QtWidgets.QWidget):
         Block with button to open and edit measurement file
         """
         self.measurements_groupbox = QtWidgets.QGroupBox(
-            '&Измерения', maximumWidth=300)
+            'Измерения', maximumWidth=300)
         self.measurements_groupbox_layout = QtWidgets.QGridLayout()
 
         self.cycle_num_widget = QtWidgets.QSpinBox(
             minimum=1, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
         self.measurements_groupbox_layout.addWidget(
-            QtWidgets.QLabel('Cycle number:'), 0, 0)
+            QtWidgets.QLabel('Cycle number:'), 0, 0, 3, 1)
         self.measurements_groupbox_layout.addWidget(self.cycle_num_widget,
-                                                    0, 1)
+                                                    0, 1, 3, 1)
+        self.settings = QtCore.QSettings("settings")
+        if self.settings.contains("cycle_num"):
+            self.cycle_num_widget.setValue(
+                self.settings.value("cycle_num"))
 
-        self.measurements_groupbox_layout.addWidget(
-            QtWidgets.QLabel('Measurement\ncycle file:'), 1, 0, 1, 1)
-        self.choose_file = QtWidgets.QPushButton('Choose')
+        # self.measurements_groupbox_layout.addWidget(
+        #     QtWidgets.QLabel('Measurement\ncycle file:'), 1, 0, 1, 1)
+        self.choose_file = QtWidgets.QPushButton('&Choose file')
         self.measurements_groupbox_layout.addWidget(self.choose_file,
-                                                    1, 1, 1, 1)
+                                                    3, 0, 3, 2)
 
-        self.edit_file_button = QtWidgets.QPushButton('Open file')
+        self.edit_file_button = QtWidgets.QPushButton('&Open file')
         self.measurements_groupbox_layout.addWidget(self.edit_file_button,
-                                                    5, 1, 1, 1)
+                                                    12, 0, 3, 2)
 
         self.measurements_groupbox_layout.addWidget(
-            QtWidgets.QLabel('Filename:'), 3, 0)
+            QtWidgets.QLabel('Filepath:'), 6, 0, 2, 1)
         # self.file_name_and_path_widget = CustomComboBox(
         #     settings_name="file_settings",
         #     deafault_items_list=['', '', ''],
         #     editable_flag=False)
-        self.filename_and_path_widget = QtWidgets.QLineEdit(
-            readOnly=True, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
+        # QLineEdit readOnly=True,
+        self.filename_and_path_widget = QtWidgets.QLabel(
+            alignment=QtCore.Qt.AlignmentFlag.AlignHCenter,
+            wordWrap=True, objectName="with_bourder",
+            textInteractionFlags=QtCore.Qt.
+            TextInteractionFlag.TextSelectableByMouse)
         self.measurements_groupbox_layout.addWidget(
-            self.filename_and_path_widget, 4, 0, 1, 2)
-
+            self.filename_and_path_widget, 9, 0, 1, 2)
+        # self.measurements_groupbox.setFlat(True)  # прозрачность
+        # self.measurements_groupbox_layout.setSizeConstraint(
+        # QtWidgets.QLayout.SizeConstraint.SetNoConstraint)
         self.measurements_groupbox.setLayout(self.measurements_groupbox_layout)
 
 # ------ Saving results -------------------------------------------------------
@@ -218,50 +239,57 @@ class MyWindow(QtWidgets.QWidget):
         self.saving_measurements_groupbox_layout = QtWidgets.QGridLayout()
 
         self.saving_measurements_groupbox_layout.addWidget(
-            QtWidgets.QLabel('Папка:'), 0, 0)
-        self.current_folder_label = QtWidgets.QLineEdit(os.getcwd(), readOnly=True)
-        self.saving_measurements_groupbox_layout.addWidget(
-            self.current_folder_label, 0, 1)
+            QtWidgets.QLabel('<b>Папка:</b>'), 0, 0, 2, 1)
+        self.current_folder_label = QtWidgets.QLabel(
+            os.getcwd(), wordWrap=True, objectName="with_bourder",
+            textInteractionFlags=QtCore.Qt.
+            TextInteractionFlag.TextSelectableByMouse)
+
+        self.current_folder_label.setText(os.getcwd())
 
         self.saving_measurements_groupbox_layout.addWidget(
-            QtWidgets.QLabel('<b>Имя файла:</b>'), 1, 0)
+            self.current_folder_label, 0, 1, 2, 1)
+
+        self.saving_measurements_groupbox_layout.addWidget(
+            QtWidgets.QLabel('Имя\nфайла:'), 2, 0, 3, 1)
         self.file_name_path = QtWidgets.QLineEdit('test')
         self.saving_measurements_groupbox_layout.addWidget(
-            self.file_name_path, 1, 1)
+            self.file_name_path, 2, 1, 3, 1)
         self.saving_measurements_groupbox.setLayout(
             self.saving_measurements_groupbox_layout)
 
 ##############################################################################
 # ------ Output logs and data from file ---------------------------------------
         self.text_output_groupbox = QtWidgets.QGroupBox(
-            'Содержимое файла', maximumWidth=395)
+            'Содержимое файла', maximumWidth=315, minimumWidth=215)
         # self.text_output_groupbox_layout = QtWidgets.QFormLayout()
         self.text_output_groupbox_layout = QtWidgets.QGridLayout()
 
         self.table_widget = QtWidgets.QTableWidget(
             columnCount=3,
-            editTriggers=QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
-        # self.tableWidget.setRowCount(1)  # u"\u00b0"
+            editTriggers=QtWidgets.
+            QAbstractItemView.EditTrigger.NoEditTriggers,
+            selectionBehavior=QtWidgets.
+            QAbstractItemView.SelectionBehavior.SelectRows)
         self.table_widget.setHorizontalHeaderLabels(
             ["F, Hz", "A, \u00b0/s", "T, s"])
         self.table_widget.horizontalHeader().setSectionResizeMode(
             QtWidgets.QHeaderView.ResizeMode.Stretch)
         self.table_widget.verticalHeader().setSectionResizeMode(
             QtWidgets.QHeaderView.ResizeMode.Stretch)
-        self.table_widget.setSelectionBehavior(
-            QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
 
         self.text_output_groupbox_layout.addWidget(self.table_widget)
         self.text_output_groupbox.setLayout(self.text_output_groupbox_layout)
 
         self.logs_groupbox = QtWidgets.QGroupBox(
-            'Logs:', maximumWidth=395)
-        self.logs_groupbox_layout = QtWidgets.QVBoxLayout()
+            'Logs:', maximumWidth=315)
 # ------ Logger ---------------------------------------------------------------
         """
         Logs widget
         """
-        self.log_text_box = PyQt6_Logger.QTextEditLogger(self)
+        self.logs_groupbox_layout = QtWidgets.QVBoxLayout()
+        self.log_text_box = PyQt6_Logger.QTextEditLogger(
+            self, file_log=FILE_LOG_FLAG)
         self.logger = logging.getLogger('main')
 
         self.logs_groupbox_layout.addWidget(self.log_text_box.widget)
@@ -269,8 +297,10 @@ class MyWindow(QtWidgets.QWidget):
         self.clear_button = QtWidgets.QPushButton('Clear logs')
         self.logs_groupbox_layout.addWidget(self.clear_button)
 
-        self.start_button = QtWidgets.QPushButton('START')
-        self.stop_button = QtWidgets.QPushButton('STOP', enabled=False)
+        self.start_button = QtWidgets.QPushButton(
+            'START', objectName="start_button")
+        self.stop_button = QtWidgets.QPushButton(
+            'STOP', enabled=False, objectName="stop_button")
 
         self.logs_groupbox.setLayout(self.logs_groupbox_layout)
 
@@ -279,7 +309,8 @@ class MyWindow(QtWidgets.QWidget):
         """
         Plots in tab widget
         """
-        self.plot_groupbox = QtWidgets.QGroupBox('График', minimumWidth=395)
+        # self.plot_groupbox = QtWidgets.QGroupBox('График', minimumWidth=395)
+        self.plot_groupbox = QtWidgets.QGroupBox(minimumWidth=395)
         self.plot_groupbox_layout = QtWidgets.QGridLayout()
 
 # ------ time plot ------------------------------------------------------------
@@ -291,8 +322,7 @@ class MyWindow(QtWidgets.QWidget):
         self.time_plot_item.addLegend(offset=(-1, 1), labelTextSize='12pt',
                                       labelTextColor=pg.mkColor('w'))
         self.time_plot_item.setLabel('left', 'Velosity',
-                                     units='\u00b0/second',
-                                     **self.LABEL_STYLE)
+                                     units='\u00b0/second', **self.LABEL_STYLE)
         self.time_plot_item.setLabel('bottom', 'Time',
                                      units='seconds', **self.LABEL_STYLE)
 
@@ -306,21 +336,33 @@ class MyWindow(QtWidgets.QWidget):
         self.region = pg.LinearRegionItem([0, 1], movable=False)
         self.time_plot_item.addItem(self.region)
 
-        self.time_curves[0].setData([0, 0, 2, 2, 0], [0, 3, 3, 0, 0])
-        self.time_curves[1].setData([0, 0, 1.5, 1.5, 0], [0, 2, 2, 0, 0])
+        # self.time_curves[0].setData([0, 0, 2, 2, 0], [0, 3, 3, 0, 0])
+        # self.time_curves[1].setData([0, 0, 1.5, 1.5, 0], [0, 2, 2, 0, 0])
         # x = [1, 5, 10, 15, 20, 25, 33, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 118, 120, 122, 125, 130, 135, 140, 150, 156, 162, 170, 180, 190, 200, 205, 210, 215, 220, 225, 230, 235, 240, 245, 250, 255, 260, 265, 270, 275, 280, 285, 290, 300, 310]
-        x = [1, 5, 10, 15, 20, 25, 33, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 102, 105, 107, 110, 115, 118, 120, 122, 125, 130, 135, 140, 150, 156, 162, 170, 180, 190, 200, 205, 210, 215, 220, 225, 230, 235, 240, 243, 247, 250, 255, 260, 265, 270, 275, 280, 285, 290, 295, 300, 305, 310, 315]
-        # amp =np.array([96, 97, 108, 112, 113, 114, 121, 127, 136, 163, 166, 191, 219, 240, 258, 284, 400, 371, 450, 699, 791, 1154, 631, 697, 722, 743, 834, 823, 918, 995, 1022, 1125, 1220, 1244, 1373, 1468, 1618, 1851, 1865, 2166, 2548, 2539, 3409, 3521, 3514, 4220, 3473, 2573, 3081, 3028, 3028, 3230, 3056, 3132, 3102, 3621, 3669, 4561])/100
-        amp =np.array(
-            [94, 99, 105, 114, 112, 113, 122, 127, 137, 160, 169, 205, 221, 243, 292, 306, 339, 392, 419, 554, 861, 913, 1079, 1276, 595, 645, 659, 666, 781, 810, 863, 948, 1024, 1103, 1227, 1329, 1319, 1362, 1468, 1791, 1921, 1959, 2641, 2477, 3384, 3484, 3254, 4482, 3888, 3931, 2795, 3021, 3246, 3046, 3147, 3505, 3424, 3430, 4049, 4157, 4385, 3980, 5340, 4897]
-            )/100
-        self.time_curves[0].setData(x, amp)
+        # x = [1, 5, 10, 15, 20, 25, 33, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 102, 105, 107, 110, 115, 118, 120, 122, 125, 130, 135, 140, 150, 156, 162, 170, 180, 190, 200, 205, 210, 215, 220, 225, 230, 235, 240, 243, 247, 250, 255, 260, 265, 270, 275, 280, 285, 290, 295, 300, 305, 310, 315]
+        # # amp =np.array([96, 97, 108, 112, 113, 114, 121, 127, 136, 163, 166, 191, 219, 240, 258, 284, 400, 371, 450, 699, 791, 1154, 631, 697, 722, 743, 834, 823, 918, 995, 1022, 1125, 1220, 1244, 1373, 1468, 1618, 1851, 1865, 2166, 2548, 2539, 3409, 3521, 3514, 4220, 3473, 2573, 3081, 3028, 3028, 3230, 3056, 3132, 3102, 3621, 3669, 4561])/100
+        # amp =np.array(
+        #     [94, 99, 105, 114, 112, 113, 122, 127, 137, 160, 169, 205, 221, 243, 292, 306, 339, 392, 419, 554, 861, 913, 1079, 1276, 595, 645, 659, 666, 781, 810, 863, 948, 1024, 1103, 1227, 1329, 1319, 1362, 1468, 1791, 1921, 1959, 2641, 2477, 3384, 3484, 3254, 4482, 3888, 3931, 2795, 3021, 3246, 3046, 3147, 3505, 3424, 3430, 4049, 4157, 4385, 3980, 5340, 4897]
+        #     )/100
+        # self.time_curves[0].setData(x, amp)
 
-        # freq_approximation = np.linspace(1, 310, num=300)
-        # k_list = np.polyfit(x, amp, 6)
-        # fun = np.poly1d(k_list)
-        # amp_approximation = np.array(fun(freq_approximation))
+        # freq_approximation = np.linspace(1, 330, num=300)
+        # k_list = np.polyfit(x, amp, 4)
+        # print(k_list)
+        # k_list[-1] = k_list[-1] + 0.1
+        # k_list[-2] = k_list[-2]*0.2
+        # k_list[-3] = k_list[-3]*0.8
+        # print(k_list)
+        # # аппроксимирующую функцию можно разбить на столько диапазонов,
+        # # сколько учатков с разной амплитудой у нас имеется
+        # amp_approximation = ((-4.75368112e-09)*freq_approximation**4 +
+        #                      (2.06569833e-06)*freq_approximation**3 +
+        #                      (2.02236573e-04)*freq_approximation**2 +
+        #                      1.60865286e-03*freq_approximation) + 9.41254199e-01
+        # # fun = np.poly1d(k_list)
+        # # amp_approximation = np.array(fun(freq_approximation))
         # self.time_curves[1].setData(freq_approximation, amp_approximation)
+
         # freq_approximation = np.linspace(1, 110, num=300)
         # r = 42
         # k_list = np.polyfit(x[0:-r], amp[0:-r], 6)
@@ -337,7 +379,9 @@ class MyWindow(QtWidgets.QWidget):
         # amp_approximation = np.array(fun(freq_approximation))
 
         # self.time_curves[2].setData(freq_approximation, amp_approximation)
-        # self.time_curves[2].setData(freq_approximation, np.exp(0.479) * np.exp(0.0255*freq_approximation))
+        # self.time_curves[2].setData(
+        #   freq_approximation,
+        #   np.exp(0.479) * np.exp(0.0255*freq_approximation))
 
 # ------ Tab widget -----------------------------------------------------------
         # self.tab_widget = QtWidgets.QTabWidget(tabsClosable=True)
@@ -357,8 +401,9 @@ class MyWindow(QtWidgets.QWidget):
         self.amp_plot_list: list[pg.PlotWidget] = []
 
         self.contact_page: list[QtWidgets.QWidget] = []
-        self.append_fft_plot_tab(0)
-        self.phase_curves[0].setData([0, 0, 5, 2.5, 0], [0, 6, 6, 0, 0])
+        self.append_fft_plot_tab()
+        # self.tab_widget.setTabText(self.tab_widget.count() - 1, "&FC")
+        # self.phase_curves[0].setData([0, 0, 5, 2.5, 0], [0, 6, 6, 0, 0])
         # self.phase_curves[5].setData([0, 0, 2.5, 0.5, 0], [0, 3, 3, 0, 0])
 
         self.plot_groupbox_layout.addWidget(self.tab_widget,
@@ -366,29 +411,35 @@ class MyWindow(QtWidgets.QWidget):
 
         self.progress_bar = QtWidgets.QProgressBar(
             format='%v/%m sec', maximum=1, value=self.progress_value)
-        # self.progress_bar.setSizePolicy(QtWidgets.QSizePolicy.PolicyFlag.ExpandFlag)
-        # self.progress_bar.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding)
         self.plot_groupbox_layout.addWidget(self.progress_bar,
-                                            5, 0, 2, 5)
+                                            6, 3, 1, 6)
 
         self.package_number_label = QtWidgets.QLabel('Package number:')
         self.plot_groupbox_layout.addWidget(self.package_number_label,
-                                            5, 5, 1, 3)
-        self.current_package_num_label = QtWidgets.QLabel()
-        self.current_package_num_label.setText('0')
+                                            5, 3, 1, 3)
+        self.current_package_num_label = QtWidgets.QLabel('0')
         self.plot_groupbox_layout.addWidget(self.current_package_num_label,
-                                            5, 8, 1, 1)
+                                            5, 6, 1, 1)
 
-        self.save_image_button = QtWidgets.QPushButton('Save image')
-        self.plot_groupbox_layout.addWidget(self.save_image_button, 6, 5, 1, 4)
+        self.save_image_button = QtWidgets.QPushButton('Save\nimage')
+        self.plot_groupbox_layout.addWidget(self.save_image_button, 5, 0, 2, 2)
+
+        self.save_settings_button = QtWidgets.QPushButton('Save settings')
+        self.plot_groupbox_layout.addWidget(self.save_settings_button, 5, 2, 1, 1)
+
+        self.autosave_checkbox = QtWidgets.QCheckBox('Autosave')
+        self.plot_groupbox_layout.addWidget(self.autosave_checkbox, 6, 2, 1, 1)
+        if self.settings.contains("autosave"):
+            self.autosave_checkbox.setChecked(
+                self.settings.value("autosave"))
 
         self.plot_groupbox.setLayout(self.plot_groupbox_layout)
-
-        self.settings = QtCore.QSettings("filename_settings")
-        if self.settings.contains("filename"):  # load prev file
-            if os.path.exists(name := self.settings.value("filename")):
+        if self.settings.contains("filename"):
+            name = self.settings.value("filename")
+            if os.path.exists(name):
                 self.filename_and_path_widget.setText(name)
-                self.get_data_from_file(name)
+                if self.get_data_from_file(name):
+                    self.logger.warning("The previous file is loaded")
 
 # ------ Set main grid --------------------------------------------------------
 
@@ -414,19 +465,12 @@ class MyWindow(QtWidgets.QWidget):
 
 # ------ Style ----------------------------------------------------------------
 
-        # self.block1_com_param.setObjectName("group1")
-        # self.subblock1_com_param.setObjectName("group1")
-        self.stop_button.setObjectName("stop_button")
-        # self.choose_file.setObjectName("choose_file")
-        self.start_button.setObjectName("start_button")
         with open(self.res_path(STYLE_SHEETS_FILENAME), "r") as style_sheets:
             self.setStyleSheet(style_sheets.read())
 
         app_icon = QtGui.QIcon()
-        app_icon.addFile(self.res_path('icon_16.png'), QtCore.QSize(16, 16))
-        app_icon.addFile(self.res_path('icon_24.png'), QtCore.QSize(24, 24))
-        app_icon.addFile(self.res_path('icon_32.png'), QtCore.QSize(32, 32))
-        app_icon.addFile(self.res_path('icon_48.png'), QtCore.QSize(48, 48))
+        for i in [16, 24, 32, 48]:
+            app_icon.addFile(self.res_path(f'icon_{i}.png'), QtCore.QSize(i, i))
         QtWidgets.QApplication.setWindowIcon(app_icon)
 
 # ------ Signal Connect -------------------------------------------------------
@@ -442,24 +486,9 @@ class MyWindow(QtWidgets.QWidget):
             self.combobox_changed)
         self.edit_file_button.clicked.connect(self.open_file)
         self.save_image_button.clicked.connect(self.save_image)
+        self.save_settings_button.clicked.connect(self.save_all_settings)
         # self.tab_widget.tabCloseRequested.connect(self.close_tab)
-# ------ Thread --------------------------------------------------------------
 
-        self.prosessing_thr = PyQt6_Thread.MyThread(
-            gyro_number=self.GYRO_NUMBER)
-        self.prosessing_thr.package_num_signal.connect(
-            self.plot_time_graph)
-        self.prosessing_thr.fft_data_emit.connect(
-            self.plot_fft)
-        self.prosessing_thr.approximate_data_emit.connect(
-            self.plot_fft_final)
-
-
-
-        # self.file_name_and_path_widget.text()
-        self.fs_watcher = QtCore.QFileSystemWatcher()
-        # self.fs_watcher.directoryChanged.connect(self.directory_changed)
-        self.fs_watcher.fileChanged.connect(self.file_changed)
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
 #
@@ -482,11 +511,9 @@ class MyWindow(QtWidgets.QWidget):
 
         self.logger.info(F"\nPORT: {(self.com_list_widget.currentText())}\n")
         if not len(self.com_list_widget.currentText()):
-            self.available_ports = QSerialPortInfo.availablePorts()
-            for port in self.available_ports:
-                self.com_list_widget.addItem(port.portName())
-                self.logger.info(
-                    f"PORT: {(self.com_list_widget.currentText())}\n")
+            self.get_avaliable_com()
+            self.logger.info(
+                f"PORT: {(self.com_list_widget.currentText())}\n")
         if not len(self.com_list_widget.currentText()):
             self.logger.info("Can't find COM port")
             QtWidgets.QMessageBox.critical(
@@ -530,7 +557,8 @@ class MyWindow(QtWidgets.QWidget):
         self.fs = int(self.fs_combo_box.currentText())
         self.prosessing_thr.fs = self.fs
         self.prosessing_thr.flag_start = True
-        self.prosessing_thr.TIMER_INTERVAL = self.TIMER_READ_INTERVAL
+        self.prosessing_thr.TIMER_INTERVAL = self.READ_INTERVAL_MS
+        self.prosessing_thr.num_measurement_rows = self.num_rows
         self.prosessing_thr.start()
 
         for i in range(self.tab_widget.count() - 2):
@@ -552,12 +580,13 @@ class MyWindow(QtWidgets.QWidget):
         Generate warning if avaliable less than 14 bytes
         """
         self.read_serial()
-        self.progress_value += self.TIMER_READ_INTERVAL/1000
+        self.progress_value += self.READ_INTERVAL_MS/1000
         self.progress_bar.setValue(int(self.progress_value))
         self.logger.info(f"Progress: {self.progress_value}")
 
     def read_serial(self):
-        if (bytes_num := self.Serial.bytesAvailable()) <= 14:
+        bytes_num = self.Serial.bytesAvailable()
+        if (bytes_num) <= 14:
             self.logger.warning(
                 f"No data from {self.com_list_widget.currentText()}")
             return
@@ -627,7 +656,7 @@ expected package num {self.exp_package_num}")
         self.current_cylce += 1
         self.count = 0
 
-        self.append_fft_plot_tab(self.current_cylce - 1)  # !!!
+        self.append_fft_plot_tab()  # !!!
         self.prosessing_thr.new_cycle()
 
     def stop(self):
@@ -657,33 +686,11 @@ expected package num {self.exp_package_num}")
 ###############################################################################
 # ----- plotting --------------------------------------------------------------
 
-    # def plot_show(self):
-    #     if self.sender().objectName() == "show_graph_1":
-    #         if self.curve_gyro1.isVisible():
-    #             self.curve_gyro1.hide()
-    #         else:
-    #             self.curve_gyro1.show()
-    #         return
-
-    #     if self.sender().objectName() == "show_graph_2":
-    #         if self.curve_gyro2.isVisible():
-    #             self.curve_gyro2.hide()
-    #         else:
-    #             self.curve_gyro2.show()
-    #         return
-
-    #     if self.sender().objectName() == "show_graph_3":
-    #         if self.curve_gyro3.isVisible():
-    #             self.curve_gyro3.hide()
-    #         else:
-    #             self.curve_gyro3.show()
-    #         return
-
     @QtCore.pyqtSlot(int)
     def plot_time_graph(self, s):
         self.package_num = s
-        self.logger.info(f"thread_stop, count = {self.count}\n\
-package_num = {self.package_num}")
+        self.logger.info(f"thread_stop, count = {self.count}\n" +
+                         f"package_num = {self.package_num}")
         self.current_package_num_label.setText(str(self.package_num))
 
         num_of_points_shown = self.PLOT_TIME_INTERVAL_SEC*self.fs
@@ -691,56 +698,61 @@ package_num = {self.package_num}")
             start_i = self.package_num - num_of_points_shown
         else:
             start_i = 0
-
         self.time_curves[0].setData(
             self.prosessing_thr.all_data[start_i:self.package_num, 0]/self.fs,
             self.prosessing_thr.all_data[start_i:self.package_num, 2]/1000)
-        self.time_curves[1].setData(
-            self.prosessing_thr.all_data[start_i:self.package_num, 0]/self.fs,
-            self.prosessing_thr.all_data[start_i:self.package_num, 1]/(-100))
-        # selftime_curves[2].setData(
-        #    self.prosessing_thr.all_data[start_i:self.package_num, 0]/self.FS,
-        #     self.prosessing_thr.all_data[start_i:self.package_num, 2])
-        # selftime_curves[3].setData(
-        #    self.prosessing_thr.all_data[start_i:self.package_num, 0]/self.FS,
-        #     self.prosessing_thr.all_data[start_i:self.package_num, 3])
+        for i in range(self.GYRO_NUMBER):
+            self.time_curves[i + 1].setData(
+                self.prosessing_thr.all_data[start_i:self.package_num, 0]/self.fs,
+                self.prosessing_thr.all_data[start_i:self.package_num, 1]/(-100))
 
     @QtCore.pyqtSlot(bool)
     def plot_fft(self, _):
+        """
+        Adds points to frequency graphs
+        """
         self.logger.info("plot_fft")
-        ind = (self.current_cylce - 1)*3
-
-        self.amp_curves[ind].setData(self.prosessing_thr.amp_and_freq_for_plot[:, 2],
-                                     self.prosessing_thr.amp_and_freq_for_plot[:, 0])
-        # self.amp_curve_gyro2.setData( #  use for instead
-        self.phase_curves[ind].setData(self.prosessing_thr.amp_and_freq_for_plot[:, 2],
-                                       self.prosessing_thr.amp_and_freq_for_plot[:, 1])
-        # y0 = self.list_amp[self.count]*1000
-        # x1 = self.prosessing_thr.bourder[0]/self.FS
-        # x2 = self.prosessing_thr.bourder[1]/self.FS
+        # ind = 3 * (self.current_cylce - 1)
+        for i in range(self.GYRO_NUMBER):
+            # self.amp_curves[ind + i].setData(self.prosessing_thr.amp_and_freq_for_plot[:, 0],
+            #                             self.prosessing_thr.amp_and_freq_for_plot[:, 1])
+            # self.phase_curves[ind + i].setData(self.prosessing_thr.amp_and_freq_for_plot[:, 0],
+            #                             self.prosessing_thr.amp_and_freq_for_plot[:, 2])
+            self.amp_curves[-1 - i].setData(self.prosessing_thr.amp_and_freq_for_plot[:, 0],
+                                        self.prosessing_thr.amp_and_freq_for_plot[:, 1])
+            self.phase_curves[-1 - i].setData(self.prosessing_thr.amp_and_freq_for_plot[:, 0],
+                                        self.prosessing_thr.amp_and_freq_for_plot[:, 2])
         self.region.setRegion([self.prosessing_thr.bourder[0]/self.fs,
                                self.prosessing_thr.bourder[1]/self.fs])
-        # self.curve_gyro_rectangle.setData(x=[x1, x1, x2, x2, x1],
-        #   y=[-y0, y0, y0, -y0, -y0])
-        # self.prosessing_thr.all_data[start_i:self.package_num, 0]/self.FS,
-        # self.prosessing_thr.all_data[start_i:self.package_num, 2])
 
     @QtCore.pyqtSlot(bool)
-    def plot_fft_final(self, _):
-        pass
-        # self.append_fft_plot_tab(self.current_cylce)
-
-        # ind = (self.current_cylce - 1)*3
-        # self.logger.info("Plot final graphic")
-        # self.amp_curves[ind].setData(self.prosessing_thr.approximate[2, :],
-        #                              self.prosessing_thr.approximate[0, :])
-        # self.phase_curves[ind].setData(self.prosessing_thr.approximate[2, :],
-        #                                self.prosessing_thr.approximate[1, :])
+    def plot_fft_final(self, _):  # better recieve current_cylce instead bool
+        self.logger.info("Final median plot")
+        self.append_fft_plot_tab()
+        self.tab_widget.setTabText(self.current_cylce + 1, "&FC average")
+        self.tab_widget.setCurrentIndex(self.tab_widget.count() - 1)
+        # self.plot_fft(True)
+        # ind = 3 * self.current_cylce
+        for i in range(self.GYRO_NUMBER):
+#             self.amp_curves[ind + i].setData(self.prosessing_thr.amp_and_freq[:, -4],
+#                                         self.prosessing_thr.amp_and_freq[:, -3])
+#             self.phase_curves[ind + i].setData(self.prosessing_thr.amp_and_freq[:, -4],
+#                                         self.prosessing_thr.amp_and_freq[:, -2])
+            self.amp_curves[-1 - i].setData(self.prosessing_thr.amp_and_freq[:, -4],
+                                        self.prosessing_thr.amp_and_freq[:, -3])
+            self.phase_curves[-1 - i].setData(self.prosessing_thr.amp_and_freq[:, -4],
+                                        self.prosessing_thr.amp_and_freq[:, -2])
+        # app_icon = QtGui.QIcon()
+        # app_icon.addFile(self.res_path('icon_24.png'), QtCore.QSize(24, 24))
+        # self.tab_widget.setTabIcon(self.current_cylce + 1, app_icon)
 
 # ----- plot change -----------------------------------------------------------
 
     @QtCore.pyqtSlot()
     def plot_change(self):
+        """
+        Switching between time plot and spectrum
+        """
         if self.spectrum_button.text() == "Frequency plot":
             self.spectrum_button.setText("Time plot")
             self.time_plot_item.ctrl.fftCheck.setChecked(False)
@@ -754,15 +766,11 @@ package_num = {self.package_num}")
                 'bottom', 'Frequency', units='Hz')
             self.region.hide()
 
-    # def spectrum_show(self):
-    #     t = ""
-    #     if t == "Frequency plot":
-    #         self.time_plot.ctrl.fftCheck.setChecked(False)
-    #     else:
-    #         self.time_plot.ctrl.fftCheck.setChecked(True)
-    #     pass
-
-    def append_fft_plot_tab(self, index):
+    def append_fft_plot_tab(self):
+        """
+        Create new tab and append amplitude and grequency graphs
+        """
+        index = self.tab_widget.count() - 1
         self.contact_page.append(QtWidgets.QWidget(self))
         self.layout = QtWidgets.QVBoxLayout()
         self.append_phase_plot()
@@ -771,7 +779,7 @@ package_num = {self.package_num}")
         self.layout.addWidget(self.amp_plot_list[index])
         self.contact_page[index].setLayout(self.layout)
         self.tab_widget.addTab(
-            self.contact_page[index], f"Freq №{index + 1}")
+            self.contact_page[index], f"FC &{index + 1}")
 
     def append_amp_plot(self):
         self.amp_plot_item = pg.PlotItem(viewBox=CustomViewBox())
@@ -813,13 +821,13 @@ package_num = {self.package_num}")
         self.logger.info("Save image")
         pyqtgraph.exporters.ImageExporter(
             self.time_plot_item).export(self.FOLDER_NAME + '/time_plot.png')
-        for i in range(self.current_cylce):
+        for i in range(self.tab_widget.count() - 1):
             pyqtgraph.exporters.ImageExporter(
                 self.amp_plot_list[i].getPlotItem()).export(
-                    self.FOLDER_NAME + f'/amp_plot_{i}.png')
+                    self.FOLDER_NAME + f'/amp_plot_{i + 1}.png')
             pyqtgraph.exporters.ImageExporter(
                 self.phase_plot_list[i].getPlotItem()).export(
-                    self.FOLDER_NAME + f'/phase_plot_{i}.png')
+                    self.FOLDER_NAME + f'/phase_plot_{i + 1}.png')
         self.logger.info("Saving complite")
 
 # ------ Widgets events -----------------------------------------------
@@ -852,19 +860,18 @@ package_num = {self.package_num}")
     def clear_logs(self):
         self.log_text_box.widget.clear()
 
+    def get_avaliable_com(self):
+        """
+        Append avaliable com ports to combo box widget
+        """
+        self.available_ports = QSerialPortInfo.availablePorts()
+        if self.available_ports:
+            for port in self.available_ports:
+                self.com_list_widget.addItem(port.portName())
+
 # ------ file name and data from file -----------------------------------------
 
-    def check_filename(self):  # change for three files
-        # filename = self.file_name.text()
-        # if not len(filename):
-        #     filename = 'test'
-        # extension = '.txt'
-        # new_name = filename + extension
-        # i = 1
-        # while os.path.exists(new_name):
-        #     new_name = filename + f"({i})" + extension
-        #     i += 1
-        # self.prosessing_thr.filename = new_name
+    def check_filename(self):  # changed for three files
         if not os.path.isdir(self.FOLDER_NAME):
             os.mkdir(self.FOLDER_NAME)
         if not len(self.file_name_path.text()):
@@ -879,8 +886,7 @@ package_num = {self.package_num}")
         if not (os.path.exists(new_name_1) or
                 os.path.exists(new_name_2) or
                 os.path.exists(new_name_3)):
-            self.prosessing_thr.filename[0] = filename
-            self.prosessing_thr.filename[1] = extension
+            self.prosessing_thr.filename = [filename, extension]
             return
 
         i = 0
@@ -891,8 +897,7 @@ package_num = {self.package_num}")
             new_name_1 = filename + f"_1({i})" + extension
             new_name_2 = filename + f"_2({i})" + extension
             new_name_3 = filename + f"_3({i})" + extension
-        self.prosessing_thr.filename[0] = filename
-        self.prosessing_thr.filename[1] = f"({i})" + extension
+        self.prosessing_thr.filename = [filename, f"({i})" + extension]
 
     # def directory_changed(self, path):
     #     self.logger.info(f'Directory Changed: {path}')
@@ -914,12 +919,11 @@ package_num = {self.package_num}")
             return False
         self.logger.info(
             f"filename: {filename}, basebame: {os.path.basename(filename)}")
-        if self.filename_path_watcher:
+        if len(self.filename_path_watcher):
             self.fs_watcher.removePath(self.filename_path_watcher)
         self.filename_path_watcher = filename  # os.path.basename(filename)
         self.fs_watcher.addPath(self.filename_path_watcher)
         self.filename_and_path_widget.setText(filename)
-        self.current_folder_label.setText(os.getcwd())
         return self.get_data_from_file(self.filename_path_watcher)
 
     def get_data_from_file(self, filename_path_watcher):
@@ -948,7 +952,7 @@ package_num = {self.package_num}")
 
     @QtCore.pyqtSlot()
     def open_file(self):
-        os.startfile(self.filename_path_watcher)
+        os.startfile(self.filename_and_path_widget.text())
 
     def res_path(self, relative_path):
         """
@@ -963,15 +967,23 @@ package_num = {self.package_num}")
         Sending stop command to the vibrostand and saving user settings
         """
         self.stop()
+        self.settings.setValue("autosave",
+                                self.autosave_checkbox.checkState())
+        if self.autosave_checkbox.checkState():
+            self.save_all_settings()
+        self.logger.warning("Saving the settings and exit")
+
+    def save_all_settings(self):
         self.com_boderate_combo_box.save_value()
         self.com_boderate_combo_box.save_index()
         self.fs_combo_box.save_value()
         self.fs_combo_box.save_index()
         # self.file_name_and_path_widget.save_value()
         # self.file_name_and_path_widget.save_index()
+        self.settings.setValue("cycle_num",
+                                        self.cycle_num_widget.value())
         self.settings.setValue("filename",
-                               self.filename_path_watcher)
-        self.logger.warning("Exit")
+                                        self.filename_and_path_widget.text())
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------

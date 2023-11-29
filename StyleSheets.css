@@ -6,16 +6,31 @@
 QWidget{
     background-color: #111111;
     color: #FFFFF1;
-    font-size: 17px;
+    font-size: 16px;
     text-align: center;
     /* qproperty-alignment: AlignCenter; align everything */
+    /* color: silver; */
+    /* background-color: #302F2F; */
+    /* selection-background-color:#3d8ec9; */
+    /* selection-color: black; */
+    background-clip: border;
+    border-image: none;
+    outline: 0;
 }
 /* 
     Grid
 */
+QSpinBox {
+    border-width: 2px;
+    /* border-radius: 10px; */
+    border-color: rgb(0, 0, 0);
+    padding: 3px;
+    background-color: rgb(8, 3, 27);
+}
 
 QGroupBox {
     /* text-align: center; */
+    /* padding: 15px; */
 }
 QGroupBox {
     /* background-color: rgb(20, 0, 0); */
@@ -42,15 +57,16 @@ QProgressBar::chunk {
 */
 
 QComboBox {
-    background-color: red;
+    /* background-color: rgb(93, 10, 10); */
+    background-color: rgb(8, 3, 27);
 }
 QComboBox:!editable {
     /* text-align: center; */
     background-color: gray;
 }
-QComboBox::item {
+/* QComboBox::item {
     text-align: center;
-}
+} */
 /* 
     Buttons
 */
@@ -59,7 +75,7 @@ QPushButton {
     border-style: outset;
     border-width: 1px;
     border-radius: 10px;
-    border-color: white;
+    border-color: rgb(197, 197, 197);
     padding: 3px;
     background-color: rgb(49, 49, 49);
 }
@@ -72,9 +88,11 @@ QPushButton:disabled {
 }
 QPushButton#start_button {
     background-color: rgb(0, 120, 0);
+    font-size: 18px;
 }
 QPushButton#stop_button {
     background-color: rgb(150, 0, 0);
+    font-size: 18px;
 }
 
 /* QPushButton#textbox1 {
@@ -89,6 +107,10 @@ QPushButton#stop_button {
 } */
 QLabel {
     qproperty-alignment: AlignCenter; 
+} 
+QLabel#with_bourder {
+    border: 1px solid rgb(181, 181, 181);
+    border-radius: 10px;
 } 
 /* QCheckBox {
     border-width: 1px;
@@ -122,7 +144,5 @@ QLineEdit {
     qproperty-alignment: AlignCenter;
     /* border-radius: 5px; */
 }
-
-
 
 
