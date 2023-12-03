@@ -14,7 +14,7 @@ class MyThread(QtCore.QThread):
         # QtCore.QThread.__init__(self)
         super(MyThread, self).__init__()
         self.GYRO_NUMBER = gyro_number
-        self.filename: list(str) = ["", ""]
+        self.filename: list[str] = ["", ""]
         self.flag_start: bool = False
         self.flag_recieve: bool = False
         self.rx: bytes = b''
@@ -23,10 +23,10 @@ class MyThread(QtCore.QThread):
         # self.all_data = np.array([], dtype=np.int32)
         self.SIZE_EXTENTION_STEP = 20000
 
-        self.fs = []
-        self.TIMER_INTERVAL = []
+        self.fs = 0
+        self.TIMER_INTERVAL = 0
         self.WAIT_TIME_SEC = 1
-        self.flag_pause: bool = []
+        self.flag_pause: bool = False
 
         self.logger = logging.getLogger('main')
         # self.approximate = np.array([])
@@ -39,7 +39,6 @@ class MyThread(QtCore.QThread):
         self.all_data = np.ndarray((self.SIZE_EXTENTION_STEP, 5),
                                    dtype=np.int32)
         # self.fft_data = np.ndarray((, 2))
-
         self.count = 1
         self.i = 0
         self.flag_sequence_start = False
@@ -71,10 +70,8 @@ class MyThread(QtCore.QThread):
                         i += self.rx[i:].find(0x27) + 1
                         self.logger.info(f"now i={i}, 0x72:{self.rx[i] == 0x72}, 0x27:{self.rx[i + 13] == 0x27}")
                         continue
-
                     self.all_data[self.package_num, :] = np.array(
                         [self.int_from_bytes(self.rx, i, self.package_num)])
-
                     i += 14
                     self.package_num += 1
                     self.extend_array_size()
@@ -82,31 +79,51 @@ class MyThread(QtCore.QThread):
                 self.logger.info(f"\t\treal package_num = {self.package_num}")
                 self.package_num_signal.emit(self.package_num)
                 self.flag_recieve = False
-
                 self.data_for_fft_graph(encoder=self.all_data[:, 2],
                                         gyro=self.all_data[:, 1],
                                         FS=self.fs)
+        if self.package_num:
+            self.all_data = np.resize(self.all_data, (self.package_num, 5))
+            for i in range(self.GYRO_NUMBER):
+                if self.GYRO_NUMBER == 1:
+                    name_part = ''
+                else:
+                    name_part = f"_{i + 1}"
+                with open(self.filename[0] + name_part
+                          + self.filename[1], 'w') as file:
+                    np.savetxt(file, self.all_data, delimiter='\t', fmt='%d')
 
-        self.all_data = np.resize(self.all_data, (self.package_num, 5))
-        for i in range(self.GYRO_NUMBER):  # still 1 gyro
-            with open(self.filename[0] + f"_{i + 1}" + self.filename[1], 'w') as file:
-                np.savetxt(file, self.all_data, delimiter='\t', fmt='%d')
-
-        self.logger.info(f"\tFFT = {str(self.amp_and_freq_for_plot)}" +
+        self.logger.info(f"\tfft = {str(self.amp_and_freq_for_plot)}" +
                          f"\tfft size = {self.amp_and_freq_for_plot.size}")
         if self.amp_and_freq_for_plot.size:
-            for i in range(self.GYRO_NUMBER):  # still 1 gyro
+            for i in range(self.GYRO_NUMBER):
                 if self.cycle_count > 1:
                     self.fft_approximation()
-                self.freq180 = np.nan
-                self.freq_w_c = np.nan
-                self.check_f_c()
-
-                with open(self.filename[0] + '_FFT' + self.filename[1], 'w') as file:
-                    np.savetxt(file, self.amp_and_freq,
-                            delimiter='\t', fmt='%.3f')
+                    self.approximate_data_emit.emit(True)
+                    self.check_f_c()  
+                    if self.GYRO_NUMBER == 1:
+                        name_part = ''
+                    else:
+                        name_part = f"_{i + 1}"
+                    with open(self.filename[0] + '_FFT_cycles' + name_part
+                               + self.filename[1], 'w') as file:
+                        np.savetxt(file, self.amp_and_freq[:,:-4],
+                                delimiter='\t', fmt='%.3f')
+                    with open(self.filename[0] + '_FFT' + name_part
+                              + self.filename[1], 'w') as file:
+                        np.savetxt(file, self.amp_and_freq[:,-4:],
+                                delimiter='\t', fmt='%.3f')
+                else:
+                    self.check_f_c()  
+                    if self.GYRO_NUMBER == 1:
+                        name_part = ''
+                    else:
+                        name_part = f"_{i + 1}"
+                    with open(self.filename[0] + '_FFT' + name_part
+                              + self.filename[1], 'w') as file:
+                        np.savetxt(file, self.amp_and_freq,
+                                delimiter='\t', fmt='%.3f')
                 # self.approximate = np.array(self.fft_approximation(self.amp_and_freq))
-
         self.logger.info("Tread stop")
 
     def extend_array_size(self):
@@ -118,7 +135,7 @@ class MyThread(QtCore.QThread):
     def new_cycle(self):
         self.count = 0
         self.add_points = 0
-        self.bourder = np.array([0, 0])
+        # self.bourder = np.array([0, 0])
         self.amp_and_freq_for_plot = np.array([])
         # self.approximate = np.array([])
         self.cycle_count += 1
@@ -160,7 +177,6 @@ class MyThread(QtCore.QThread):
             #                        self.amp_and_freq[i, cols_num + 1],
             #                        self.amp_and_freq[i, cols_num + 2])
             # self.freq180, self.freq_w_c = self.check_f_c(self.amp_and_freq[:, -4:])         
-        self.approximate_data_emit.emit(True)     
         # return result
 
     def data_for_fft_graph(self, encoder: np.ndarray, gyro: np.ndarray, FS: int):
@@ -202,6 +218,8 @@ class MyThread(QtCore.QThread):
         # return [amp, d_phase, freq]
 
     def check_f_c(self):
+        self.freq180 = np.nan
+        self.freq_w_c = np.nan
         for i in range(len(self.amp_and_freq[:, 1])):
             freq = self.amp_and_freq[i, -4]
             freq_prev = self.amp_and_freq[i - 1, -4],
