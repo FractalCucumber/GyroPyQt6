@@ -22,7 +22,8 @@ class MyThread(QtCore.QThread):
         self.amp_and_freq: np.ndarray = np.array([])  # ???
         # self.all_data = np.array([], dtype=np.int32)
         self.SIZE_EXTENTION_STEP = 20000
-
+        # self.sign = 1
+        self.k_amp = 1
         self.fs = 0
         self.TIMER_INTERVAL = 0
         self.WAIT_TIME_SEC = 1
@@ -34,7 +35,7 @@ class MyThread(QtCore.QThread):
         self.total_cycle_num = 0  # !!!
 
     def run(self):
-        self.sign = 1
+        # self.sign = 1
         self.k_amp = 1
 
         self.cycle_count = 1
@@ -162,7 +163,6 @@ class MyThread(QtCore.QThread):
         self.logger.info(f"self.amp_and_freq all = {self.amp_and_freq[0, :]}")
         # self.logger.info(f"self.amp_and_freq all = {self.amp_and_freq}")
         self.amp_and_freq_for_plot = np.array([])
-
         # self.amp_and_freq[:, 4*self.cycle_count:(4*self.cycle_count + 4)] = self.amp_and_freq[:, 0:4]
 
     @staticmethod
@@ -195,9 +195,6 @@ class MyThread(QtCore.QThread):
                 # [i, j:-1:4] - строка i, столбец j с шагом 4 до конца массива
                 # так получиаем элементы из всех циклов
                 self.amp_and_freq[i, j - 4] = np.nanmedian(self.amp_and_freq[i, j::4])
-                # self.logger.info(f"i={i},j={j},self.amp_and_freq[i, j::4]= {self.amp_and_freq[i, j::4]}")
-
-                # self.logger.info(f"self.amp_and_freq[i, j - 4]= {self.amp_and_freq[i, j - 4]}")
             # self.check_180_degrees(self.amp_and_freq[i, cols_num + 0],
             #                        self.amp_and_freq[i, cols_num + 1],
             #                        self.amp_and_freq[i, cols_num + 2])
@@ -303,13 +300,13 @@ class MyThread(QtCore.QThread):
         Detailed explanation goes here:
         amp [безразмерная]- соотношение амплитуд воздействия (encoder)
         и реакции гироскопа(gyro) = gyro/encoder
-        d_phase [радианы] - разница фаз = gyro - encoder
-        freq [√ц] - частота гармоники (воздействия)
-        gyro [град/с] - показания гироскопа во время гармонического воздействия
-        encoder [град/с] - показания энкодера, задающего гармоническое воздействие
-        FS [√ц] - частота дискретизации
+        d_phase [degrees] - разница фаз = gyro - encoder
+        freq [Hz] - частота гармоники (воздействия)
+        gyro [degrees/sec] - показания гироскопа во время гармонического воздействия
+        encoder [degrees/sec] - показания энкодера, задающего гармоническое воздействие
+        FS [Hz] - частота дискретизации
         """
-        gyro = np.array(-gyro * self.sign) 
+        gyro = np.array(gyro) 
         encoder = np.divide(encoder, self.k_amp)
 
         L = len(gyro)  # длина записи
@@ -352,18 +349,20 @@ class MyThread(QtCore.QThread):
         d_phase = d_phase * 180/np.pi
 
         if 1.2 > freq > 0.8:
+            # a if condition else b
             if -200 < d_phase < -160:
-                self.sign = -self.sign
+                sign = -1
                 d_phase += 180
-                self.logger.info(f"sign = {self.sign}")
-            if amp > 1.1 or amp < 0.9:
-                self.k_amp = amp
-                amp = 1
-                self.logger.info(f"k_amp = {self.k_amp}")
+            else:
+                sign = 1
+            self.logger.info(f"sign = {sign}")
+            # if amp > 1.10 or amp < 0.9:
+            self.k_amp = amp * sign
+            amp = 1
+            self.logger.info(f"k_amp = {self.k_amp}")
         
-        tau = -1000*d_phase/freq/360
-        self.logger.info(
-            f"FFt results3\td_phase {d_phase}\ttau {tau}")
+        tau = -1000 * d_phase / freq / 360
+        self.logger.info(f"FFt\td_phase {d_phase}\ttau {tau}")
         return [freq, amp, d_phase, tau]
 
 # if (not flag_end) and (np.absolute(self.all_data[self.package_num, 2]) < self.threshold):

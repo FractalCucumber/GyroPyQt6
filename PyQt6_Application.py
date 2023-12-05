@@ -242,16 +242,19 @@ class MyWindow(QtWidgets.QWidget):
             TextInteractionFlag.TextSelectableByMouse)
         
         self.saving_measurements_groupbox_layout.addWidget(
-            self.current_folder_label, 0, 1, 2, 1)
+            self.current_folder_label, 0, 1, 2, 2)
 
         self.saving_measurements_groupbox_layout.addWidget(
             QtWidgets.QLabel('Имя\nфайла:'), 2, 0, 3, 1)
         self.file_name_path = QtWidgets.QLineEdit('test')
         self.saving_measurements_groupbox_layout.addWidget(
-            self.file_name_path, 2, 1, 3, 1)
+            self.file_name_path, 2, 1, 3, 2)
         self.choose_path_button = QtWidgets.QPushButton('Выбрать папку\nсохранения')
         self.saving_measurements_groupbox_layout.addWidget(
             self.choose_path_button, 5, 0, 1, 2)
+        self.create_folder = QtWidgets.QCheckBox('Cоздавать\n   папку')
+        self.saving_measurements_groupbox_layout.addWidget(
+            self.create_folder, 5, 2, 1, 1)  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ##############################################################################
 # ------ Output logs and data from file ---------------------------------------
         self.text_output_groupbox = QtWidgets.QGroupBox(
@@ -436,9 +439,9 @@ class MyWindow(QtWidgets.QWidget):
         self.main_grid_layout.addWidget(self.com_param_groupbox,
                                         0, 0, 5, 1)
         self.main_grid_layout.addWidget(self.measurements_groupbox,
-                                        5, 0, 10, 1)
+                                        5, 0, 9, 1)
         self.main_grid_layout.addWidget(self.saving_measurements_groupbox,
-                                        15, 0, 5, 1)
+                                        14, 0, 6, 1)
         self.main_grid_layout.addWidget(self.text_output_groupbox,
                                         0, 1, 10, 1)
         self.main_grid_layout.addWidget(self.logs_groupbox,
@@ -720,14 +723,15 @@ class MyWindow(QtWidgets.QWidget):
         if self.package_num > num_of_points_shown:
             start_i = self.package_num - num_of_points_shown
         else:
-            start_i = 0
+            start_i = 0        
         self.time_curves[0].setData(
             self.prosessing_thr.all_data[start_i:self.package_num, 0] / self.fs,
             self.prosessing_thr.all_data[start_i:self.package_num, 2] / 1000)
         for i in range(self.GYRO_NUMBER):
             self.time_curves[i + 1].setData(
                 self.prosessing_thr.all_data[start_i:self.package_num, 0] / self.fs,
-                self.prosessing_thr.all_data[start_i:self.package_num, 1] / (-100))
+                self.prosessing_thr.all_data[start_i:self.package_num, 1]
+                / self.prosessing_thr.k_amp / 1000)
 
     @QtCore.pyqtSlot(bool)
     def plot_fft(self, _):
@@ -826,7 +830,7 @@ class MyWindow(QtWidgets.QWidget):
         self.amp_plot_item.addLegend(offset=(-1, 1), labelTextSize='12pt',
                                      labelTextColor=pg.mkColor('w'))
         self.amp_plot_item.setLabel('left', 'Amplitude',
-                                    units='', **self.LABEL_STYLE)
+                                    units="", **self.LABEL_STYLE)
         # self.amp_plot_item.setLabel('bottom', 'Frequency',
         #                             units='Hz', **self.LABEL_STYLE)
         # self.SYMBOL_SIZE = 6
@@ -836,6 +840,7 @@ class MyWindow(QtWidgets.QWidget):
                 symbolSize=6, symbolBrush=self.COLOR_LIST[i]))
         self.amp_plot_list.append(pg.PlotWidget(plotItem=self.amp_plot_item))
         self.amp_plot_list[-1].getAxis('left').setWidth(60)
+        self.amp_plot_list[-1].setLimits(xMin=-5, xMax=int(self.fs*0.6))
 
     def append_phase_plot(self):
         self.phase_plot_item = pg.PlotItem(viewBox=CustomViewBox(),
@@ -857,6 +862,8 @@ class MyWindow(QtWidgets.QWidget):
         self.phase_plot_list.append(
             pg.PlotWidget(plotItem=self.phase_plot_item))
         self.phase_plot_list[-1].getAxis('left').setWidth(60)
+        self.phase_plot_list[-1].setLimits(
+            xMin=-5, xMax=int(self.fs*0.58), yMin=-380, yMax=20)
 
     @QtCore.pyqtSlot()
     def save_image(self):
@@ -950,6 +957,7 @@ class MyWindow(QtWidgets.QWidget):
     # def directory_changed(self, path):
     #     self.logger.info(f'Directory Changed: {path}')
     #     print(f'Directory Changed: {path}')
+
     def choose_path_for_result_saving(self):
         temp = QtWidgets.QFileDialog.getExistingDirectory(
             self, "Выбрать папку", ".")
@@ -1059,8 +1067,6 @@ class MyWindow(QtWidgets.QWidget):
                 self.filename_and_path_widget.setText(name)
                 if self.get_data_from_file(name):
                     self.logger.warning("The previous file is loaded")
-        # print(type(self.settings.value("COM_current_name")) is str)
-        # print(isinstance(self.settings.value("COM_current_name"), str))
         if self.settings.contains("COM_current_name"):
             if type(self.settings.value("COM_current_name")) is str:
                 for i in range(self.com_list_combo_box.count()):
