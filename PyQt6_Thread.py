@@ -1,4 +1,4 @@
-from PyQt6 import QtCore
+from PyQt5 import QtCore
 import numpy as np
 # from PyQt6.QtSerialPort import QSerialPort
 # import pyqtgraph as pg
@@ -14,7 +14,7 @@ class MyThread(QtCore.QThread):
         # QtCore.QThread.__init__(self)
         super(MyThread, self).__init__()
         self.GYRO_NUMBER = gyro_number
-        self.filename: list(str) = ["", ""]
+        self.filename: list[str] = ["", ""]
         self.flag_start: bool = False
         self.flag_recieve: bool = False
         self.rx: bytes = b''
@@ -22,32 +22,36 @@ class MyThread(QtCore.QThread):
         self.amp_and_freq: np.ndarray = np.array([])  # ???
         # self.all_data = np.array([], dtype=np.int32)
         self.SIZE_EXTENTION_STEP = 20000
-
-        self.fs = []
-        self.TIMER_INTERVAL = []
+        # self.sign = 1
+        self.k_amp = 1
+        self.fs = 0
+        self.TIMER_INTERVAL = 0
         self.WAIT_TIME_SEC = 1
-        self.flag_pause: bool = []
+        self.flag_pause: bool = False
 
         self.logger = logging.getLogger('main')
         # self.approximate = np.array([])
         self.num_measurement_rows = 0
+        self.total_cycle_num = 0  # !!!
 
     def run(self):
+        # self.sign = 1
+        self.k_amp = 1
+
         self.cycle_count = 1
         self.num_rows = 0
         self.package_num = 0
         self.all_data = np.ndarray((self.SIZE_EXTENTION_STEP, 5),
                                    dtype=np.int32)
         # self.fft_data = np.ndarray((, 2))
-
         self.count = 1
         self.i = 0
         self.flag_sequence_start = False
-        self.flag_pause = False
+        self.flag_pause = True
         self.bourder = np.array([0, 0])
         self.amp_and_freq_for_plot = np.array([])
         self.amp_and_freq = np.resize(self.amp_and_freq,
-                                      (self.num_measurement_rows, 4))
+                                      (self.num_measurement_rows, 4 * (self.total_cycle_num + 1)))
         self.amp_and_freq *= np.nan
         # self.approximate = np.array([])
         self.add_points = 0
@@ -71,10 +75,8 @@ class MyThread(QtCore.QThread):
                         i += self.rx[i:].find(0x27) + 1
                         self.logger.info(f"now i={i}, 0x72:{self.rx[i] == 0x72}, 0x27:{self.rx[i + 13] == 0x27}")
                         continue
-
                     self.all_data[self.package_num, :] = np.array(
                         [self.int_from_bytes(self.rx, i, self.package_num)])
-
                     i += 14
                     self.package_num += 1
                     self.extend_array_size()
@@ -82,29 +84,55 @@ class MyThread(QtCore.QThread):
                 self.logger.info(f"\t\treal package_num = {self.package_num}")
                 self.package_num_signal.emit(self.package_num)
                 self.flag_recieve = False
-
                 self.data_for_fft_graph(encoder=self.all_data[:, 2],
                                         gyro=self.all_data[:, 1],
                                         FS=self.fs)
+        if self.package_num:
+            self.all_data = np.resize(self.all_data, (self.package_num, 5))
+            for i in range(self.GYRO_NUMBER):
+                if self.GYRO_NUMBER == 1:
+                    name_part = ''
+                else:
+                    name_part = f"_{i + 1}"
+                with open(self.filename[0] + name_part
+                          + self.filename[1], 'w') as file:
+                    np.savetxt(file, self.all_data, delimiter='\t', fmt='%d')
 
-        self.all_data = np.resize(self.all_data, (self.package_num, 5))
-        for i in range(self.GYRO_NUMBER):  # still 1 gyro
-            with open(self.filename[0] + f"_{i + 1}" + self.filename[1], 'w') as file:
-                np.savetxt(file, self.all_data, delimiter='\t', fmt='%d')
-
-        self.logger.info(f"\tFFT = {str(self.amp_and_freq_for_plot)}" +
-                         f"\tfft size = {self.amp_and_freq_for_plot.size}")
-        if self.amp_and_freq_for_plot.size:
-            for i in range(self.GYRO_NUMBER):  # still 1 gyro
+        self.logger.info(f"\tfft = {str(self.amp_and_freq_for_plot)}" +
+                         f"\tfft size = {self.amp_and_freq_for_plot.size}" +
+                         f"\tfft len = {len(self.amp_and_freq_for_plot)}")
+        if len(self.amp_and_freq_for_plot):
+            for i in range(self.GYRO_NUMBER):
                 if self.cycle_count > 1:
-                    self.fft_approximation(self.amp_and_freq)
-                self.check_f_c()  
-                
-                with open(self.filename[0] + '_FFT' + self.filename[1], 'w') as file:
-                    np.savetxt(file, self.amp_and_freq,
-                            delimiter='\t', fmt='%.3f')
-                # self.approximate = np.array(self.fft_approximation(self.amp_and_freq))
+                    self.fft_approximation()
+                    self.approximate_data_emit.emit(True)
+                    # self.check_f_c()  
+                    if self.GYRO_NUMBER == 1:
+                        name_part = ''
+                    else:
+                        name_part = f"_{i + 1}"
+                    self.logger.info("save fft file")
+                    with open(self.filename[0] + '_FFT_cycles' + name_part
+                               + self.filename[1], 'w') as file:
+                        np.savetxt(file, self.amp_and_freq[:, :-4],
+                                delimiter='\t', fmt='%.3f')
 
+                    with open(self.filename[0] + '_FFT' + name_part
+                              + self.filename[1], 'w') as file:
+                        np.savetxt(file, self.amp_and_freq[:, -4:],
+                                delimiter='\t', fmt='%.3f')
+                else:
+                    # self.check_f_c()  
+                    if self.GYRO_NUMBER == 1:
+                        name_part = ''
+                    else:
+                        name_part = f"_{i + 1}"
+                    self.logger.info("save fft file")
+                    with open(self.filename[0] + '_FFT' + name_part
+                              + self.filename[1], 'w') as file:
+                        np.savetxt(file, self.amp_and_freq,
+                                delimiter='\t', fmt='%.3f')
+                # self.approximate = np.array(self.fft_approximation(self.amp_and_freq))
         self.logger.info("Tread stop")
 
     def extend_array_size(self):
@@ -114,17 +142,27 @@ class MyThread(QtCore.QThread):
                 self.all_data, (self.num_rows, 5))
 
     def new_cycle(self):
-        self.count = 0
+        # self.count = 0
         self.add_points = 0
-        self.bourder = np.array([0, 0])
-        self.amp_and_freq_for_plot = np.array([])
+        # self.bourder = np.array([0, 0])
         # self.approximate = np.array([])
+        # self.logger.info(f"amp_and_freq size = {self.amp_and_freq.size}")
+        # self.amp_and_freq.resize(self.num_measurement_rows, 4*self.cycle_count)
+        # temp = np.copy(self.amp_and_freq[:, :4*(self.cycle_count - 2)])
+        # self.amp_and_freq = np.resize(
+        #         self.amp_and_freq,
+        #         (self.num_measurement_rows, 4*(self.cycle_count + 1)))
+        # self.logger.info(f"self.amp_and_freq all = {self.amp_and_freq}")
+        # self.logger.info(f"amp_and_freq after resize = {self.amp_and_freq.size}")
+        # self.amp_and_freq[:, :4*(self.cycle_count - 2)] = np.copy(temp)
+        self.amp_and_freq[:, 4*(self.cycle_count - 1):4*self.cycle_count] = np.copy(self.amp_and_freq_for_plot)
+        self.logger.info(f"amp_and_freq after resize2 = {self.amp_and_freq.size}")
         self.cycle_count += 1
-        self.amp_and_freq = np.resize(
-                self.amp_and_freq,
-                (self.num_measurement_rows, 4*self.cycle_count))
-        self.amp_and_freq[:, 4*self.cycle_count:
-                          (4*self.cycle_count + 4)] = np.nan
+
+        # self.amp_and_freq[:, 4*self.cycle_count:] = np.nan
+        self.logger.info(f"self.amp_and_freq all = {self.amp_and_freq[0, :]}")
+        # self.logger.info(f"self.amp_and_freq all = {self.amp_and_freq}")
+        self.amp_and_freq_for_plot = np.array([])
         # self.amp_and_freq[:, 4*self.cycle_count:(4*self.cycle_count + 4)] = self.amp_and_freq[:, 0:4]
 
     @staticmethod
@@ -137,30 +175,30 @@ class MyThread(QtCore.QThread):
             ints = np.append(ints, res)
         return ints
 
-    def fft_approximation(self, freq, amp, phase,):
-        #  этап 1 - проверка на то, что все частоты +- совпадают
-        #  этап 2 - проверка на выбросы по амплитуде и частоте
-        #  формируется массив номеров опытов, которые требуется исключить
-        #  для данного значения частоты
+    def fft_approximation(self):
+        self.logger.info(f"\namp_and_freq = {self.amp_and_freq}")
+        self.amp_and_freq[:, 4*(self.cycle_count - 1):4*(self.cycle_count)] = np.copy(self.amp_and_freq_for_plot)
+
+        # нужна проверка на то, что все частоты +- совпадают
         self.mediana = np.ndarray((self.amp_and_freq.size))
-        cols_num = 4*(self.cycle_count + 1)
-        self.amp_and_freq = np.resize(self.amp_and_freq,
-                (self.num_measurement_rows, cols_num))
-        self.amp_and_freq[:, cols_num:(cols_num + 4)] = np.nan
-        # можно результирующие значения не в отдельном массиве, а рядом записать
+        # cols_num = 4*(self.cycle_count + 1) 
+        # self.amp_and_freq = np.resize(self.amp_and_freq,
+        #         (self.num_measurement_rows, 4*(self.cycle_count + 1) ))
+        self.amp_and_freq[:, -4:] = np.nan
         # self.temp = np.ndarray((self.amp_and_freq.size))
         # w_c_flag = False
+        self.logger.info(f"\namp_and_freq = {self.amp_and_freq}")
+
         for i in range(len(self.amp_and_freq[:, 1])):  # цикл по всем частотам
             for j in range(4):  # надо вычислить среднее для A, f, fi, tay
                 # self.temp = self.amp_and_freq[self.amp_and_freq[i, j:-1:4].argsort()]
                 # [i, j:-1:4] - строка i, столбец j с шагом 4 до конца массива
                 # так получиаем элементы из всех циклов
-                self.amp_and_freq[i, cols_num + j] = np.nanmedian(self.amp_and_freq[i, j:-1:4])
+                self.amp_and_freq[i, j - 4] = np.nanmedian(self.amp_and_freq[i, j::4])
             # self.check_180_degrees(self.amp_and_freq[i, cols_num + 0],
             #                        self.amp_and_freq[i, cols_num + 1],
             #                        self.amp_and_freq[i, cols_num + 2])
             # self.freq180, self.freq_w_c = self.check_f_c(self.amp_and_freq[:, -4:])         
-        self.approximate_data_emit.emit(True)         
         # return result
 
     def data_for_fft_graph(self, encoder: np.ndarray, gyro: np.ndarray, FS: int):
@@ -177,32 +215,39 @@ class MyThread(QtCore.QThread):
                 f"\n\tbourders={self.bourder},count={self.count}")
 
             self.bourder[1] = self.bourder[0] + (
-                (self.bourder[1] -self.bourder[0]) // self.fs
+                (self.bourder[1] - self.bourder[0]) // self.fs
                 ) * self.fs
-            self.logger.info(f"\n\tnew bourders = {self.bourder}")
+            self.logger.info(f"\tnew bourders = {self.bourder}")
             if (self.bourder[1] - self.bourder[0]) < self.fs:
                 return
             [freq, amp, d_phase, tau] = self.fft_data(
                 gyro[self.bourder[0]:self.bourder[1]],
                 encoder[self.bourder[0]:self.bourder[1]], FS)
-            self.logger.info(
-                f"\namp = {amp}, self.d_phase = {d_phase}, freq = {freq}")
-
-            self.check_180_degrees(freq, amp, d_phase)
+            # self.check_180_degrees(freq, amp, d_phase)
 
             self.amp_and_freq_for_plot = np.resize(
                 self.amp_and_freq_for_plot, (self.count + self.add_points, 4))
             self.amp_and_freq_for_plot[(
                 self.count + self.add_points - 1), :] = [freq, amp, d_phase, tau]
-            self.amp_and_freq[(self.count - 1),
-                              4*(self.cycle_count - 1):
-                              4*self.cycle_count] = [freq, amp, d_phase, tau]
-            # self.amp_and_freq_for_plot = self.amp_and_freq_for_plot[self.amp_and_freq_for_plot[:, 2].argsort()]
             self.fft_data_emit.emit(True)
+            
+            # self.amp_and_freq[(self.count - 1),
+            #                   4*(self.cycle_count - 1):
+            #                   4*self.cycle_count] = [freq, amp, d_phase, tau]
+            # self.logger.info(
+            #     f"\(self.count - 1) = {(self.count - 1)}, 4*(self.cycle_count - 1) = {4*(self.cycle_count - 1)}," +
+            #     f"freq = {[freq, amp, d_phase, tau]}")
+            # self.logger.info(f"self.amp_and_freq lin = {self.amp_and_freq[(self.count - 1), :]}")
+            # self.logger.info(f"self.amp_and_freq lin = {self.amp_and_freq}")
+            # self.logger.info(
+            #     f"\nself.amp_and_freq line = {self.amp_and_freq[(self.count - 1), 4*(self.cycle_count - 1):4*self.cycle_count]}")
+            # self.amp_and_freq_for_plot = self.amp_and_freq_for_plot[self.amp_and_freq_for_plot[:, 2].argsort()]
         # return [amp, d_phase, freq]
 
     def check_f_c(self):
-        for i in range(len(self.amp_and_freq[:, 1])): 
+        self.freq180 = np.nan
+        self.freq_w_c = np.nan
+        for i in range(len(self.amp_and_freq[:, 1])):
             freq = self.amp_and_freq[i, -4]
             freq_prev = self.amp_and_freq[i - 1, -4],
             amp = self.amp_and_freq[i, -3]
@@ -224,8 +269,7 @@ class MyThread(QtCore.QThread):
                     self.logger.info(f"freq_w_c = {self.freq_w_c}")
                     temp = self.freq_w_c
                     if temp < self.freq_w_c:
-                        self.freq_w_c = temp  
-            return self.freq180, self.freq_w_c
+                        self.freq_w_c = temp
 
     def check_180_degrees(self, freq, amp, d_phase):
         if (self.count + self.add_points - 1) >= 1:
@@ -256,14 +300,14 @@ class MyThread(QtCore.QThread):
         Detailed explanation goes here:
         amp [безразмерная]- соотношение амплитуд воздействия (encoder)
         и реакции гироскопа(gyro) = gyro/encoder
-        d_phase [радианы] - разница фаз = gyro - encoder
-        freq [√ц] - частота гармоники (воздействия)
-        gyro [град/с] - показания гироскопа во время гармонического воздействия
-        encoder [град/с] - показания энкодера, задающего гармоническое воздействие
-        FS [√ц] - частота дискретизации
+        d_phase [degrees] - разница фаз = gyro - encoder
+        freq [Hz] - частота гармоники (воздействия)
+        gyro [degrees/sec] - показания гироскопа во время гармонического воздействия
+        encoder [degrees/sec] - показания энкодера, задающего гармоническое воздействие
+        FS [Hz] - частота дискретизации
         """
-        gyro = np.array(-gyro)
-        encoder = np.divide(encoder, 10)
+        gyro = np.array(gyro) 
+        encoder = np.divide(encoder, self.k_amp)
 
         L = len(gyro)  # длина записи
         next_power = np.ceil(np.log2(L))  # показатель степени 2 дл¤ числа длины записи
@@ -287,21 +331,38 @@ class MyThread(QtCore.QThread):
         d_phase = np.angle(Yg[ng], deg=False) - np.angle(Ye[ne], deg=False)
         amp = Mg/Me
         self.logger.info(
-            f"FFt results\tPhase {d_phase}\tamp {amp}\tfreq {freq}")
+            f"FFt results\td_phase {d_phase}\tamp {amp}\tfreq {freq}")
         #  amp = std(gyro)/std(encoder)% пошуму (метод —урова)
 
         # while d_phase > np.pi:
         #     d_phase -= 2*np.pi
         # while d_phase < -np.pi:
         #     d_phase += 2*np.pi
+        # self.logger.info(
+        #     f"FFt results2\td_phase {d_phase}\tamp {amp}\tfreq {freq}")        
+        # tau = 1000*d_phase/freq/2/np.pi
+
         while d_phase > 0:
             d_phase -= 2 * np.pi
         while d_phase < -2 * np.pi:
             d_phase += 2 * np.pi
+        d_phase = d_phase * 180/np.pi
+
+        if 1.2 > freq > 0.8:
+            # a if condition else b
+            if -200 < d_phase < -160:
+                sign = -1
+                d_phase += 180
+            else:
+                sign = 1
+            self.logger.info(f"sign = {sign}")
+            # if amp > 1.10 or amp < 0.9:
+            self.k_amp = amp * sign
+            amp = 1
+            self.logger.info(f"k_amp = {self.k_amp}")
         
-        # tau = 1000*d_phase/freq/2/np.pi
-        d_phase = 180/np.pi
-        tau = 1000*d_phase/freq/360
+        tau = -1000 * d_phase / freq / 360
+        self.logger.info(f"FFt\td_phase {d_phase}\ttau {tau}")
         return [freq, amp, d_phase, tau]
 
 # if (not flag_end) and (np.absolute(self.all_data[self.package_num, 2]) < self.threshold):
