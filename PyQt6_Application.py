@@ -357,22 +357,22 @@ class MyWindow(QtWidgets.QWidget):
             [94, 99, 105, 114, 112, 113, 122, 127, 137, 160, 169, 205, 221, 243, 292, 306, 339, 392, 419, 554, 861, 913, 1079, 1276, 595, 645, 659, 666, 781, 810, 863, 948, 1024, 1103, 1227, 1329, 1319, 1362, 1468, 1791, 1921, 1959, 2641, 2477, 3384, 3484, 3254, 4482, 3888, 3931, 2795, 3021, 3246, 3046, 3147, 3505, 3424, 3430, 4049, 4157, 4385, 3980, 5340, 4897]
             )/100
         self.time_curves[0].setData(self.x, self.y)
-        self.plot_2d_scatter(self.time_plot, self.x, self.y)
-        # self.cursor = QtCore.Qt.CrossCursor # was
-        # self.cursor = Qt.BlankCursor
-        self.time_plot.setCursor(QtCore.Qt.CrossCursor)  # self.cursor
-        # Add crosshair lines.
-        self.crosshair_v = pg.InfiniteLine(angle=90, movable=False)
-        self.crosshair_h = pg.InfiniteLine(angle=0, movable=False)
-        self.time_plot.addItem(self.crosshair_v, ignoreBounds=True)
-        self.time_plot.addItem(self.crosshair_h, ignoreBounds=True)
-        self.cursorlabel = pg.TextItem()
-        self.time_plot.addItem(self.cursorlabel)
-        self.proxy = pg.SignalProxy(
-            self.time_plot.scene().sigMouseMoved,
-            rateLimit=30, slot=self.update_crosshair)
-        self.mouse_x = None # ???
-        self.mouse_y = None # ???
+        # self.plot_2d_scatter(self.time_plot, self.x, self.y)
+        # # self.cursor = QtCore.Qt.CrossCursor # was
+        # # self.cursor = Qt.BlankCursor
+        # self.time_plot.setCursor(QtCore.Qt.CrossCursor)  # self.cursor
+        # # Add crosshair lines.
+        # self.crosshair_v = pg.InfiniteLine(angle=90, movable=False)
+        # self.crosshair_h = pg.InfiniteLine(angle=0, movable=False)
+        # self.time_plot.addItem(self.crosshair_v, ignoreBounds=True)
+        # self.time_plot.addItem(self.crosshair_h, ignoreBounds=True)
+        # self.cursorlabel = pg.TextItem()
+        # self.time_plot.addItem(self.cursorlabel)
+        # self.proxy = pg.SignalProxy(
+        #     self.time_plot.scene().sigMouseMoved,
+        #     rateLimit=30, slot=self.update_crosshair)
+        # self.mouse_x = None # ???
+        # self.mouse_y = None # ???
         # freq_approximation = np.linspace(1, 330, num=300)
         # k_list = np.polyfit(x, amp, 4)
         # print(k_list)
@@ -512,53 +512,12 @@ class MyWindow(QtWidgets.QWidget):
         self.choose_path_button.clicked.connect(self.choose_path_for_result_saving)
         for i in range(self.GYRO_NUMBER + 1):
             self.check_box_list[i].stateChanged.connect(self.change_curve_visibility)
-        self.filename_and_path_widget.textChanged.connect(self.d)
-    
-    def d(self):
-        if not os.path.exists(self.filename_and_path_widget.toPlainText()):  # text
-            self.logger.warning("The file path does not exist!")
-            return False
-        if len(self.filename_and_path_widget.toPlainText()):
-            self.fs_watcher.removePath(self.filename_path_watcher)
-        self.filename_path_watcher = self.filename_and_path_widget.toPlainText()  # os.path.basename(filename)
-        self.fs_watcher.addPath(self.filename_path_watcher)
-        
-        return self.get_data_from_file(self.filename_path_watcher)
-    #     print(1)
+        self.filename_and_path_widget.textChanged.connect(self.filename_and_path_text_change)
+
 
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
 #
-    def plot_2d_scatter(self, plot, x, y, color=(66, 245, 72)):
-        brush = pg.mkBrush(color)
-        scatter = pg.ScatterPlotItem(size=5, brush=brush)
-        scatter.addPoints(x, y)
-        plot.addItem(scatter)
-
-    def update_crosshair(self, e):
-        pos = e[0]
-        # print(pos)
-        if self.time_plot.plotItem.sceneBoundingRect().contains(pos):
-            mousePoint = self.time_plot.plotItem.vb.mapSceneToView(pos)
-            # print(pos)
-            # print(mousePoint)
-            mx = np.array(
-                [abs(float(i) - float(mousePoint.x())) for i in self.x])
-            index = mx.argmin()
-            if index >= 0 and index < len(self.x):
-                self.cursorlabel.setText(
-                        str((self.x[index], self.y[index])))
-                self.crosshair_v.setPos(self.x[index])
-                self.crosshair_h.setPos(self.y[index]) 
-                self.mouse_x = self.crosshair_v.setPos(self.x[index])
-                self.mouse_y = self.crosshair_h.setPos(self.y[index])
-                self.mouse_x = (self.x[index])
-                self.mouse_y = (self.y[index])
-            
-    def mousePressEvent(self, e):
-        if e.buttons() & QtCore.Qt.LeftButton & self.time_plot.underMouse():
-            print(f'pressed {self.mouse_x, self.mouse_y}')
-            # if self.mouse_x in self.x and self.mouse_y in self.y:
 ###############################################################################
 #
 # ----------------------------------------------------------------------------------------------
@@ -568,6 +527,14 @@ class MyWindow(QtWidgets.QWidget):
 
     @QtCore.pyqtSlot()
     def start(self):
+        self.fs = 500
+        self.phase_curves: list[pg.PlotCurveItem] = []
+        self.amp_curves: list[pg.PlotCurveItem] = []
+        self.phase_plot_list: list[pg.PlotWidget] = []
+        self.amp_plot_list: list[pg.PlotWidget] = []
+
+        self.tab_widget_page_list: list[QtWidgets.QWidget] = []
+        self.plot_fft_final(True)
         # self.check_filename()
 
         # with open(self.prosessing_thr.filename[0] + self.prosessing_thr.filename[1], 'w') as file:
@@ -779,6 +746,11 @@ class MyWindow(QtWidgets.QWidget):
                              str(self.Serial.waitForBytesWritten(250)))
             self.Serial.close()
             self.logger.warning("End of measurements\n")
+            check = int(self.package_num / self.progress_bar_value)
+            if not (0.95 * self.fs < check < 1.05 * self.fs):
+                QtWidgets.QMessageBox.critical(
+                    None, "Warning",
+                    f"You set fs={self.fs}, but in fact it is close to {check}")
         self.prosessing_thr.flag_start = False
 
 ###############################################################################
@@ -824,22 +796,82 @@ class MyWindow(QtWidgets.QWidget):
         self.region.setRegion([self.prosessing_thr.bourder[0]/self.fs,
                                self.prosessing_thr.bourder[1]/self.fs])
 
+# ------ FFT median plot ------------------------------------------------------------------
+
     @QtCore.pyqtSlot(bool)
     def plot_fft_final(self, _):  # better recieve current_cylce instead bool
         self.logger.info("Final median plot")
         self.append_fft_plot_tab()
+        #
+        self.x = [1, 5, 13, 20]
+        # # amp =np.array([96, 97, 108, 112, 113, 114, 121, 127, 136, 163, 166, 191, 219, 240, 258, 284, 400, 371, 450, 699, 791, 1154, 631, 697, 722, 743, 834, 823, 918, 995, 1022, 1125, 1220, 1244, 1373, 1468, 1618, 1851, 1865, 2166, 2548, 2539, 3409, 3521, 3514, 4220, 3473, 2573, 3081, 3028, 3028, 3230, 3056, 3132, 3102, 3621, 3669, 4561])/100
+        self.y =np.array(
+            [1, 2, 3, 4]
+            )
+        self.amp_curves[-1].setData(self.x, self.y)
+        self.amp_plot_list[-1].autoRange()
+        # self.plot_2d_scatter(self.time_plot, self.x, self.y)
+        self.cursor = QtCore.Qt.CrossCursor # was
+        # self.cursor = Qt.BlankCursor
+        self.amp_plot_list[-1].setCursor(self.cursor)  # self.cursor
+        # Add crosshair lines.
+        self.crosshair_v = pg.InfiniteLine(angle=90, movable=False)
+        self.crosshair_h = pg.InfiniteLine(angle=0, movable=False)
+        self.amp_plot_list[-1].addItem(self.crosshair_v, ignoreBounds=True)
+        self.amp_plot_list[-1].addItem(self.crosshair_h, ignoreBounds=True)
+        self.cursorlabel = pg.TextItem()
+        self.amp_plot_list[-1].addItem(self.cursorlabel)
+        self.proxy = pg.SignalProxy(
+            self.amp_plot_list[-1].scene().sigMouseMoved,
+            rateLimit=30, slot=self.update_crosshair)
+        self.mouse_x = None # ???
+        self.mouse_y = None # ???
+
+
         self.tab_widget.setTabText(self.current_cylce + 1, "&АФЧХ (средний)")  # FC average
         self.tab_widget.setCurrentIndex(self.tab_widget.count() - 1)
-        # self.plot_fft(True)
-        for i in range(self.GYRO_NUMBER):
-            self.amp_curves[-1 - i].setData(self.prosessing_thr.amp_and_freq[:, -4],
-                                        self.prosessing_thr.amp_and_freq[:, -3])
-            self.phase_curves[-1 - i].setData(self.prosessing_thr.amp_and_freq[:, -4],
-                                        self.prosessing_thr.amp_and_freq[:, -2])
+        # # self.plot_fft(True)
+        # for i in range(self.GYRO_NUMBER):
+        #     self.amp_curves[-1 - i].setData(self.prosessing_thr.amp_and_freq[:, -4],
+        #                                 self.prosessing_thr.amp_and_freq[:, -3])
+        #     self.phase_curves[-1 - i].setData(self.prosessing_thr.amp_and_freq[:, -4],
+        #                                 self.prosessing_thr.amp_and_freq[:, -2])
+
         # app_icon = QtGui.QIcon()
         # app_icon.addFile(self.res_path('icon_24.png'), QtCore.QSize(24, 24))
         # self.tab_widget.setTabIcon(self.current_cylce + 1, app_icon)
 
+    # def plot_2d_scatter(self, plot, x, y, color=(66, 245, 72)):
+    #     brush = pg.mkBrush(color)
+    #     scatter = pg.ScatterPlotItem(size=5, brush=brush)
+    #     scatter.addPoints(x, y)
+    #     plot.addItem(scatter)
+
+    def update_crosshair(self, e):
+        pos = e[0]
+        # print(pos)
+        if self.amp_plot_list[-1].plotItem.sceneBoundingRect().contains(pos):
+            mousePoint = self.amp_plot_list[-1].plotItem.vb.mapSceneToView(pos)
+            # print(pos)
+            # print(mousePoint)
+            mx = np.array(
+                [abs(float(i) - float(mousePoint.x())) for i in self.x])
+            index = mx.argmin()
+            if index >= 0 and index < len(self.x):
+                self.cursorlabel.setText(
+                        str((self.x[index], self.y[index])))
+                self.crosshair_v.setPos(self.x[index])
+                self.crosshair_h.setPos(self.y[index]) 
+                self.mouse_x = self.crosshair_v.setPos(self.x[index])
+                self.mouse_y = self.crosshair_h.setPos(self.y[index])
+                self.mouse_x = (self.x[index])
+                self.mouse_y = (self.y[index])
+            
+    def mousePressEvent(self, e):
+        if e.buttons() & QtCore.Qt.LeftButton & self.amp_plot_list[-1].underMouse():
+            print(f'pressed {self.mouse_x, self.mouse_y}')
+            self.cursorlabel.setPos(self.mouse_x + 1, self.mouse_y + 1)
+            # if self.mouse_x in self.x and self.mouse_y in self.y:
 # ----- plot change -----------------------------------------------------------
 
     @QtCore.pyqtSlot()
@@ -1071,6 +1103,18 @@ class MyWindow(QtWidgets.QWidget):
         self.filename_path_watcher = filename  # os.path.basename(filename)
         self.fs_watcher.addPath(self.filename_path_watcher)
         self.filename_and_path_widget.setText(filename)
+        return self.get_data_from_file(self.filename_path_watcher)
+
+    @QtCore.pyqtSlot()
+    def filename_and_path_text_change(self):
+        if not os.path.exists(self.filename_and_path_widget.toPlainText()):  # text
+            self.logger.warning("The file path does not exist!")
+            return False
+        if len(self.filename_and_path_widget.toPlainText()):
+            self.fs_watcher.removePath(self.filename_path_watcher)
+        self.filename_path_watcher = self.filename_and_path_widget.toPlainText()  # os.path.basename(filename)
+        self.fs_watcher.addPath(self.filename_path_watcher)
+        
         return self.get_data_from_file(self.filename_path_watcher)
 
     def get_data_from_file(self, filename_path_watcher):
