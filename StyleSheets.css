@@ -62,7 +62,7 @@ QComboBox {
 }
 QComboBox:!editable {
     /* text-align: center; */
-    background-color: gray;
+    /* background-color: gray; */
 }
 /* QComboBox::item {
     text-align: center;

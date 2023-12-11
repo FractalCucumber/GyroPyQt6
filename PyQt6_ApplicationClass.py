@@ -14,13 +14,10 @@ import pyqtgraph as pg
 import numpy as np
 import PyQt6_Logger
 import PyQt6_Thread
+import PyQt6_TabWidget
 from time import time
 # pyinstaller PyQt6_Application.spec
-# python setup.py build
 #  pyinstaller --onefile --noconsole PyQt6_Application.py
-# --add-data="Vibro_1_resources/icon_16.png:."
-# --add-data="Vibro_1_resources/icon_24.png:."
-# --add-data="Vibro_1_resources/icon_32.png:."
 # --add-data="Vibro_1_resources/icon_48.png:." PyQt6_Application.py
 # pyinstaller --add-data "StyleSheets.css;." --add-data "icon_16.png;." --add-data "icon_24.png;." --add-data "icon_32.png;." --add-data "icon_48.png;." --onefile --windowed PyQt6_Application.py --exclude-module matplotlib --exclude-module hook --exclude-module setuptools --exclude-module DateTime --exclude-module pandas --exclude-module PyQt6.QtOpenGL --exclude-module PyQt6.QtOpenGLWidgets --exclude-module hooks --exclude-module hook --exclude-module pywintypes --exclude-module flask --exclude-module opengl32sw.dll
 # pyinstaller --add-data "StyleSheets.css;." --add-data "icon_16.png;." --add-data "icon_24.png;." --add-data "icon_32.png;." --add-data "icon_48.png;." --windowed PyQt6_Application.py
@@ -31,61 +28,65 @@ from time import time
 
 class CustomComboBox(QtWidgets.QComboBox):
     def __init__(self,
-                 settings_name: str,
-                 default_items_list: list,
-                 editable_flag=True,
+                 settings_name: str,  # передавать сразу объект QtCore.QSettings, чтобы не создавать их
+                 default_items_list: list = [],
+                 editable_flag=True, 
+                 uint_validator_enable=True,
                  parent=None):
         super(CustomComboBox, self).__init__(parent)
         self.setEditable(True)
-        # if not editable_flag:
         self.lineEdit().setReadOnly(not editable_flag)
-        # intValidator
+        self.lineEdit().setAlignment(
+            QtCore.Qt.AlignmentFlag.AlignCenter)
+        if uint_validator_enable:
+            self.int_validator = QtGui.QIntValidator(bottom=0)
+            self.setValidator(self.int_validator)
+
+        self.currentTextChanged.connect(
+            lambda value: self.setItemText(self.currentIndex(), value))
+
         self.settings = QtCore.QSettings(settings_name)
+        # self.settings = settings_name
         if self.settings.contains("items"):
             self.addItems(
                 self.settings.value("items"))
         else:
+            if len(default_items_list):
+                return
             self.addItems(default_items_list)
         if self.settings.contains("curr_index"):
             self.setCurrentIndex(
                 self.settings.value("curr_index"))
+        if self.settings.contains("name"):
+            for i in range(self.count()):
+                if self.itemText(i) == self.settings.value("name"):
+                    self.setCurrentIndex(i)
+                    break
 
-        self.lineEdit().setAlignment(
-            QtCore.Qt.AlignmentFlag.AlignCenter)
-        self.currentTextChanged.connect(
-            self.combobox_changed)
+        # self.save_value = lambda: self.settings.setValue(
+        #     "items",
+        #     [self.itemText(i) for i in range(self.count())])
 
-    def combobox_changed(self, value):
-        self.setItemText(self.currentIndex(), value)
+        # self.save_index = lambda: self.settings.setValue(
+        #     "curr_index", self.currentIndex())
 
+        # self.save_name = lambda: self.settings.setValue(
+        #     "COM_current_name", self.currentText())
     def save_value(self):
-        self.settings.setValue(
-            "items",
-            [self.itemText(i) for i in range(self.count())])
+        if self.count():
+            self.settings.setValue(
+                "items",
+                [self.itemText(i) for i in range(self.count())])
 
     def save_index(self):
-        self.settings.setValue(
-            "curr_index", self.currentIndex())
+        if self.count():
+            self.settings.setValue(
+                "curr_index", self.currentIndex())
 
-
-class CustomViewBox(pg.ViewBox):
-    def __init__(self, *args, **kwds):
-        kwds['enableMenu'] = True
-        # kwds['enableMenu'] = False
-        pg.ViewBox.__init__(self, *args, **kwds)
-        # self.setMouseMode(self.RectMode)
-
-    #  reimplement right-click to zoom out
-    # def mouseClickEvent(self, ev):
-    #     if ev.button() == QtCore.Qt.MouseButton.RightButton:
-    #         self.autoRange()
-
-    # #  reimplement mouseDragEvent to disable continuous axis zoom
-    # def mouseDragEvent(self, ev, axis=None):
-    #     if axis is not None and ev.button() == QtCore.Qt.MouseButton.RightButton:
-    #         ev.ignore()
-    #     else:
-    #         pg.ViewBox.mouseDragEvent(self, ev, axis=axis)
+    def save_current_text(self):
+        if self.count():
+            self.settings.setValue(
+                "name", self.currentText())
 
 
 class MyWindow(QtWidgets.QWidget):
@@ -111,8 +112,6 @@ class MyWindow(QtWidgets.QWidget):
         STYLE_SHEETS_FILENAME = 'StyleSheets.css'
         FILE_LOG_FLAG = True
         self.GYRO_NUMBER = 1
-        self.LABEL_STYLE = {'color': '#FFF', 'font-size': '16px'}
-        self.COLOR_LIST = ['r', 'g', 'b']
         self.filename_path_watcher = ""
         self.Serial = QSerialPort(dataBits=QSerialPort.DataBits.Data8,
                                   stopBits=QSerialPort.StopBits.OneStop,
@@ -126,7 +125,7 @@ class MyWindow(QtWidgets.QWidget):
 # ------ File watcher --------------------------------------------------------
         self.fs_watcher = QtCore.QFileSystemWatcher()
         # self.fs_watcher.directoryChanged.connect(self.directory_changed)
-        self.fs_watcher.fileChanged.connect(self.file_changed)
+        self.fs_watcher.fileChanged.connect(self.check_filename_and_get_data)
 # ------ Thread --------------------------------------------------------------
         self.prosessing_thr = PyQt6_Thread.MyThread(
             gyro_number=self.GYRO_NUMBER)
@@ -145,26 +144,19 @@ class MyWindow(QtWidgets.QWidget):
         self.com_param_groupbox_layout = QtWidgets.QGridLayout()
         self.com_param_groupbox.setLayout(self.com_param_groupbox_layout)
 
-        self.test_combo_box = QtWidgets.QComboBox(editable=True)
-        # self.com_list_combo_box.addItems(["COM343", "COM1", "COM12"])
-        self.test_combo_box.lineEdit().setAlignment(
-            QtCore.Qt.AlignmentFlag.AlignCenter)
-        self.test_combo_box.lineEdit().setReadOnly(True)
-        self.get_avaliable_com()
+        self.combo_box_name = CustomComboBox(
+            settings_name="COM_name_settings",
+            editable_flag=False, uint_validator_enable=False)
 
+        self.get_avaliable_com()
         self.com_param_groupbox_layout.addWidget(QtWidgets.QLabel('COM:'),
                                                  0, 0, 1, 1)
-        self.com_param_groupbox_layout.addWidget(self.test_combo_box,
+        self.com_param_groupbox_layout.addWidget(self.combo_box_name,
                                                  0, 1, 1, 1)
 
         self.com_boderate_combo_box = CustomComboBox(
             settings_name="COM_speed_settings",
-            default_items_list=["921600", "115200", "0"],
-            editable_flag=True)
-
-        self.int_validator = QtGui.QIntValidator(bottom=0)
-        self.com_boderate_combo_box.setValidator(self.int_validator)
-
+            default_items_list=['921600', '115200', '0'])
         self.com_param_groupbox_layout.addWidget(QtWidgets.QLabel('Скорость:'),
                                                  1, 0, 1, 1)  # Speed
         self.com_param_groupbox_layout.addWidget(self.com_boderate_combo_box,
@@ -172,9 +164,7 @@ class MyWindow(QtWidgets.QWidget):
 
         self.fs_combo_box = CustomComboBox(
             settings_name="fs_settings",
-            default_items_list=['1000', '2000', '0'],
-            editable_flag=True)
-        self.fs_combo_box.setValidator(self.int_validator)
+            default_items_list=['1000', '2000', '0'])
         self.com_param_groupbox_layout.addWidget(QtWidgets.QLabel('Fs, Hz:'),
                                                  2, 0, 1, 1)
         self.com_param_groupbox_layout.addWidget(self.fs_combo_box,
@@ -211,12 +201,6 @@ class MyWindow(QtWidgets.QWidget):
         #     settings_name="file_settings",
         #     deafault_items_list=['', '', ''],
         #     editable_flag=False)
-        # QLineEdit readOnly=True,
-        # self.filename_and_path_widget = QtWidgets.QLabel(
-        #     alignment=QtCore.Qt.AlignmentFlag.AlignHCenter,
-        #     wordWrap=True, objectName="with_bourder",
-        #     textInteractionFlags=QtCore.Qt.
-        #     TextInteractionFlag.TextSelectableByMouse)
         self.filename_and_path_widget = QtWidgets.QTextEdit(
             objectName="with_bourder")
         self.filename_and_path_widget.setVerticalScrollBarPolicy(
@@ -226,7 +210,6 @@ class MyWindow(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Policy.Ignored)
         self.measurements_groupbox_layout.addWidget(
             self.filename_and_path_widget, 6, 1, 3, 3)
-        # self.measurements_groupbox.setFlat(True)  # прозрачность
         # self.measurements_groupbox_layout.setSizeConstraint(
         # QtWidgets.QLayout.SizeConstraint.SetNoConstraint)
 
@@ -249,7 +232,6 @@ class MyWindow(QtWidgets.QWidget):
         self.saving_result_folder_label = QtWidgets.QTextEdit(
             self.folder_name, objectName="with_bourder")
         # self.current_folder_label.setMinimumHeight(20)
-        # self.current_folder_label.setMinimumWidth(50)
         self.saving_result_folder_label.setVerticalScrollBarPolicy(
             QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff) 
         self.saving_result_folder_label.setSizePolicy(
@@ -273,7 +255,6 @@ class MyWindow(QtWidgets.QWidget):
 # ------ Output logs and data from file ---------------------------------------
         self.text_output_groupbox = QtWidgets.QGroupBox(
             'Содержимое файла', maximumWidth=315, minimumWidth=215)
-        # self.text_output_groupbox_layout = QtWidgets.QFormLayout()
         self.text_output_groupbox_layout = QtWidgets.QGridLayout()
         self.text_output_groupbox.setLayout(self.text_output_groupbox_layout)
 
@@ -328,95 +309,8 @@ class MyWindow(QtWidgets.QWidget):
         self.plot_groupbox_layout = QtWidgets.QGridLayout()
         self.plot_groupbox.setLayout(self.plot_groupbox_layout)
 
-# ------ time plot ------------------------------------------------------------
-
-        self.time_plot_item = pg.PlotItem(viewBox=CustomViewBox())
-        self.time_plot = pg.PlotWidget(plotItem=self.time_plot_item)
-        self.time_plot_item.setTitle('Угловая скорость', size='13pt')  # Velosity Graph
-        self.time_plot_item.showGrid(x=True, y=True)
-        self.time_plot_item.addLegend(offset=(-1, 1), labelTextSize='12pt',
-                                      labelTextColor=pg.mkColor('w'))
-        self.time_plot_item.setLabel('left', 'Velosity',
-                                     units='\u00b0/second', **self.LABEL_STYLE)
-        self.time_plot_item.setLabel('bottom', 'Time',
-                                     units='seconds', **self.LABEL_STYLE)
-
-        self.time_curves = [self.time_plot_item.plot(pen='w', name="encoder")]
-        for i in range(self.GYRO_NUMBER):
-            self.time_curves.append(self.time_plot_item.plot(
-                pen=self.COLOR_LIST[i], name=f"gyro {i + 1}"))
-
-        # self.curve_gyro_rectangle = self.time_plot_item.plot()
-        self.region = pg.LinearRegionItem([0, 1], movable=False)
-        self.time_plot_item.addItem(self.region)
-
-        # self.time_curves[0].setData([0, 0, 2, 2, 0], [0, 3, 3, 0, 0])
-        # self.time_curves[1].setData([0, 0, 1.5, 1.5, 0], [0, 2, 2, 0, 0])
-        # x = [1, 5, 10, 15, 20, 25, 33, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 118, 120, 122, 125, 130, 135, 140, 150, 156, 162, 170, 180, 190, 200, 205, 210, 215, 220, 225, 230, 235, 240, 245, 250, 255, 260, 265, 270, 275, 280, 285, 290, 300, 310]
-        self.x = [1, 5, 10, 15, 20, 25, 33, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 102, 105, 107, 110, 115, 118, 120, 122, 125, 130, 135, 140, 150, 156, 162, 170, 180, 190, 200, 205, 210, 215, 220, 225, 230, 235, 240, 243, 247, 250, 255, 260, 265, 270, 275, 280, 285, 290, 295, 300, 305, 310, 315]
-        # # amp =np.array([96, 97, 108, 112, 113, 114, 121, 127, 136, 163, 166, 191, 219, 240, 258, 284, 400, 371, 450, 699, 791, 1154, 631, 697, 722, 743, 834, 823, 918, 995, 1022, 1125, 1220, 1244, 1373, 1468, 1618, 1851, 1865, 2166, 2548, 2539, 3409, 3521, 3514, 4220, 3473, 2573, 3081, 3028, 3028, 3230, 3056, 3132, 3102, 3621, 3669, 4561])/100
-        self.y =np.array(
-            [94, 99, 105, 114, 112, 113, 122, 127, 137, 160, 169, 205, 221, 243, 292, 306, 339, 392, 419, 554, 861, 913, 1079, 1276, 595, 645, 659, 666, 781, 810, 863, 948, 1024, 1103, 1227, 1329, 1319, 1362, 1468, 1791, 1921, 1959, 2641, 2477, 3384, 3484, 3254, 4482, 3888, 3931, 2795, 3021, 3246, 3046, 3147, 3505, 3424, 3430, 4049, 4157, 4385, 3980, 5340, 4897]
-            )/100
-        self.time_curves[0].setData(self.x, self.y)
-        # self.plot_2d_scatter(self.time_plot, self.x, self.y)
-        # # self.cursor = QtCore.Qt.CrossCursor # was
-        # # self.cursor = Qt.BlankCursor
-        # self.time_plot.setCursor(QtCore.Qt.CrossCursor)  # self.cursor
-        # # Add crosshair lines.
-        # self.crosshair_v = pg.InfiniteLine(angle=90, movable=False)
-        # self.crosshair_h = pg.InfiniteLine(angle=0, movable=False)
-        # self.time_plot.addItem(self.crosshair_v, ignoreBounds=True)
-        # self.time_plot.addItem(self.crosshair_h, ignoreBounds=True)
-        # self.cursorlabel = pg.TextItem()
-        # self.time_plot.addItem(self.cursorlabel)
-        # self.proxy = pg.SignalProxy(
-        #     self.time_plot.scene().sigMouseMoved,
-        #     rateLimit=30, slot=self.update_crosshair)
-        # self.mouse_x = None # ???
-        # self.mouse_y = None # ???
-        # freq_approximation = np.linspace(1, 330, num=300)
-        # k_list = np.polyfit(x, amp, 4)
-        # print(k_list)
-        # k_list[-1] = k_list[-1] + 0.1
-        # k_list[-2] = k_list[-2]*0.2
-        # k_list[-3] = k_list[-3]*0.8
-        # print(k_list)
-        # # аппроксимирующую функцию можно разбить на столько диапазонов,
-        # # сколько учатков с разной амплитудой у нас имеется
-        # amp_approximation = ((-4.75368112e-09)*freq_approximation**4 +
-        #                      (2.06569833e-06)*freq_approximation**3 +
-        #                      (2.02236573e-04)*freq_approximation**2 +
-        #                      1.60865286e-03*freq_approximation) + 9.41254199e-01
-        # # fun = np.poly1d(k_list)
-        # # amp_approximation = np.array(fun(freq_approximation))
-        # self.time_curves[1].setData(freq_approximation, amp_approximation)
-
-        # freq_approximation = np.linspace(1, 110, num=300)
-        # r = 42
-        # k_list = np.polyfit(x[0:-r], amp[0:-r], 6)
-        # fun = np.poly1d(k_list)
-        # print(f'{list(k_list)}')
-        # amp_approximation = np.array(fun(freq_approximation))
-
-        # self.time_curves[1].setData(freq_approximation, amp_approximation)
-        # freq_approximation = np.linspace(110, 300, num=300)
-        # r = 25
-        # k_list = np.polyfit(x[r:len(x)], amp[r:len(x)], 7)
-        # fun = np.poly1d(k_list)
-        # print(f'{list(k_list)}')
-        # amp_approximation = np.array(fun(freq_approximation))
-
-# ------ Tab widget -----------------------------------------------------------
-        # self.tab_widget = QtWidgets.QTabWidget(tabsClosable=True)
-        self.tab_widget = QtWidgets.QTabWidget()
-        self.page = QtWidgets.QWidget(self)
-        self.layout = QtWidgets.QVBoxLayout()
-        self.layout.addWidget(self.time_plot)
-        self.spectrum_button = QtWidgets.QPushButton("От времени")  # Time plot
-        self.layout.addWidget(self.spectrum_button)
-        self.page.setLayout(self.layout)
-        self.tab_widget.addTab(self.page, "\u03C9(t)")  # &Time plot От времени
+        self.custom_tab_plot_widget = PyQt6_TabWidget.CustomTabWidget(
+            GYRO_NUMBER=1)  # !
 
 # ------ Others ------------------------------------------------------------
         self.progress_bar = QtWidgets.QProgressBar(
@@ -427,8 +321,8 @@ class MyWindow(QtWidgets.QWidget):
         self.package_number_label = QtWidgets.QLabel('Пакеты:')  # Package number
         self.plot_groupbox_layout.addWidget(self.package_number_label,
                                             1, 13, 1, 4)
-        self.current_package_num_label = QtWidgets.QLabel('0')
-        self.plot_groupbox_layout.addWidget(self.current_package_num_label,
+        self.package_num_label = QtWidgets.QLabel('0')
+        self.plot_groupbox_layout.addWidget(self.package_num_label,
                                             1, 17, 1, 1)
 
         self.save_image_button = QtWidgets.QPushButton('Графики в .png')  # Save\nimage
@@ -462,7 +356,7 @@ class MyWindow(QtWidgets.QWidget):
                                         18, 1, 1, 1)
         self.main_grid_layout.addWidget(self.stop_button,
                                         19, 1, 1, 1)
-        self.main_grid_layout.addWidget(self.tab_widget,
+        self.main_grid_layout.addWidget(self.custom_tab_plot_widget,
                                         0, 2, 16, 1)
         self.main_grid_layout.addWidget(self.plot_groupbox,
                                         16, 2, 4, 2)
@@ -483,34 +377,27 @@ class MyWindow(QtWidgets.QWidget):
 
         self.start_button.clicked.connect(self.start)
         self.stop_button.clicked.connect(self.stop)
-        # self.clear_button.clicked.connect(self.clear_logs)
-        self.clear_button.clicked.connect(
-            lambda: self.log_text_box.widget.clear())
         self.choose_file.clicked.connect(self.choose_and_load_file)
-        self.spectrum_button.clicked.connect(self.switch_plot_x_axis)
         self.cycle_num_widget.valueChanged.connect(self.cycle_num_value_change)
         self.cycle_num_widget.valueChanged.connect(self.progress_bar_set_max)
-        self.edit_file_button.clicked.connect(
-            lambda: os.startfile(self.filename_and_path_widget.toPlainText()))
         self.save_image_button.clicked.connect(self.save_image)
         self.save_settings_button.clicked.connect(self.save_all_settings)
         # self.tab_widget.tabCloseRequested.connect(self.close_tab)
-        self.choose_path_button.clicked.connect(self.choose_path_for_result_saving)
+        self.choose_path_button.clicked.connect(
+            self.choose_result_saving_path)
+        self.filename_and_path_widget.textChanged.connect(
+            self.filename_and_path_text_change)
+        self.clear_button.clicked.connect(
+            lambda: self.log_text_box.widget.clear())
+        self.edit_file_button.clicked.connect(
+            lambda: os.startfile(self.filename_and_path_widget.toPlainText()))
         for i in range(self.GYRO_NUMBER + 1):
-            self.check_box_list[i].stateChanged.connect(self.change_curve_visibility)
-        self.filename_and_path_widget.textChanged.connect(self.filename_and_path_text_change)
+            self.check_box_list[i].stateChanged.connect(
+                self.custom_tab_plot_widget.change_curve_visibility)
 
-        self.fs = 500
-        self.phase_curves: list[pg.PlotCurveItem] = []
-        self.amp_curves: list[pg.PlotCurveItem] = []
-        self.phase_plot_list: list[pg.PlotWidget] = []
-        self.amp_plot_list: list[pg.PlotWidget] = []
-
-        self.tab_widget_page_list: list[QtWidgets.QWidget] = []
-        self.plot_fft_final(True)
+        # self.fs = 500
+        # self.plot_fft_final(True)
         # self.check_filename()
-        # with open(self.prosessing_thr.filename[0] + self.prosessing_thr.filename[1], 'w') as file:
-        #     np.savetxt(file, [1, 2], delimiter='\t', fmt='%d')
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
 #
@@ -518,7 +405,6 @@ class MyWindow(QtWidgets.QWidget):
 #
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
-#
 
 
     @QtCore.pyqtSlot()
@@ -532,23 +418,24 @@ class MyWindow(QtWidgets.QWidget):
         self.package_num = 0
         self.flag_sent = False
 
-        self.logger.info(F"\nPORT: {self.test_combo_box.currentText()}\n")
-        if not len(self.test_combo_box.currentText()):
+        # Check COM port
+        self.logger.info(F"\nPORT: {self.combo_box_name.currentText()}\n")
+        if not len(self.combo_box_name.currentText()):
             self.get_avaliable_com()
             self.logger.info(
-                f"PORT: {(self.test_combo_box.currentText())}\n")
-        if not len(self.test_combo_box.currentText()):
+                f"PORT: {(self.combo_box_name.currentText())}\n")
+        if not len(self.combo_box_name.currentText()):
             self.logger.info("")
             QtWidgets.QMessageBox.critical(
                 None, "Error", "Can't find COM port")
             return
-
         self.Serial.setBaudRate(
             int(self.com_boderate_combo_box.currentText()))
         self.Serial.setPortName(
-            self.test_combo_box.currentText())
+            self.combo_box_name.currentText())
         self.logger.info("Set COM settings")
 
+        # Check filename and measurement file
         if not self.check_filename():
             return
         if not self.total_time:
@@ -558,16 +445,17 @@ class MyWindow(QtWidgets.QWidget):
                 return
         self.logger.info("Data from file was loaded")
 
+        # Open COM
         if not self.Serial.open(QtCore.QIODevice.OpenModeFlag.ReadWrite):
             self.logger.warning(
-                f"Can't open {self.test_combo_box.currentText()}")
+                f"Can't open {self.combo_box_name.currentText()}")
             return
 
         self.cycle_num_value_change()
         self.progress_bar_set_max()
-        self.avaliable_butttons(True)  # expand
+        self.avaliable_butttons(True)  # disable widgets
 
-        self.logger.info(f"{self.test_combo_box.currentText()} open")
+        self.logger.info(f"{self.combo_box_name.currentText()} open")
         self.logger.info(f"self.cycle_num = {self.total_cycle_num}")
         self.logger.warning("Start")
 
@@ -575,12 +463,14 @@ class MyWindow(QtWidgets.QWidget):
         self.Serial.clear()
         # self.timer_recieve.setInterval(0)
         # self.timer_sent_com.setInterval(0)
+        # Start timers
         self.start_time = time()  # !
         self.timer_event_sent_com()
         self.timer_sent_com.start()
         self.timer_recieve.start()
-
         self.fs = int(self.fs_combo_box.currentText())
+        # Copy variables to another classes and start thread
+        self.custom_tab_plot_widget.fs = self.fs
         self.prosessing_thr.fs = self.fs
         self.prosessing_thr.flag_start = True
         self.prosessing_thr.TIMER_INTERVAL = self.READ_INTERVAL_MS
@@ -588,26 +478,7 @@ class MyWindow(QtWidgets.QWidget):
         self.prosessing_thr.total_cycle_num = self.total_cycle_num
         self.prosessing_thr.start()
 
-        for i in range(self.tab_widget.count() - 1):
-            self.tab_widget.removeTab(1)
-        #     self.tab_widget_page_list.pop()
-        #     for i in range(self.GYRO_NUMBER):
-        #         self.time_curves.pop()
-        #         self.amp_curves.pop()
-        #         phase_plot_list
-
-        self.time_curves[0].setData([])
-        for i in range(self.GYRO_NUMBER):
-            self.time_curves[i + 1].setData([])
-        #     self.amp_curves[i].setData([])
-        #     self.phase_curves[i].setData([])
-        self.phase_curves: list[pg.PlotCurveItem] = []
-        self.amp_curves: list[pg.PlotCurveItem] = []
-        self.phase_plot_list: list[pg.PlotWidget] = []
-        self.amp_plot_list: list[pg.PlotWidget] = []
-
-        self.tab_widget_page_list: list[QtWidgets.QWidget] = []
-        self.append_fft_plot_tab()
+        self.custom_tab_plot_widget.clear_plots()
 
 # ------ Timer Recieve --------------------------------------------------------
 
@@ -629,7 +500,7 @@ class MyWindow(QtWidgets.QWidget):
         bytes_num = self.Serial.bytesAvailable()
         if bytes_num <= 14:
             self.logger.warning(
-                f"No data from {self.test_combo_box.currentText()}")
+                f"No data from {self.combo_box_name.currentText()}")
             return
         if self.prosessing_thr.flag_recieve:
             self.logger.warning("Thread still work with previous data")
@@ -637,7 +508,6 @@ class MyWindow(QtWidgets.QWidget):
         # !!!
         self.progress_value = time() - self.start_time
         # self.progress_value += time() - self.start_time
-        # self.start_time = time()
         self.progress_bar.setValue(int(round(self.progress_value)))
         self.logger.info(f"Progress: {self.progress_value}")
         # !!!
@@ -705,7 +575,7 @@ class MyWindow(QtWidgets.QWidget):
             f"End of cycle {self.current_cylce} of {self.total_cycle_num}")
         self.current_cylce += 1
         self.count = 0
-        self.append_fft_plot_tab()  # !!!
+        self.custom_tab_plot_widget.append_fft_plot_tab()
         self.prosessing_thr.new_cycle()
 
     def stop(self):
@@ -735,7 +605,8 @@ class MyWindow(QtWidgets.QWidget):
                 if not (0.95 * self.fs < check < 1.05 * self.fs):
                     QtWidgets.QMessageBox.critical(
                         None, "Warning",
-                        f"You set fs={self.fs}, but in fact it is close to {check}")
+                        f"You set fs = {self.fs} Hz," +
+                        f"but in fact it's close to {check} Hz")
         self.prosessing_thr.flag_start = False
 
 ###############################################################################
@@ -746,280 +617,47 @@ class MyWindow(QtWidgets.QWidget):
         self.package_num = s
         self.logger.info(f"thr_stop, count = {self.count}\n" +
                          f"package_num = {self.package_num}")
-        self.current_package_num_label.setText(str(self.package_num))
+        self.package_num_label.setText(str(self.package_num))
 
-        num_of_points_shown = self.PLOT_TIME_INTERVAL_SEC * self.fs
-        	
-        # y = (x if x > 0 else 0) 
-        start_i = (self.package_num - num_of_points_shown 
-                   if self.package_num > num_of_points_shown else 0)
-        # if self.package_num > num_of_points_shown:
-        #     start_i = self.package_num - num_of_points_shown
-        # else:
-        #     start_i = 0        
-        self.time_curves[0].setData(
+        points_shown = self.PLOT_TIME_INTERVAL_SEC * self.fs
+        start_i = (self.package_num - points_shown 
+                   if self.package_num > points_shown else 0)
+        self.custom_tab_plot_widget.plot_time_graph(
             self.prosessing_thr.all_data[start_i:self.package_num, 0] / self.fs,
-            self.prosessing_thr.all_data[start_i:self.package_num, 2] / 1000)
-        for i in range(self.GYRO_NUMBER):
-            self.time_curves[i + 1].setData(
-                self.prosessing_thr.all_data[start_i:self.package_num, 0] / self.fs,
-                self.prosessing_thr.all_data[start_i:self.package_num, 1]
-                / self.prosessing_thr.k_amp / 1000)
+            self.prosessing_thr.all_data[start_i:self.package_num, 2] / 1000,
+            self.prosessing_thr.all_data[start_i:self.package_num, 1] 
+            / self.prosessing_thr.k_amp / 1000)
 
     @QtCore.pyqtSlot(bool)
     def plot_fft(self, _):
         """
         Adds points to frequency graphs
         """
-        self.amp_plot_list[-1].autoRange()
+        self.custom_tab_plot_widget.set_fft_data(
+            self.prosessing_thr.amp_and_freq_for_plot,
+            self.prosessing_thr.bourder)
         self.logger.info("plot_fft")
-        for i in range(self.GYRO_NUMBER):
-            self.amp_curves[-1 - i].setData(self.prosessing_thr.amp_and_freq_for_plot[:, 0],
-                                        self.prosessing_thr.amp_and_freq_for_plot[:, 1])
-            self.phase_curves[-1 - i].setData(self.prosessing_thr.amp_and_freq_for_plot[:, 0],
-                                        self.prosessing_thr.amp_and_freq_for_plot[:, 2])
-            # self.amp_curves[-1 - i].setData(self.prosessing_thr.amp_[:, -4],
-            #                             self.prosessing_thr.amp_and_freq[:, -3])
-            # self.phase_curves[-1 - i].setData(self.prosessing_thr.amp_and_freq[:, -4],
-            #                             self.prosessing_thr.amp_and_freq[:, -2])
-        self.region.setRegion([self.prosessing_thr.bourder[0]/self.fs,
-                               self.prosessing_thr.bourder[1]/self.fs])
-
-# ------ FFT median plot ------------------------------------------------------------------
-    def text_(self, value):
-        # self.test_combo_box.currentIndexChanged.disconnect(self.ind)
-        print(self.test_combo_box.currentText())
-        print(value)
-        print("len = " + str(len(value)))
-        if not len(self.test_combo_box.currentText()) and self.test_combo_box.count() > 2:
-            if self.test_combo_box.currentIndex():
-                self.test_combo_box.setCurrentIndex(self.test_combo_box.currentIndex()-1)
-                self.test_combo_box.removeItem(self.test_combo_box.currentIndex()+1)
-            else:
-                self.test_combo_box.removeItem(self.test_combo_box.currentIndex())
-            # if self.test_combo_box.currentIndex() == self.test_combo_box.count() - 1:
-                # self.test_combo_box.lineEdit().setReadOnly(True)
-        else:
-            self.test_combo_box.setItemText(self.test_combo_box.currentIndex(), value)
-        # self.test_combo_box.currentIndexChanged.connect(self.ind)
-
-    def ind(self):
-        print(self.test_combo_box.currentIndex())
-        print(self.test_combo_box.currentIndex() == self.test_combo_box.count() - 1)
-        if self.test_combo_box.currentIndex() == self.test_combo_box.count() - 1:
-            print("last")
-            # self.test_combo_box.setEditable(False)
-            # self.test_combo_box.lineEdit().setAlignment(
-                # QtCore.Qt.AlignmentFlag.AlignCenter)
-            self.test_combo_box.lineEdit().setReadOnly(True)
-            self.test_combo_box.setCurrentIndex(0)
-            self.test_combo_box.insertItem(0, "введите название проекта")
-            self.test_combo_box.setCurrentIndex(0)
-        else:
-            # self.test_combo_box.setEditable(True)
-            self.test_combo_box.lineEdit().setReadOnly(False)
-            pass
-        # self.test_combo_box.currentIndexChanged.disconnect(self.ind)
 
     @QtCore.pyqtSlot(bool)
-    def plot_fft_final(self, _):  # better recieve current_cylce instead bool
+    def plot_fft_final(self, _):
         self.logger.info("Final median plot")
-        self.append_fft_plot_tab()
-        self.Q_label = QtWidgets.QLineEdit('Q=')
-        self.f_r_label = QtWidgets.QLineEdit('f_r=')
-        self.f_r_label = QtWidgets.QLineEdit()
-        # self.layout.addWidget(self.Q_label)
-        self.test_combo_box = QtWidgets.QComboBox(editable=True)
-        self.test_combo_box.addItem('22')
-
-        self.test_combo_box.addItem(QtGui.QIcon("icon_48.png"), 'Создать новый пункт')
-        self.test_combo_box.insertItem(0, "0www")
-
-        self.layout.addWidget(self.test_combo_box)
-        self.test_combo_box.currentTextChanged.connect(self.text_)
-        self.test_combo_box.currentIndexChanged.connect(self.ind)
-
-        #
-        self.x = [1, 5, 13, 20, 55, 62, 80]
-        # # amp =np.array([96, 97, 108, 112, 113, 114, 121, 127, 136, 163, 166, 191, 219, 240, 258, 284, 400, 371, 450, 699, 791, 1154, 631, 697, 722, 743, 834, 823, 918, 995, 1022, 1125, 1220, 1244, 1373, 1468, 1618, 1851, 1865, 2166, 2548, 2539, 3409, 3521, 3514, 4220, 3473, 2573, 3081, 3028, 3028, 3230, 3056, 3132, 3102, 3621, 3669, 4561])/100
-        self.y =np.array(
-            [1, 1.2, 1.3, 1.5, 5, .5, .35]
-            )
-        self.amp_curves[-1].setData(self.x, self.y)
-        self.amp_plot_list[-1].autoRange()
-        # self.plot_2d_scatter(self.time_plot, self.x, self.y)
-        self.cursor = QtCore.Qt.CrossCursor # was
-        # self.cursor = Qt.BlankCursor
-        self.amp_plot_list[-1].setCursor(self.cursor)  # self.cursor
-    
-        # Add crosshair lines.
-        self.crosshair_v = pg.InfiniteLine(angle=90, movable=False)
-        self.crosshair_h = pg.InfiniteLine(angle=0, movable=False)
-        self.amp_plot_list[-1].addItem(self.crosshair_v, ignoreBounds=True)
-        self.amp_plot_list[-1].addItem(self.crosshair_h, ignoreBounds=True)
-        self.cursorlabel = pg.TextItem()
-        self.cursorlabel.setPos(1, 0.9)
-    
-        self.amp_plot_list[-1].addItem(self.cursorlabel)
-        self.proxy = pg.SignalProxy(
-            self.amp_plot_list[-1].scene().sigMouseMoved,
-            rateLimit=30, slot=self.update_crosshair)
-        self.mouse_x = None # ???
-        self.mouse_y = None # ???
-
-        self.tab_widget.setTabText(self.current_cylce + 1, "&АФЧХ (средний)")  # FC average
-        self.tab_widget.setCurrentIndex(self.tab_widget.count() - 1)
-        # # self.plot_fft(True)
-        # for i in range(self.GYRO_NUMBER):
-        #     self.amp_curves[-1 - i].setData(self.prosessing_thr.amp_and_freq[:, -4],
-        #                                 self.prosessing_thr.amp_and_freq[:, -3])
-        #     self.phase_curves[-1 - i].setData(self.prosessing_thr.amp_and_freq[:, -4],
-        #                                 self.prosessing_thr.amp_and_freq[:, -2])
-
-        # app_icon = QtGui.QIcon()
-        # app_icon.addFile(self.res_path('icon_24.png'), QtCore.QSize(24, 24))
-        # self.tab_widget.setTabIcon(self.current_cylce + 1, app_icon)
-
-    # def plot_2d_scatter(self, plot, x, y, color=(66, 245, 72)):
-    #     brush = pg.mkBrush(color)
-    #     scatter = pg.ScatterPlotItem(size=5, brush=brush)
-    #     scatter.addPoints(x, y)
-    #     plot.addItem(scatter)
-
-    def update_crosshair(self, e):
-        pos = e[0]
-        # print(pos)
-        if self.amp_plot_list[-1].plotItem.sceneBoundingRect().contains(pos):
-            mousePoint = self.amp_plot_list[-1].plotItem.vb.mapSceneToView(pos)
-            # print(pos)
-            # print(mousePoint)
-            mx = np.array(
-                [abs(float(i) - float(mousePoint.x())) for i in self.x])
-            index = mx.argmin()
-            if index >= 0 and index < len(self.x):
-                self.cursorlabel.setText(
-                        str((self.x[index], self.y[index])))
-                self.crosshair_v.setPos(self.x[index])
-                self.crosshair_h.setPos(self.y[index]) 
-                self.mouse_x = self.crosshair_v.setPos(self.x[index])
-                self.mouse_y = self.crosshair_h.setPos(self.y[index])
-                self.mouse_x = (self.x[index])
-                self.mouse_y = (self.y[index])
-            
-    def mousePressEvent(self, e):
-        if e.buttons() & QtCore.Qt.LeftButton & self.amp_plot_list[-1].underMouse():
-            print(f'pressed {self.mouse_x, self.mouse_y}')
-            # self.cursorlabel.setPos(self.mouse_x + 1, self.mouse_y + 1)
-            # if self.mouse_x in self.x and self.mouse_y in self.y:
-# ----- plot change -----------------------------------------------------------
-
-    @QtCore.pyqtSlot()
-    def switch_plot_x_axis(self):
-        """
-        Switching between time plot and spectrum
-        """
-        if self.spectrum_button.text() == "Спектр":  # Frequency plot
-            self.spectrum_button.setText("От времени")  # Time plot
-            self.time_plot_item.ctrl.fftCheck.setChecked(False)
-            self.time_plot_item.setLabel(
-                'bottom', 'Time', units='seconds')
-            self.region.show()
-        else:
-            self.spectrum_button.setText("Спектр")  # Frequency plot
-            self.time_plot_item.ctrl.fftCheck.setChecked(True)
-            self.time_plot_item.setLabel(
-                'bottom', 'Frequency', units='Hz')
-            self.region.hide()
-
-    def change_curve_visibility(self):
-        num = int(self.sender().objectName())
-        flag = self.check_box_list[num].checkState()
-        self.time_curves[num].setVisible(flag)
-        if num == 0:
-            return
-        for i in range(self.tab_widget.count() - 1):
-            self.phase_curves[num - 1 + i].setVisible(flag)
-            self.amp_curves[num - 1 + i].setVisible(flag)
-
-    def append_fft_plot_tab(self):
-        """
-        Create new tab and append amplitude and grequency graphs
-        """
-        index = self.tab_widget.count() - 1
-        self.tab_widget_page_list.append(QtWidgets.QWidget(self))
-        self.layout = QtWidgets.QVBoxLayout(spacing=0)
-        self.append_amp_plot()
-        self.layout.addWidget(self.amp_plot_list[index])
-        self.append_phase_plot()
-        self.layout.addWidget(self.phase_plot_list[index])
-        self.tab_widget_page_list[-1].setLayout(self.layout)
-        self.tab_widget.addTab(
-            self.tab_widget_page_list[-1], f"ЧХ &{index + 1}")  # FC        
-
-    def append_amp_plot(self):
-        self.amp_plot_item = pg.PlotItem(viewBox=CustomViewBox(),
-                                         name=f'amp_plot{self.tab_widget.count()}')
-        self.amp_plot_item.setXLink(f'phase_plot{self.tab_widget.count()}')
-        self.amp_plot_item.setTitle('АФЧХ', size='12pt')  # Amp Graph
-        self.amp_plot_item.showGrid(x=True, y=True)
-        self.amp_plot_item.addLegend(offset=(-1, 1), labelTextSize='12pt',
-                                     labelTextColor=pg.mkColor('w'))
-        self.amp_plot_item.setLabel('left', 'Amplitude',
-                                    units="", **self.LABEL_STYLE)
-        # self.amp_plot_item.setLabel('bottom', 'Frequency',
-        #                             units='Hz', **self.LABEL_STYLE)
-        # self.SYMBOL_SIZE = 6
-        for i in range(self.GYRO_NUMBER):
-            self.amp_curves.append(self.amp_plot_item.plot(
-                pen=self.COLOR_LIST[i], name=f"gyro {i + 1}", symbol="o",
-                symbolSize=6, symbolBrush=self.COLOR_LIST[i]))
-        self.amp_plot_list.append(pg.PlotWidget(plotItem=self.amp_plot_item))
-        self.amp_plot_list[-1].getAxis('left').setWidth(60)
-        self.amp_plot_list[-1].setLimits(xMin=-5, xMax=int(self.fs*0.58), yMin=-0.1)
-
-    def append_phase_plot(self):
-        self.phase_plot_item = pg.PlotItem(viewBox=CustomViewBox(),
-                                           name=f'phase_plot{self.tab_widget.count()}')
-        self.phase_plot_item.setXLink(f'amp_plot{self.tab_widget.count()}')
-        # self.phase_plot_item.setTitle('ФЧХ', size='12pt')  # Phase Graph
-        self.phase_plot_item.showGrid(x=True, y=True)
-        self.phase_plot_item.addLegend(offset=(-1, 1), labelTextSize='12pt',
-                                       labelTextColor=pg.mkColor('w'))
-        self.phase_plot_item.setLabel('left', 'Phase',
-                                      units='degrees', **self.LABEL_STYLE)  # rad
-        # \u00b0
-        self.phase_plot_item.setLabel('bottom', 'Frequency',
-                                      units='Hz', **self.LABEL_STYLE)
-        for i in range(self.GYRO_NUMBER):
-            self.phase_curves.append(self.phase_plot_item.plot(
-                pen=self.COLOR_LIST[i], name=f"gyro {i + 1}", symbol="o",
-                symbolSize=6, symbolBrush=self.COLOR_LIST[i]))
-        self.phase_plot_list.append(
-            pg.PlotWidget(plotItem=self.phase_plot_item))
-        self.phase_plot_list[-1].getAxis('left').setWidth(60)
-        self.phase_plot_list[-1].setLimits(
-            xMin=-5, xMax=int(self.fs*0.58), yMin=-380, yMax=20)
+        self.custom_tab_plot_widget.plot_fft_median(
+            self.prosessing_thr.amp_and_freq_for_plot,
+            np.array([]))
 
     @QtCore.pyqtSlot()
     def save_image(self):
-        self.check_filename()
         self.logger.info("Save image")
-        pyqtgraph.exporters.ImageExporter(
-            self.time_plot_item).export(self.prosessing_thr.filename[0] + '_time_plot.png')
-        for i in range(self.tab_widget.count() - 1):
-            pyqtgraph.exporters.ImageExporter(
-                self.amp_plot_list[i].getPlotItem()).export(
-                    self.prosessing_thr.filename[0] + f'_amp_plot_{i + 1}.png')
-            pyqtgraph.exporters.ImageExporter(
-                self.phase_plot_list[i].getPlotItem()).export(
-                    self.prosessing_thr.filename[0] + f'_phase_plot_{i + 1}.png')
-        self.logger.info("Saving complite")
+        if self.check_filename():
+            self.custom_tab_plot_widget.save_plot_image(
+                self.prosessing_thr.filename[0])
+            self.logger.info("Saving complite")
 
 # ------ Widgets events -------------------------------------------------------
 
     def cycle_num_value_change(self):
-        if not self.timer_recieve.isActive():  # is this required?
-            self.total_cycle_num = self.cycle_num_widget.value()
+        # if not self.timer_recieve.isActive():  # is this required?
+        self.total_cycle_num = self.cycle_num_widget.value()
 
     def progress_bar_set_max(self):
         if self.total_time and not self.timer_recieve.isActive():  # is this required?
@@ -1034,6 +672,7 @@ class MyWindow(QtWidgets.QWidget):
             # self.progress_bar.setValue(0)
 
     def avaliable_butttons(self, flag_running: bool):
+        """Enable or disable widgets"""
         self.cycle_num_widget.setDisabled(flag_running)
         self.edit_file_button.setDisabled(flag_running)
         self.save_image_button.setDisabled(flag_running)
@@ -1041,28 +680,20 @@ class MyWindow(QtWidgets.QWidget):
         self.stop_button.setDisabled(not flag_running)
         self.choose_file.setDisabled(flag_running)
 
-    # @QtCore.pyqtSlot()
-    # def clear_logs(self):
-    #     self.log_text_box.widget.clear()
-
-    def get_avaliable_com(self):
-        """
-        Append avaliable com ports to combo box widget
-        """
-        self.test_combo_box.addItems(
+    def get_avaliable_com(self):  # проверить
+        """Append avaliable com ports to combo box widget"""
+        self.combo_box_name.addItems(
               [ports.portName() 
                for ports in QSerialPortInfo.availablePorts()])
 
 # ------ file name and data from file -----------------------------------------
 
     def check_filename(self):  # changed for three files
-        # print(self.current_folder_label.text())
         # print( os.path.exists(self.current_folder_label.())) 
         if not os.path.exists(self.saving_result_folder_label.toPlainText()):  # text
             QtWidgets.QMessageBox.critical(
                 None, "Error", "The file path does not exist!")
             return False
-        #     os.mkdir(self.folder_name[0:-1])
         if not len(self.file_name_path.text()):
             filename = self.folder_name + 'test'
         else:
@@ -1096,12 +727,13 @@ class MyWindow(QtWidgets.QWidget):
                     new_name_list[j] = filename + f"_{j + 1}({i})" + extension
         self.prosessing_thr.filename = [filename, f"({i})" + extension]
         return True
+
     # def directory_changed(self, path):
     #     self.logger.info(f'Directory Changed: {path}')
     #     print(f'Directory Changed: {path}')
 
     @QtCore.pyqtSlot()
-    def choose_path_for_result_saving(self):
+    def choose_result_saving_path(self):
         temp = QtWidgets.QFileDialog.getExistingDirectory(
             self, "Выбрать папку", ".")
         if not len(temp):
@@ -1110,7 +742,7 @@ class MyWindow(QtWidgets.QWidget):
         self.saving_result_folder_label.setText(self.folder_name)
 
     @QtCore.pyqtSlot()
-    def file_changed(self, path):
+    def check_filename_and_get_data(self, path):
         self.logger.info(
             f'File Changed, {path},' +
             f'thr run: {self.prosessing_thr.flag_start}')
@@ -1199,17 +831,13 @@ class MyWindow(QtWidgets.QWidget):
         self.com_boderate_combo_box.save_index()
         self.fs_combo_box.save_value()
         self.fs_combo_box.save_index()
-        # self.file_name_and_path_widget.save_value()
-        # self.file_name_and_path_widget.save_index()
+        self.combo_box_name.save_current_text()
         self.settings.setValue("cycle_num",
                                 self.cycle_num_widget.value())
         self.settings.setValue("filename",
                                 self.filename_and_path_widget.toPlainText())
-        if self.test_combo_box.count():
-            self.settings.setValue("COM_current_name",
-                                   str(self.test_combo_box.currentText()))
         self.settings.setValue("current_folder",
-                               self.saving_result_folder_label.toPlainText())  #  text
+                               self.saving_result_folder_label.toPlainText())  # text
 
     def load_previous_settings(self):
         self.settings = QtCore.QSettings("settings")
@@ -1225,25 +853,11 @@ class MyWindow(QtWidgets.QWidget):
                 self.filename_and_path_widget.setText(name)
                 if self.get_data_from_file(name):
                     self.logger.warning("The previous file is loaded")
-        if self.settings.contains("COM_current_name"):
-            # if type(self.settings.value("COM_current_name")) is str:
-            for i in range(self.test_combo_box.count()):
-                self.logger.info(self.test_combo_box.itemText(i))
-                self.logger.info(self.settings.value("COM_current_name"))
-                if self.test_combo_box.itemText(i) == self.settings.value("COM_current_name"):
-                    self.test_combo_box.setCurrentIndex(i)
-                    # print(1)
-                    break
         if self.settings.contains("current_folder"):
             if os.path.isdir(self.settings.value("current_folder")):
                 self.saving_result_folder_label.setText(
                     self.settings.value("current_folder"))
-            # "curr_index", self.currentIndex()
-            # for items in self.com_list_combo_box.itemData
-            # self.com_list_combo_box.setValue(
-            # "items",
-            # [self.itemText(i)
-            #  for i in range(self.count())])
+
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 #
