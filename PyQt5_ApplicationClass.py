@@ -554,9 +554,9 @@ class MyWindow(QtWidgets.QWidget):
         start_i = (self.package_num - points_shown 
                    if self.package_num > points_shown else 0)
         self.custom_tab_plot_widget.plot_time_graph(
-            self.prosessing_thr.all_data[start_i:self.package_num, 0] / self.fs,
-            self.prosessing_thr.all_data[start_i:self.package_num, 2] / 1000,
-            self.prosessing_thr.all_data[start_i:self.package_num, 1] 
+            self.prosessing_thr.time_data[start_i:self.package_num, 0] / self.fs,
+            self.prosessing_thr.time_data[start_i:self.package_num, 2] / 1000,
+            self.prosessing_thr.time_data[start_i:self.package_num, 1] 
             / self.prosessing_thr.k_amp / 1000)
 
     @QtCore.pyqtSlot(bool)

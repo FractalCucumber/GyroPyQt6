@@ -175,6 +175,9 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.test_combo_box.addItem(QtGui.QIcon("icon_48.png"), 'Создать новый пункт')
         self.test_combo_box.insertItem(0, "0www")
 
+        tip = "Подсказка"
+        # setting tool tip to the combo box 
+        self.test_combo_box.setToolTip(tip) 
         self.layout.addWidget(self.test_combo_box, 0, 16, 1, 2)
         self.test_combo_box.currentTextChanged.connect(self.text_)
         self.test_combo_box.currentIndexChanged.connect(self.ind)
@@ -225,7 +228,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.layout.addWidget(self.name_info, 3, 17, 1, 1)
 
         self.ok_btn = QtWidgets.QPushButton("ok", maximumWidth=150)
-        self.layout.addWidget(self.ok_btn, 4, 16, 1, 2)
+        self.layout.addWidget(self.ok_btn, 9, 16, 1, 2)
         self.ok_btn.clicked.connect(self.write_xlsx)
         # # self.plot_fft(True)
         # for i in range(self.GYRO_NUMBER):

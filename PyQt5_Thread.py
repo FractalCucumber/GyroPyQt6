@@ -41,7 +41,7 @@ class MyThread(QtCore.QThread):
         self.cycle_count = 1
         self.num_rows = 0
         self.package_num = 0
-        self.all_data = np.ndarray((self.SIZE_EXTENTION_STEP, 5),
+        self.time_data = np.ndarray((self.SIZE_EXTENTION_STEP, 5),
                                    dtype=np.int32)
         # self.fft_data = np.ndarray((, 2))
         self.count = 1
@@ -75,7 +75,7 @@ class MyThread(QtCore.QThread):
                         i += self.rx[i:].find(0x27) + 1
                         self.logger.info(f"now i={i}, 0x72:{self.rx[i] == 0x72}, 0x27:{self.rx[i + 13] == 0x27}")
                         continue
-                    self.all_data[self.package_num, :] = np.array(
+                    self.time_data[self.package_num, :] = np.array(
                         [self.int_from_bytes(self.rx, i, self.package_num)])
                     i += 14
                     self.package_num += 1
@@ -84,12 +84,12 @@ class MyThread(QtCore.QThread):
                 self.logger.info(f"\t\treal package_num = {self.package_num}")
                 self.package_num_signal.emit(self.package_num)
                 self.flag_recieve = False
-                self.data_for_fft_graph(encoder=self.all_data[:, 2],
-                                        gyro=self.all_data[:, 1],
+                self.data_for_fft_graph(encoder=self.time_data[:, 2],
+                                        gyro=self.time_data[:, 1],
                                         FS=self.fs)
         if self.package_num:
             # self.all_data = np.resize(self.all_data, (self.package_num, 5))
-            self.all_data.resize(self.package_num, 5)
+            self.time_data.resize(self.package_num, 5)
             for i in range(self.GYRO_NUMBER):
                 # y = (x if x > 0 else 0) 
                 name_part = ('' if self.GYRO_NUMBER == 1 else f"_{i + 1}")
@@ -99,7 +99,7 @@ class MyThread(QtCore.QThread):
                 #     name_part = f"_{i + 1}"
                 with open(self.filename[0] + name_part
                           + self.filename[1], 'w') as file:
-                    np.savetxt(file, self.all_data, delimiter='\t', fmt='%d')
+                    np.savetxt(file, self.time_data, delimiter='\t', fmt='%d')
 
         self.logger.info(f"\tfft = {str(self.amp_and_freq_for_plot)}" +
                          f"\tfft size = {self.amp_and_freq_for_plot.size}" +
@@ -147,8 +147,11 @@ class MyThread(QtCore.QThread):
     def extend_array_size(self):
         if self.package_num >= self.num_rows:
             self.num_rows += self.SIZE_EXTENTION_STEP
-            self.all_data = np.resize(
-                self.all_data, (self.num_rows, 5))
+            self.time_data = np.resize(
+                self.time_data, (self.num_rows, 5))
+        # self.num_rows = self.package_num + int(len(self.rx)/14) + 1
+        # self.all_data = np.resize(
+        #     self.all_data, (self.num_rows, 5))
 
     def new_cycle(self):
         # self.count = 0
