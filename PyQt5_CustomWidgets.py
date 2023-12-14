@@ -9,6 +9,64 @@ import pyqtgraph.exporters
 import pyqtgraph as pg
 import numpy as np
 from openpyxl import load_workbook
+import os
+import sys
+
+
+# QtWidgets.QDialog.create
+class CustomDialog(QtWidgets.QDialog):
+    # close_emit = QtCore.pyqtSignal(bool)
+
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle("Окно изменения проектов")
+        self.setWindowFlags(QtCore.Qt.WindowType.CustomizeWindowHint |
+                            QtCore.Qt.WindowType.WindowCloseButtonHint)
+        self.QBtn = QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+        self.button_box = QtWidgets.QDialogButtonBox(self.QBtn)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+
+        self.layout = QtWidgets.QGridLayout()
+        message = QtWidgets.QLabel("Выберите путь к файлу Excel и задайте название проекта",
+                                   wordWrap=True)
+        self.layout.addWidget(message, 0, 0, 1, 3)
+        name_label = QtWidgets.QLabel("Имя")
+        self.layout.addWidget(name_label, 1, 0, 1, 1)
+        self.name = QtWidgets.QLineEdit()
+        self.layout.addWidget(self.name, 1, 1, 1, 2)
+        path_label = QtWidgets.QLabel("Путь")
+        self.layout.addWidget(path_label, 2, 0, 1, 1)
+        self.path = QtWidgets.QLineEdit()
+        self.layout.addWidget(self.path, 2, 1, 1, 1)
+        self.path.textChanged.connect(self.check_path)
+        choose = QtWidgets.QPushButton("0pen")
+        self.layout.addWidget(choose, 2, 2, 1, 1)
+        choose.clicked.connect(self.get_path)
+        self.layout.addWidget(self.button_box, 3, 0, 1, 3)
+        self.setLayout(self.layout)
+
+    def check_path(self):
+        if os.path.exists(self.path.text()):
+            self.button_box.button(
+                QtWidgets.QDialogButtonBox.Ok).setEnabled(True)
+        else:
+            self.button_box.button(
+                QtWidgets.QDialogButtonBox.Ok).setEnabled(False)
+    # def closeEvent(self, a0):
+        # if [self.name.text(), str(self.filename)]:
+            # self.close_emit.emit(True)
+        # [self.name.text(), str(self.filename)]
+        # return super().closeEvent(a0)
+
+    def get_path(self):
+        self.filename, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            "Выберите файл",
+            ".",
+            "Excel Files (*.xls *.xlsx)")
+        self.path.setText(str(self.filename))
 
 
 class CustomViewBox(pg.ViewBox):
@@ -38,10 +96,15 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # QtWidgets.QWidget.__init__(self, parent)
         self.GYRO_NUMBER = GYRO_NUMBER
         self.visibility_flags = [True for _ in range(self.GYRO_NUMBER + 1)]
-        # print(self.visibility_flags)
         self.LABEL_STYLE = {'color': '#FFF', 'font-size': '16px'}
         self.COLOR_LIST = ['r', 'g', 'b']
         self.fs = fs
+        # self.
+        self.dlg = CustomDialog()
+
+        self.dict = {}
+        # self.settings = QtCore.QSettings("settings")
+        # self.dlg.close_emit.connect(self.get_new_item)
 # ------ time plot ------------------------------------------------------------
 
         self.time_plot_item = pg.PlotItem(viewBox=CustomViewBox())
@@ -114,39 +177,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.region.setRegion([frame[0]/fs, frame[1]/fs])
 
 # ------ FFT median plot ------------------------------------------------------------------
-    def text_(self, value):
-        # self.test_combo_box.currentIndexChanged.disconnect(self.ind)
-        print(self.test_combo_box.currentText())
-        print(value)
-        print("len = " + str(len(value)))
-        if not len(self.test_combo_box.currentText()) and self.test_combo_box.count() > 2:
-            if self.test_combo_box.currentIndex():
-                self.test_combo_box.setCurrentIndex(self.test_combo_box.currentIndex()-1)
-                self.test_combo_box.removeItem(self.test_combo_box.currentIndex()+1)
-            else:
-                self.test_combo_box.removeItem(self.test_combo_box.currentIndex())
-            # if self.test_combo_box.currentIndex() == self.test_combo_box.count() - 1:
-                # self.test_combo_box.lineEdit().setReadOnly(True)
-        else:
-            self.test_combo_box.setItemText(self.test_combo_box.currentIndex(), value)
-        # self.test_combo_box.currentIndexChanged.connect(self.ind)
 
-    def ind(self):
-        print(self.test_combo_box.currentIndex())
-        print(self.test_combo_box.currentIndex() == self.test_combo_box.count() - 1)
-        if self.test_combo_box.currentIndex() == self.test_combo_box.count() - 1:
-            print("last")
-            self.test_combo_box.lineEdit().setReadOnly(True)
-            self.test_combo_box.setCurrentIndex(0)
-            self.test_combo_box.insertItem(0, "введите название проекта")
-            self.test_combo_box.setCurrentIndex(0)
-        else:
-            # self.test_combo_box.setEditable(True)
-            self.test_combo_box.lineEdit().setReadOnly(False)
-            pass
-        # self.test_combo_box.currentIndexChanged.disconnect(self.ind)
-
-    def plot_fft_median(self, freq_data: np.ndarray, special_points: np.ndarray):
+    def plot_fft_median(self, freq_data: np.ndarray, special_points: np.ndarray, folder):
         self.logger.info("Final median plot")
         # self.append_fft_plot_tab()
 
@@ -170,24 +202,32 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # self.layout.addWidget(self.Q_label)
         self.test_combo_box = QtWidgets.QComboBox(editable=True,
                                                   maximumWidth=150)
-        self.test_combo_box.addItem('22')
-
-        self.test_combo_box.addItem(QtGui.QIcon("icon_48.png"), 'Создать новый пункт')
-        self.test_combo_box.insertItem(0, "0www")
-
-        tip = "Подсказка"
+        # QToolButton # есть wordWrap
+        self.test_combo_box.lineEdit().setReadOnly(True)
+        # print(self.dict)
+        # print(len(self.dict))
+        if self.dict:
+            self.test_combo_box.addItems(self.dict.keys())
+            for i in range(self.test_combo_box.count()):
+                self.test_combo_box.setItemData(
+                    i, self.dict.get(self.test_combo_box.itemText(i)),
+                    QtCore.Qt.ItemDataRole.ToolTipRole)
+            # self.test_combo_box.setItemData(self.test_combo_box.currentIndex(),
+            #                                 self.dict[self.dlg.name.text()],
+            #                                 QtCore.Qt.ItemDataRole.ToolTipRole)
+        # self.test_combo_box.addItem('22')
+        # self.test_combo_box.addItem(QtGui.QIcon("icon_48.png"), 'Создать новый пункт')
+        # self.test_combo_box.insertItem(0, "0www")
+        # tip = "Подсказка"
         # setting tool tip to the combo box 
-        self.test_combo_box.setToolTip(tip) 
+        # self.test_combo_box.setToolTip(tip) 
         self.layout.addWidget(self.test_combo_box, 0, 16, 1, 2)
-        self.test_combo_box.currentTextChanged.connect(self.text_)
-        self.test_combo_box.currentIndexChanged.connect(self.ind)
-
+        # self.test_combo_box.currentTextChanged.connect(self.text_)
+        # self.test_combo_box.currentIndexChanged.connect(self.ind)
         #
         self.x = [1, 5, 13, 20, 55, 62, 80]
         # # amp =np.array([96, 97, 108, 112, 113, 114, 121, 127, 136, 163, 166, 191, 219, 240, 258, 284, 400, 371, 450, 699, 791, 1154, 631, 697, 722, 743, 834, 823, 918, 995, 1022, 1125, 1220, 1244, 1373, 1468, 1618, 1851, 1865, 2166, 2548, 2539, 3409, 3521, 3514, 4220, 3473, 2573, 3081, 3028, 3028, 3230, 3056, 3132, 3102, 3621, 3669, 4561])/100
-        self.y =np.array(
-            [1, 1.2, 1.3, 1.5, 5, .5, .35]
-            )
+        self.y =np.array([1, 1.2, 1.3, 1.5, 5, .5, .35])
         self.amp_curves[-1].setData(self.x, self.y)
         self.amp_plot_list[-1].autoRange()
         # self.plot_2d_scatter(self.time_plot, self.x, self.y)
@@ -217,19 +257,49 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.layout.addWidget(self.freq_info, 1, 17, 1, 1)
 
         self.amp_info_label = QtWidgets.QLabel("amp", maximumWidth=55)
-        # self.freq_info_label.setma
         self.layout.addWidget(self.amp_info_label, 2, 16, 1, 1)
         self.amp_info = QtWidgets.QLineEdit("3", maximumWidth=95)
         self.layout.addWidget(self.amp_info, 2, 17, 1, 1)
-        self.name_info_label = QtWidgets.QLabel("name", maximumWidth=55)
-        # self.freq_info_label.setma
+
+        self.name_info_label = QtWidgets.QLabel("номер датчика",
+                                                maximumWidth=55)
         self.layout.addWidget(self.name_info_label, 3, 16, 1, 1)
-        self.name_info = QtWidgets.QLineEdit("1222", maximumWidth=95)
+        self.name_info = QtWidgets.QLineEdit(folder, maximumWidth=95)
         self.layout.addWidget(self.name_info, 3, 17, 1, 1)
 
         self.ok_btn = QtWidgets.QPushButton("ok", maximumWidth=150)
         self.layout.addWidget(self.ok_btn, 9, 16, 1, 2)
         self.ok_btn.clicked.connect(self.write_xlsx)
+
+        self.add_btn = QtWidgets.QPushButton("add",
+                                             maximumWidth=150,
+                                             objectName='add')
+        btn_icon = QtGui.QIcon()
+        # for i in [16, 24, 32, 48]:
+        # i = 24
+        btn_icon.addFile(self.get_res_path('Add2.png'), QtCore.QSize(48, 48))
+        self.add_btn.setIcon(btn_icon)
+        self.layout.addWidget(self.add_btn, 8, 16, 1, 1)
+        self.add_btn.clicked.connect(self.add_xlsx)
+        self.del_btn = QtWidgets.QPushButton("del", maximumWidth=150)
+        self.layout.addWidget(self.del_btn, 8, 17, 1, 1)
+        self.del_btn.clicked.connect(self.del_xlsx)
+        self.change_btn = QtWidgets.QPushButton(maximumWidth=150,
+                                                objectName="change")
+        btn_icon = QtGui.QIcon()
+        # for i in [16, 24, 32, 48]:
+        # i = 24
+        btn_icon.addFile(self.get_res_path('Edit2.png'), QtCore.QSize(128, 128))
+        self.change_btn.setIcon(btn_icon)
+        self.layout.addWidget(self.change_btn, 6, 16, 2, 2)
+        self.change_btn.clicked.connect(self.add_xlsx)
+
+        self.get_filenames_btn = QtWidgets.QPushButton("get_filenames", maximumWidth=150)
+        self.layout.addWidget(self.get_filenames_btn, 5, 16, 1, 1)
+        self.get_filenames_btn.clicked.connect(self.get_filenames)       
+        # self.del_btn.clicked.connect(
+        #     self.text_())
+
         # # self.plot_fft(True)
         # for i in range(self.GYRO_NUMBER):
         #     self.amp_curves[-1 - i].setData(freq_data[:, -4],
@@ -237,19 +307,68 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         #     self.phase_curves[-1 - i].setData(freq_data[:, -4],
         #                                 freq_data[:, -2])
 
-        # app_icon = QtGui.QIcon()
-        # app_icon.addFile(self.res_path('icon_24.png'), QtCore.QSize(24, 24))
-        # self.setTabIcon(self.current_cylce + 1, app_icon)
-
     # def plot_2d_scatter(self, plot, x, y, color=(66, 245, 72)):
     #     brush = pg.mkBrush(color)
     #     scatter = pg.ScatterPlotItem(size=5, brush=brush)
     #     scatter.addPoints(x, y)
     #     plot.addItem(scatter)
+    def get_filenames(self):
+        self.filenames, _ = QtWidgets.QFileDialog.getOpenFileNames(
+            None,
+            "QFileDialog.getOpenFileNames()",
+            "",
+            "Text Files (*.txt)")
+            # "All Files (*);;Python Files (*.py);;Text Files (*.txt)")
+        if self.filenames:
+            for filename in self.filenames:
+                print(filename)
+
+    def del_xlsx(self):
+        del self.dict[self.test_combo_box.currentText()]
+        self.test_combo_box.removeItem(self.test_combo_box.currentIndex())
+    # def change_xlsx(self):
+
+    def add_xlsx(self):  # можно и del_xlsx сюда впихнуть
+        if self.sender().objectName() == 'change' and not self.test_combo_box.count():
+            return
+        if self.sender().objectName() == 'change':
+            self.dlg.path.setText(self.dict[self.test_combo_box.currentText()])
+            self.dlg.name.setText(self.test_combo_box.currentText())
+        if self.dlg.exec():
+            # self.logger.warning("Success!")
+            if self.sender().objectName() == 'add':
+                self.test_combo_box.insertItem(0, self.dlg.name.text())
+                self.test_combo_box.setCurrentIndex(0)
+            if self.sender().objectName() == 'change':
+                del self.dict[self.test_combo_box.currentText()]
+            self.dict[self.dlg.name.text()] = self.dlg.path.text()
+            self.test_combo_box.setCurrentText(self.dlg.name.text())
+            self.test_combo_box.setItemText(self.test_combo_box.currentIndex(),
+                                            self.dlg.name.text())
+            self.test_combo_box.setItemData(self.test_combo_box.currentIndex(),
+                                            self.dict[self.dlg.name.text()],
+                                            QtCore.Qt.ItemDataRole.ToolTipRole)
+            # print(self.dict)
+            # print(self.dict.keys())
+        # else:
+            # self.logger.warning("Cancel!")  
+        # print(dlg.close)
+
+    # def get_new_item(self, flag):
+        # self.test_combo_box.setCurrentText(self.dlg.name.text())
+        # self.dlg.filename
+        # print('close!')
+ 
     def write_xlsx(self):
+        self.currnt_xlsx_path = self.dict[self.test_combo_box.currentText()]
         self.currnt_xlsx_path = "test.xlsx"
-        wb = load_workbook(self.currnt_xlsx_path)
+        try:
+            wb = load_workbook(self.currnt_xlsx_path)
+        except FileNotFoundError:
+            self.logger.warning("File not found!")
+            return
         ws = wb['Лист1']  # or wb.active
+        ws['F3'] = self.name_info.text()
         ws['F4'] = self.freq_info.text()
         ws['F5'] = self.amp_info.text()
         # ws.column_dimensions['F'].width = 51
@@ -406,6 +525,14 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                     path + f'_phase_plot_{i + 1}.png')
         # self.logger.info("Saving complite")
 
+
+    def get_res_path(self, relative_path):
+        """
+        Get absolute path to resource, works for PyInstaller
+        """
+        base_path = getattr(
+            sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+        return os.path.join(base_path, relative_path)
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 #
@@ -481,13 +608,36 @@ class CustomComboBox(QtWidgets.QComboBox):
         if self.count():
             self.settings.setValue(
                 "name" + self.settings_name, self.currentText())
+            
+    #
+    # def text_(self, value):
+    #     # self.test_combo_box.currentIndexChanged.disconnect(self.ind)
+    #     print(self.test_combo_box.currentText())
+    #     print(value)
+    #     print("len = " + str(len(value)))
+    #     if not len(self.test_combo_box.currentText()) and self.test_combo_box.count() > 2:
+    #         if self.test_combo_box.currentIndex():
+    #             self.test_combo_box.setCurrentIndex(self.test_combo_box.currentIndex()-1)
+    #             self.test_combo_box.removeItem(self.test_combo_box.currentIndex()+1)
+    #         else:
+    #             self.test_combo_box.removeItem(self.test_combo_box.currentIndex())
+    #         # if self.test_combo_box.currentIndex() == self.test_combo_box.count() - 1:
+    #             # self.test_combo_box.lineEdit().setReadOnly(True)
+    #     else:
+    #         self.test_combo_box.setItemText(self.test_combo_box.currentIndex(), value)
+    #     # self.test_combo_box.currentIndexChanged.connect(self.ind)
 
-# if __name__ == "__main__":
-
-#     app = QtWidgets.QApplication(sys.argv)
-#     app.setStyle('Fusion')  # 'Fusion' ... QtWidgets.QStyle
-#     window = MyWindow()
-#     window.setWindowTitle("Gyro")
-#     # window.resize(850, 500)
-#     window.show()
-#     sys.exit(app.exec())
+    # def ind(self):
+    #     print(self.test_combo_box.currentIndex())
+    #     print(self.test_combo_box.currentIndex() == self.test_combo_box.count() - 1)
+    #     if self.test_combo_box.currentIndex() == self.test_combo_box.count() - 1:
+    #         print("last")
+    #         self.test_combo_box.lineEdit().setReadOnly(True)
+    #         self.test_combo_box.setCurrentIndex(0)
+    #         self.test_combo_box.insertItem(0, "введите название проекта")
+    #         self.test_combo_box.setCurrentIndex(0)
+    #     else:
+    #         # self.test_combo_box.setEditable(True)
+    #         self.test_combo_box.lineEdit().setReadOnly(False)
+    #         pass
+    #     # self.test_combo_box.currentIndexChanged.disconnect(self.ind)

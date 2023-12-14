@@ -1,12 +1,10 @@
 import logging
 import sys
-# from PyQt5.QtWidgets import QFileDialog
-# from PyQt5.QtCore import pyqtSignal, QThread, QIODevice
+# from PyQt5.QtWidgets import QFileDialog # from PyQt5.QtCore import pyqtSignal, QThread, QIODevice
 import os
 import re
 # from pyqtgraph.Qt import QtCore, QtGui
-# from datetime import datetime
-# from PyQt5 import QtWidgets, QtCore, QtGui
+# from datetime import datetime # from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtSerialPort import QSerialPort, QSerialPortInfo
 # import pyqtgraph.exporters
@@ -16,8 +14,7 @@ import PyQt5_Logger
 import PyQt5_Thread
 import PyQt5_CustomWidgets
 from time import time
-# pyinstaller PyQt5_Application.spec
-#  pyinstaller --onefile --noconsole PyQt5_Application.py
+# pyinstaller PyQt5_Application.spec # pyinstaller --onefile --noconsole PyQt5_Application.py
 # --add-data="Vibro_1_resources/icon_48.png:." PyQt5_Application.py
 # pyinstaller --add-data "StyleSheets.css;." --add-data "icon_16.png;." --add-data "icon_24.png;." --add-data "icon_32.png;." --add-data "icon_48.png;." --onefile --windowed PyQt5_Application.py --exclude-module matplotlib --exclude-module hook --exclude-module setuptools --exclude-module DateTime --exclude-module pandas --exclude-module PyQt5.QtOpenGL --exclude-module PyQt5.QtOpenGLWidgets --exclude-module hooks --exclude-module hook --exclude-module pywintypes --exclude-module flask --exclude-module opengl32sw.dll
 # pyinstaller --add-data "StyleSheets.css;." --add-data "icon_16.png;." --add-data "icon_24.png;." --add-data "icon_32.png;." --add-data "icon_48.png;." --windowed PyQt5_Application.py
@@ -27,7 +24,7 @@ from time import time
 # -----------------------------------------------------------------------------
 
 
-class MyWindow(QtWidgets.QWidget):
+class AppWindow(QtWidgets.QWidget):
     def __init__(self, parent=None):
 
         QtWidgets.QWidget.__init__(self, parent)
@@ -39,11 +36,11 @@ class MyWindow(QtWidgets.QWidget):
 # ------ Init vars ------------------------------------------------------------
         self.PLOT_TIME_INTERVAL_SEC = 10
         self.PAUSE_INTERVAL_MS = 500
-        self.READ_INTERVAL_MS = 100*2 #  125*2
+        self.READ_INTERVAL_MS = 100*2  #  125*2
         self.folder_name = os.getcwd() + '/'
         self.count: int = 0
-        self.progress_bar_value = 0
-        self.progress_value = 0
+        # self.progress_bar_value = 0  #  ?
+        self.progress_value = 0 # убрать?
         self.total_time: int = 0
         self.total_cycle_num: int = 1
         self.current_cylce: int = 0
@@ -106,7 +103,7 @@ class MyWindow(QtWidgets.QWidget):
         self.fs_combo_box = PyQt5_CustomWidgets.CustomComboBox(
             settings=self.settings,
             settings_name="fs_settings",
-            default_items_list=['1000', '2000', '0'])
+            default_items_list=['1000', '2000', '741'])
         self.com_param_groupbox_layout.addWidget(QtWidgets.QLabel('Fs, Hz:'),
                                                  2, 0, 1, 1)
         self.com_param_groupbox_layout.addWidget(self.fs_combo_box,
@@ -266,6 +263,7 @@ class MyWindow(QtWidgets.QWidget):
         self.plot_groupbox_layout.addWidget(self.save_image_button, 2, 0, 1, 6)
         self.save_settings_button = QtWidgets.QPushButton('Сохранить\nнастройки')  # Save settings
         self.plot_groupbox_layout.addWidget(self.save_settings_button, 2, 6, 1, 6)
+        # QToolButton # есть wordWrap
         self.autosave_checkbox = QtWidgets.QCheckBox('Автосохранение\n     настроек')  # Autosave
         self.plot_groupbox_layout.addWidget(self.autosave_checkbox, 2, 12, 1, 6)
 
@@ -310,8 +308,7 @@ class MyWindow(QtWidgets.QWidget):
 # ------ Set settings --------------------------------------------------------------------------
         self.load_previous_settings(self.settings)
 
-# ------ Signal Connect -------------------------------------------------------
-
+# ------ Signal Connect --------------------------------------------------------------------
         self.start_button.clicked.connect(self.start)
         self.stop_button.clicked.connect(self.stop)
         self.choose_file.clicked.connect(self.choose_and_load_file)
@@ -531,8 +528,8 @@ class MyWindow(QtWidgets.QWidget):
                              str(self.Serial.waitForBytesWritten(250)))
             self.Serial.close()
             self.logger.warning("End of measurements\n")
-            if self.progress_bar_value:
-                check = int(self.package_num / self.progress_bar_value)
+            if self.progress_value:
+                check = int(self.package_num / self.progress_value)
                 if not (0.95 * self.fs < check < 1.05 * self.fs):
                     QtWidgets.QMessageBox.critical(
                         None, "Warning",
@@ -572,7 +569,8 @@ class MyWindow(QtWidgets.QWidget):
         self.logger.info("Final median plot")
         self.custom_tab_plot_widget.plot_fft_median(
             self.prosessing_thr.amp_and_freq_for_plot,
-            np.array([]))
+            np.array([]),
+            re.split("_", self.file_name_path.text())[0])
 
     @QtCore.pyqtSlot()
     def save_image(self):
@@ -767,6 +765,9 @@ class MyWindow(QtWidgets.QWidget):
                                 self.filename_and_path_widget.toPlainText())
         self.settings.setValue("current_folder",
                                self.saving_result_folder_label.toPlainText())  # text
+        
+        # print('save' + str(self.custom_tab_plot_widget.dict))
+        self.settings.setValue('dict', self.custom_tab_plot_widget.dict)
 
     def load_previous_settings(self, settings: QtCore.QSettings):
         if settings.contains("cycle_num"):
@@ -785,6 +786,11 @@ class MyWindow(QtWidgets.QWidget):
             if os.path.isdir(settings.value("current_folder")):
                 self.saving_result_folder_label.setText(
                     settings.value("current_folder"))
+        if self.settings.contains('dict'):
+            # print('dict' + str(self.settings.value('dict')))
+            # self.settings.setValue('dict', self.custom_tab_plot_widget.dict)
+            self.custom_tab_plot_widget.dict = self.settings.value('dict')
+            # self.custom_tab_plot_widget.test_combo_box.addItems(self.custom_tab_plot_widget.dict.keys())
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -799,8 +805,8 @@ if __name__ == "__main__":
 
     app = QtWidgets.QApplication(sys.argv)
     app.setStyle('Fusion')  # 'Fusion' ... QtWidgets.QStyle
-    window = MyWindow()
-    window.setWindowTitle("Gyro")
+    window = AppWindow()
+    window.setWindowTitle("GyroVibroTest")
     # window.resize(850, 500)
     window.show()
     sys.exit(app.exec())
