@@ -19,36 +19,45 @@ class CustomDialog(QtWidgets.QDialog):
 
     def __init__(self):
         super().__init__()
-
+        STYLE_SHEETS_FILENAME = 'StyleSheets2.css'
+        with open(self.get_res_path(STYLE_SHEETS_FILENAME), "r") as style_sheets:
+            self.setStyleSheet(style_sheets.read())
+        self.setMaximumSize(500, 300)
         self.setWindowTitle("Окно изменения проектов")
         self.setWindowFlags(QtCore.Qt.WindowType.CustomizeWindowHint |
                             QtCore.Qt.WindowType.WindowCloseButtonHint)
         self.QBtn = QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
         self.button_box = QtWidgets.QDialogButtonBox(self.QBtn)
+        self.button_box.button(
+            QtWidgets.QDialogButtonBox.Ok).setEnabled(False)
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
 
         self.layout = QtWidgets.QGridLayout()
-        message = QtWidgets.QLabel("Выберите путь к файлу Excel и задайте название проекта",
-                                   wordWrap=True)
+        message = QtWidgets.QLabel("Выберите путь к файлу и назовите проект",
+                                   wordWrap=True, maximumHeight=80)
         self.layout.addWidget(message, 0, 0, 1, 3)
         name_label = QtWidgets.QLabel("Имя")
         self.layout.addWidget(name_label, 1, 0, 1, 1)
         self.name = QtWidgets.QLineEdit()
+        self.name.textChanged.connect(self.check)
         self.layout.addWidget(self.name, 1, 1, 1, 2)
         path_label = QtWidgets.QLabel("Путь")
         self.layout.addWidget(path_label, 2, 0, 1, 1)
         self.path = QtWidgets.QLineEdit()
         self.layout.addWidget(self.path, 2, 1, 1, 1)
-        self.path.textChanged.connect(self.check_path)
-        choose = QtWidgets.QPushButton("0pen")
-        self.layout.addWidget(choose, 2, 2, 1, 1)
-        choose.clicked.connect(self.get_path)
+        self.path.textChanged.connect(self.check)
+        open_folder_btn = QtWidgets.QPushButton()
+        btn_icon = QtGui.QIcon(self.get_res_path('res//open_folder.png'))
+        # btn_icon.addFile(self.get_res_path('res//open_folder.png'), QtCore.QSize(48, 48))
+        open_folder_btn.setIcon(btn_icon)
+        self.layout.addWidget(open_folder_btn, 2, 2, 1, 1)
+        open_folder_btn.clicked.connect(self.get_path)
         self.layout.addWidget(self.button_box, 3, 0, 1, 3)
         self.setLayout(self.layout)
 
-    def check_path(self):
-        if os.path.exists(self.path.text()):
+    def check(self):
+        if os.path.exists(self.path.text()) and len(self.name.text()):
             self.button_box.button(
                 QtWidgets.QDialogButtonBox.Ok).setEnabled(True)
         else:
@@ -68,6 +77,13 @@ class CustomDialog(QtWidgets.QDialog):
             "Excel Files (*.xls *.xlsx)")
         self.path.setText(str(self.filename))
 
+    def get_res_path(self, relative_path):
+        """
+        Get absolute path to resource, works for PyInstaller
+        """
+        base_path = getattr(
+            sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+        return os.path.join(base_path, relative_path)
 
 class CustomViewBox(pg.ViewBox):
     def __init__(self, *args, **kwds):
@@ -149,6 +165,87 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 
         self.logger = logging.getLogger('main')
         self.spectrum_button.clicked.connect(self.switch_plot_x_axis)
+# -----------------------------------------------------------------------------
+        self.groupbox = QtWidgets.QGroupBox(' Сохранение в .xlsx',
+                                            maximumWidth=190, minimumWidth=150)
+        self.median_plot_groupbox_layout = QtWidgets.QGroupBox(
+            'Содержимое файла', maximumWidth=315, minimumWidth=215)
+        self.median_plot_groupbox_layout = QtWidgets.QGridLayout(spacing=10)
+        self.groupbox.setLayout(self.median_plot_groupbox_layout)
+
+        self.Q_label = QtWidgets.QLineEdit('Q=')
+        self.f_r_label = QtWidgets.QLineEdit('f_r=')
+        self.f_r_label = QtWidgets.QLineEdit()
+        # self.layout.addWidget(self.Q_label)
+        self.test_combo_box = QtWidgets.QComboBox(editable=True)
+        # QToolButton # есть wordWrap
+        self.test_combo_box.lineEdit().setReadOnly(True)
+
+        # if self.dict:
+        #     self.test_combo_box.addItems(self.dict.keys())
+        #     for i in range(self.test_combo_box.count()):
+        #         self.test_combo_box.setItemData(
+        #             i, self.dict.get(self.test_combo_box.itemText(i)),
+        #             QtCore.Qt.ItemDataRole.ToolTipRole)
+        self.median_plot_groupbox_layout.addWidget(self.test_combo_box, 0, 0, 1, 3)
+        # self.test_combo_box.currentTextChanged.connect(self.text_)
+        # self.test_combo_box.currentIndexChanged.connect(self.ind)
+
+        self.freq_info_label = QtWidgets.QLabel("f, Hz")
+        # self.freq_info_label.setma
+        self.median_plot_groupbox_layout.addWidget(self.freq_info_label, 2, 0, 1, 1)
+        self.freq_info = QtWidgets.QLineEdit("0")
+        self.median_plot_groupbox_layout.addWidget(self.freq_info, 2, 1, 1, 2)
+
+        self.amp_info_label = QtWidgets.QLabel("amp")
+        self.median_plot_groupbox_layout.addWidget(self.amp_info_label, 3, 0, 1, 1)
+        self.amp_info = QtWidgets.QLineEdit("0")
+        self.median_plot_groupbox_layout.addWidget(self.amp_info, 3, 1, 1, 2)
+
+        self.name_info_label = QtWidgets.QLabel("имя датчика:", maximumHeight=40)
+        self.median_plot_groupbox_layout.addWidget(self.name_info_label, 4, 0, 1, 3)
+        self.name_info = QtWidgets.QLineEdit('folder')
+        self.median_plot_groupbox_layout.addWidget(self.name_info, 5, 0, 1, 3)
+
+        self.ok_btn = QtWidgets.QPushButton("ok")
+        self.median_plot_groupbox_layout.addWidget(self.ok_btn, 6, 0, 1, 3)
+        self.ok_btn.clicked.connect(self.write_xlsx)
+        # self.ok_btn.setSizePolicy(
+        #     QtWidgets.QSizePolicy.Policy.MinimumExpanding,
+        #     QtWidgets.QSizePolicy.Policy.Maximum)
+        self.add_btn = QtWidgets.QPushButton( maximumWidth=40, minimumWidth=40,
+                                             objectName='add')
+        self.add_btn.setFixedSize(30, 30)
+        btn_icon = QtGui.QIcon(self.get_res_path('res//add.png'))
+        self.add_btn.setIcon(btn_icon)
+        self.median_plot_groupbox_layout.addWidget(self.add_btn, 1, 0, 1, 1)
+        self.add_btn.clicked.connect(self.add_xlsx)
+        self.del_btn = QtWidgets.QPushButton(maximumWidth=40, minimumWidth=40)
+        self.del_btn.setFixedSize(30, 30)
+        btn_icon = QtGui.QIcon(self.get_res_path('res//delete2.png'))
+        # btn_icon.addFile(, QtCore.QSize(48, 48))
+        self.del_btn.setIcon(btn_icon)
+        self.median_plot_groupbox_layout.addWidget(self.del_btn, 1, 1, 1, 1)
+        self.del_btn.clicked.connect(self.del_xlsx)
+        self.change_btn = QtWidgets.QPushButton(maximumWidth=40, minimumWidth=40,
+                                                objectName="change")
+        self.change_btn.setFixedSize(30, 30)
+        # self.setIconSize(QtCore.QSize(48, 48))
+        btn_icon = QtGui.QIcon(self.get_res_path('res//edit.png'))
+        # btn_icon.addFile(, QtCore.QSize(128, 128))
+        self.change_btn.setIcon(btn_icon)
+        self.median_plot_groupbox_layout.addWidget(self.change_btn, 1, 2, 1, 1)
+        self.change_btn.clicked.connect(self.add_xlsx)
+
+        self.get_filenames_btn = QtWidgets.QPushButton("get_filenames")
+        self.median_plot_groupbox_layout.addWidget(self.get_filenames_btn, 7, 0, 1, 3)
+        self.get_filenames_btn.clicked.connect(self.get_filenames)
+
+        self.infinite_line_x = pg.InfiniteLine(angle=90, movable=False)
+        self.infinite_line_y = pg.InfiniteLine(angle=0, movable=False)
+        self.cursorlabel = pg.TextItem()
+        self.cursorlabel.setPos(1, 0.9)
+        self.cursor = QtCore.Qt.CrossCursor # was
 
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
@@ -181,137 +278,55 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     def plot_fft_median(self, freq_data: np.ndarray, special_points: np.ndarray, folder):
         self.logger.info("Final median plot")
         # self.append_fft_plot_tab()
+        self.last_tab_layout = QtWidgets.QGridLayout(spacing=0)
+        self.last_tab_layout.addWidget(self.groupbox, 0, 1, 2, 1) 
 
         index = self.count() - 1
         self.tab_widget_page_list.append(QtWidgets.QWidget(self))
-        # self.layout = QtWidgets.QGridLayout(spacing=0)
-        self.layout = QtWidgets.QGridLayout()
         self.append_amp_plot()
-        self.layout.addWidget(self.amp_plot_list[index], 0, 0, 5, 15)
+        self.last_tab_layout.addWidget(self.amp_plot_list[index], 0, 0, 1, 1)
         self.append_phase_plot()
-        self.layout.addWidget(self.phase_plot_list[index], 5, 0, 5, 15)
-        self.tab_widget_page_list[-1].setLayout(self.layout)
+        self.last_tab_layout.addWidget(self.phase_plot_list[index], 1, 0, 1, 1)
+        self.tab_widget_page_list[-1].setLayout(self.last_tab_layout)
         self.addTab(
             self.tab_widget_page_list[-1], f"ЧХ &{index + 1}")  # FC 
         self.setTabText(self.count() - 1, "&АФЧХ (средний)")  # FC average
         self.setCurrentIndex(self.count() - 1)
-
-        self.Q_label = QtWidgets.QLineEdit('Q=')
-        self.f_r_label = QtWidgets.QLineEdit('f_r=')
-        self.f_r_label = QtWidgets.QLineEdit()
-        # self.layout.addWidget(self.Q_label)
-        self.test_combo_box = QtWidgets.QComboBox(editable=True,
-                                                  maximumWidth=150)
-        # QToolButton # есть wordWrap
-        self.test_combo_box.lineEdit().setReadOnly(True)
-        # print(self.dict)
-        # print(len(self.dict))
-        if self.dict:
-            self.test_combo_box.addItems(self.dict.keys())
-            for i in range(self.test_combo_box.count()):
-                self.test_combo_box.setItemData(
-                    i, self.dict.get(self.test_combo_box.itemText(i)),
-                    QtCore.Qt.ItemDataRole.ToolTipRole)
-            # self.test_combo_box.setItemData(self.test_combo_box.currentIndex(),
-            #                                 self.dict[self.dlg.name.text()],
-            #                                 QtCore.Qt.ItemDataRole.ToolTipRole)
-        # self.test_combo_box.addItem('22')
-        # self.test_combo_box.addItem(QtGui.QIcon("icon_48.png"), 'Создать новый пункт')
-        # self.test_combo_box.insertItem(0, "0www")
-        # tip = "Подсказка"
-        # setting tool tip to the combo box 
-        # self.test_combo_box.setToolTip(tip) 
-        self.layout.addWidget(self.test_combo_box, 0, 16, 1, 2)
-        # self.test_combo_box.currentTextChanged.connect(self.text_)
-        # self.test_combo_box.currentIndexChanged.connect(self.ind)
-        #
-        self.x = [1, 5, 13, 20, 55, 62, 80]
+  
+        # self.del_btn.clicked.connect(
+        #     self.text_())
+        self.name_info.setText(folder)
+        self.x = freq_data[:, -4]  # [1, 5, 13, 20, 55, 62, 80]
         # # amp =np.array([96, 97, 108, 112, 113, 114, 121, 127, 136, 163, 166, 191, 219, 240, 258, 284, 400, 371, 450, 699, 791, 1154, 631, 697, 722, 743, 834, 823, 918, 995, 1022, 1125, 1220, 1244, 1373, 1468, 1618, 1851, 1865, 2166, 2548, 2539, 3409, 3521, 3514, 4220, 3473, 2573, 3081, 3028, 3028, 3230, 3056, 3132, 3102, 3621, 3669, 4561])/100
-        self.y =np.array([1, 1.2, 1.3, 1.5, 5, .5, .35])
-        self.amp_curves[-1].setData(self.x, self.y)
-        self.amp_plot_list[-1].autoRange()
+        self.y = freq_data[:, -3]  # np.array([1, 1.2, 1.3, 1.5, 5, .5, .35])
+        # self.amp_curves[-1].setData(self.x, self.y)
         # self.plot_2d_scatter(self.time_plot, self.x, self.y)
-        self.cursor = QtCore.Qt.CrossCursor # was
         # self.cursor = Qt.BlankCursor
         self.amp_plot_list[-1].setCursor(self.cursor)  # self.cursor
 
-        # Add crosshair lines.
-        self.crosshair_v = pg.InfiniteLine(angle=90, movable=False)
-        self.crosshair_h = pg.InfiniteLine(angle=0, movable=False)
-        self.amp_plot_list[-1].addItem(self.crosshair_v, ignoreBounds=True)
-        self.amp_plot_list[-1].addItem(self.crosshair_h, ignoreBounds=True)
-        self.cursorlabel = pg.TextItem()
-        self.cursorlabel.setPos(1, 0.9)
+        # Add lines
+        self.amp_plot_list[-1].addItem(self.infinite_line_x, ignoreBounds=True)
+        self.amp_plot_list[-1].addItem(self.infinite_line_y, ignoreBounds=True)
     
         self.amp_plot_list[-1].addItem(self.cursorlabel)
         self.proxy = pg.SignalProxy(
-            self.amp_plot_list[-1].scene().sigMouseMoved,
-            rateLimit=30, slot=self.update_crosshair)
+            self.amp_plot_list[-1].scene().sigMouseMoved, delay=0.15,
+            rateLimit=15, slot=self.update_crosshair)
         self.mouse_x = None
         self.mouse_y = None
-
-        self.freq_info_label = QtWidgets.QLabel("f, Hz", maximumWidth=55)
-        # self.freq_info_label.setma
-        self.layout.addWidget(self.freq_info_label, 1, 16, 1, 1)
-        self.freq_info = QtWidgets.QLineEdit("1", maximumWidth=95)
-        self.layout.addWidget(self.freq_info, 1, 17, 1, 1)
-
-        self.amp_info_label = QtWidgets.QLabel("amp", maximumWidth=55)
-        self.layout.addWidget(self.amp_info_label, 2, 16, 1, 1)
-        self.amp_info = QtWidgets.QLineEdit("3", maximumWidth=95)
-        self.layout.addWidget(self.amp_info, 2, 17, 1, 1)
-
-        self.name_info_label = QtWidgets.QLabel("номер датчика",
-                                                maximumWidth=55)
-        self.layout.addWidget(self.name_info_label, 3, 16, 1, 1)
-        self.name_info = QtWidgets.QLineEdit(folder, maximumWidth=95)
-        self.layout.addWidget(self.name_info, 3, 17, 1, 1)
-
-        self.ok_btn = QtWidgets.QPushButton("ok", maximumWidth=150)
-        self.layout.addWidget(self.ok_btn, 9, 16, 1, 2)
-        self.ok_btn.clicked.connect(self.write_xlsx)
-
-        self.add_btn = QtWidgets.QPushButton("add",
-                                             maximumWidth=150,
-                                             objectName='add')
-        btn_icon = QtGui.QIcon()
-        # for i in [16, 24, 32, 48]:
-        # i = 24
-        btn_icon.addFile(self.get_res_path('Add2.png'), QtCore.QSize(48, 48))
-        self.add_btn.setIcon(btn_icon)
-        self.layout.addWidget(self.add_btn, 8, 16, 1, 1)
-        self.add_btn.clicked.connect(self.add_xlsx)
-        self.del_btn = QtWidgets.QPushButton("del", maximumWidth=150)
-        self.layout.addWidget(self.del_btn, 8, 17, 1, 1)
-        self.del_btn.clicked.connect(self.del_xlsx)
-        self.change_btn = QtWidgets.QPushButton(maximumWidth=150,
-                                                objectName="change")
-        btn_icon = QtGui.QIcon()
-        # for i in [16, 24, 32, 48]:
-        # i = 24
-        btn_icon.addFile(self.get_res_path('Edit2.png'), QtCore.QSize(128, 128))
-        self.change_btn.setIcon(btn_icon)
-        self.layout.addWidget(self.change_btn, 6, 16, 2, 2)
-        self.change_btn.clicked.connect(self.add_xlsx)
-
-        self.get_filenames_btn = QtWidgets.QPushButton("get_filenames", maximumWidth=150)
-        self.layout.addWidget(self.get_filenames_btn, 5, 16, 1, 1)
-        self.get_filenames_btn.clicked.connect(self.get_filenames)       
-        # self.del_btn.clicked.connect(
-        #     self.text_())
-
         # # self.plot_fft(True)
-        # for i in range(self.GYRO_NUMBER):
-        #     self.amp_curves[-1 - i].setData(freq_data[:, -4],
-        #                                 freq_data[:, -3])
-        #     self.phase_curves[-1 - i].setData(freq_data[:, -4],
-        #                                 freq_data[:, -2])
-
+        for i in range(self.GYRO_NUMBER):
+            self.amp_curves[-1 - i].setData(freq_data[:, -4],
+                                        freq_data[:, -3])
+            self.phase_curves[-1 - i].setData(freq_data[:, -4],
+                                        freq_data[:, -2])
+        self.amp_plot_list[-1].autoRange()
     # def plot_2d_scatter(self, plot, x, y, color=(66, 245, 72)):
     #     brush = pg.mkBrush(color)
     #     scatter = pg.ScatterPlotItem(size=5, brush=brush)
     #     scatter.addPoints(x, y)
     #     plot.addItem(scatter)
+
     def get_filenames(self):
         self.filenames, _ = QtWidgets.QFileDialog.getOpenFileNames(
             None,
@@ -324,9 +339,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                 print(filename)
 
     def del_xlsx(self):
-        del self.dict[self.test_combo_box.currentText()]
+        self.dict.pop(self.test_combo_box.currentText(), None)
         self.test_combo_box.removeItem(self.test_combo_box.currentIndex())
-    # def change_xlsx(self):
 
     def add_xlsx(self):  # можно и del_xlsx сюда впихнуть
         if self.sender().objectName() == 'change' and not self.test_combo_box.count():
@@ -340,7 +354,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                 self.test_combo_box.insertItem(0, self.dlg.name.text())
                 self.test_combo_box.setCurrentIndex(0)
             if self.sender().objectName() == 'change':
-                del self.dict[self.test_combo_box.currentText()]
+                self.dict.pop(self.test_combo_box.currentText(), None)
             self.dict[self.dlg.name.text()] = self.dlg.path.text()
             self.test_combo_box.setCurrentText(self.dlg.name.text())
             self.test_combo_box.setItemText(self.test_combo_box.currentIndex(),
@@ -388,18 +402,18 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             if index >= 0 and index < len(self.x):
                 self.cursorlabel.setText(
                         str((self.x[index], self.y[index])))
-                self.crosshair_v.setPos(self.x[index])
-                self.crosshair_h.setPos(self.y[index]) 
-                self.mouse_x = self.crosshair_v.setPos(self.x[index])
-                self.mouse_y = self.crosshair_h.setPos(self.y[index])
+                self.infinite_line_x.setPos(self.x[index])
+                self.infinite_line_y.setPos(self.y[index]) 
+                self.mouse_x = self.infinite_line_x.setPos(self.x[index])
+                self.mouse_y = self.infinite_line_y.setPos(self.y[index])
                 self.mouse_x = (self.x[index])
                 self.mouse_y = (self.y[index])
             
     def mousePressEvent(self, e):
         if e.buttons() & QtCore.Qt.LeftButton & self.amp_plot_list[-1].underMouse():
             # print(f'pressed {self.mouse_x, self.mouse_y}')
-            self.amp_info.setText(str(self.mouse_y))
-            self.freq_info.setText(str(self.mouse_x))
+            self.amp_info.setText(f'{self.mouse_y:.3f}')
+            self.freq_info.setText(f'{self.mouse_x:.3f}')
             # self.cursorlabel.setPos(self.mouse_x + 1, self.mouse_y + 1)
             # if self.mouse_x in self.x and self.mouse_y in self.y:
 # ----- plot change -----------------------------------------------------------

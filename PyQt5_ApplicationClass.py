@@ -14,8 +14,12 @@ import PyQt5_Logger
 import PyQt5_Thread
 import PyQt5_CustomWidgets
 from time import time
-# pyinstaller PyQt5_Application.spec # pyinstaller --onefile --noconsole PyQt5_Application.py
-# --add-data="Vibro_1_resources/icon_48.png:." PyQt5_Application.py
+
+# d:/Gyro2023_Git/venv3.6/Scripts/Activate.bat
+# git add PyQt5_ApplicationClass.py PyQt5_CustomWidgets.py PyQt5_Thread.py PyQt5_Logger.py StyleSheets.css
+# pyinstaller PyQt5_ApplicationOnefolder.spec
+# pyinstaller PyQt5_Application.spec 
+# pyinstaller --onefile --noconsole PyQt5_Application.py
 # pyinstaller --add-data "StyleSheets.css;." --add-data "icon_16.png;." --add-data "icon_24.png;." --add-data "icon_32.png;." --add-data "icon_48.png;." --onefile --windowed PyQt5_Application.py --exclude-module matplotlib --exclude-module hook --exclude-module setuptools --exclude-module DateTime --exclude-module pandas --exclude-module PyQt5.QtOpenGL --exclude-module PyQt5.QtOpenGLWidgets --exclude-module hooks --exclude-module hook --exclude-module pywintypes --exclude-module flask --exclude-module opengl32sw.dll
 # pyinstaller --add-data "StyleSheets.css;." --add-data "icon_16.png;." --add-data "icon_24.png;." --add-data "icon_32.png;." --add-data "icon_48.png;." --windowed PyQt5_Application.py
 # pyinstaller --add-data "StyleSheets.css;." --onefile --windowed PyQt5_Application.py
@@ -181,16 +185,15 @@ class AppWindow(QtWidgets.QWidget):
 
         self.saving_measurements_groupbox_layout.addWidget(
             QtWidgets.QLabel('Имя\nфайла:'), 3, 0, 2, 1)
-        self.file_name_path = QtWidgets.QLineEdit('test')
+        self.file_name_line_edit = QtWidgets.QLineEdit('test')
         self.saving_measurements_groupbox_layout.addWidget(
-            self.file_name_path, 3, 1, 2, 2)
+            self.file_name_line_edit, 3, 1, 2, 2)
         self.choose_path_button = QtWidgets.QPushButton('Выбрать папку\nсохранения')
         self.saving_measurements_groupbox_layout.addWidget(
             self.choose_path_button, 5, 0, 1, 2)
         self.create_folder = QtWidgets.QCheckBox('Cоздавать\n   папку')
         self.saving_measurements_groupbox_layout.addWidget(
             self.create_folder, 5, 2, 1, 1)  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-##############################################################################
 # ------ Output logs and data from file ---------------------------------------
         self.text_output_groupbox = QtWidgets.QGroupBox(
             'Содержимое файла', maximumWidth=315, minimumWidth=215)
@@ -327,10 +330,32 @@ class AppWindow(QtWidgets.QWidget):
         for i in range(self.GYRO_NUMBER + 1):
             self.check_box_list[i].stateChanged.connect(
                 self.custom_tab_plot_widget.change_curve_visibility)
+        # print(all(np.array([2, 0])))
+        # print(all(np.array([2, 1])))
+        # print(all([]))
+        arr = np.convolve([0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,1,1,1,1,1,0,0,0,0,1,1,1,0,1],
+                          [0.1, 0.15, 0.4, 0.15, 0.1],
+                          'same')
+        arr = np.round(arr)
+        print(arr)
+        start = np.where((arr[:-1] == 0) & (arr[1:] == 1))[0]
+        end = np.where((arr[:-1] == 1) & (arr[1:] == 0))[0]
+        # print(np.where(arr == 0)[0])
+        print(start)
+        print(end)
+        for i in range(max(len(start), len(end))):
+            print(arr[start[i]+1:end[i]])
 
+        # arr = np.round(arr)
+        # # arr = arr - 0.5
+        # print(arr)
+        # print(np.unique(arr[0:3], return_index=True)[1])
+        
+        # print(np.round(arr))
         # self.fs = 500
-        self.plot_fft_final(True)
+        # self.plot_fft_final(True)
         # self.check_filename()
+        # self.prosessing_thr.fft_for_file('', 1000)
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
 #
@@ -342,6 +367,18 @@ class AppWindow(QtWidgets.QWidget):
 
     @QtCore.pyqtSlot()
     def start(self):
+        self.check_filename()
+        self.prosessing_thr.flag = True
+        self.prosessing_thr.start()
+        # self.prosessing_thr.fft_from_file_median(["6021_135_4.4_1.txt", "6021_135_4.4_2.txt",
+        #                                           "6021_135_4.4_3.txt", "6021_135_4.4_4.txt",
+        #                                           "6021_135_4.4_5.txt", "6021_135_4.4_6.txt",
+        #                                           "6021_135_4.4_7.txt", "6021_135_4.4_8.txt",
+        #                                           "6021_135_4.4_9.txt", "6021_135_4.4_10.txt"], 1000) 
+        # self.prosessing_thr.flag = False
+        # self.prosessing_thr.fft_from_file_median(["6021_135_4.4_5.txt", "6021_135_4.4_6.txt",
+                                                #   "6021_135_4.4_7.txt", "6021_135_4.4_8.txt"], 1000) 
+        return
         self.exp_package_num = 0
 
         self.progress_bar.setValue(0)
@@ -568,9 +605,9 @@ class AppWindow(QtWidgets.QWidget):
     def plot_fft_final(self, _):
         self.logger.info("Final median plot")
         self.custom_tab_plot_widget.plot_fft_median(
-            self.prosessing_thr.amp_and_freq_for_plot,
+            self.prosessing_thr.amp_and_freq,
             np.array([]),
-            re.split("_", self.file_name_path.text())[0])
+            re.split("_", self.file_name_line_edit.text())[0])
 
     @QtCore.pyqtSlot()
     def save_image(self):
@@ -621,16 +658,16 @@ class AppWindow(QtWidgets.QWidget):
             QtWidgets.QMessageBox.critical(
                 None, "Error", "The file path does not exist!")
             return False
-        if not len(self.file_name_path.text()):
+        if not len(self.file_name_line_edit.text()):
             filename = self.folder_name + 'test'
         else:
-            filename = self.folder_name + self.file_name_path.text()
+            filename = self.folder_name + self.file_name_line_edit.text()
         extension = '.txt'
         if self.create_folder.isChecked():
-            folder = re.split("_", self.file_name_path.text())[0]
+            folder = re.split("_", self.file_name_line_edit.text())[0]
             if not os.path.isdir(folder):
                 os.mkdir(folder)
-            filename = self.folder_name + folder + '/' + self.file_name_path.text()
+            filename = self.folder_name + folder + '/' + self.file_name_line_edit.text()
             self.saving_result_folder_label.setText(self.folder_name + folder + '/')
 
         new_name_list: list[str] = []
@@ -786,11 +823,18 @@ class AppWindow(QtWidgets.QWidget):
             if os.path.isdir(settings.value("current_folder")):
                 self.saving_result_folder_label.setText(
                     settings.value("current_folder"))
+                self.folder_name = settings.value("current_folder")
         if self.settings.contains('dict'):
-            # print('dict' + str(self.settings.value('dict')))
             # self.settings.setValue('dict', self.custom_tab_plot_widget.dict)
             self.custom_tab_plot_widget.dict = self.settings.value('dict')
             # self.custom_tab_plot_widget.test_combo_box.addItems(self.custom_tab_plot_widget.dict.keys())
+            if self.custom_tab_plot_widget.dict:
+                self.custom_tab_plot_widget.test_combo_box.addItems(self.custom_tab_plot_widget.dict.keys())
+                for i in range(self.custom_tab_plot_widget.test_combo_box.count()):
+                    self.custom_tab_plot_widget.test_combo_box.setItemData(
+                        i, self.custom_tab_plot_widget.dict.get(
+                            self.custom_tab_plot_widget.test_combo_box.itemText(i)),
+                        QtCore.Qt.ItemDataRole.ToolTipRole)
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
