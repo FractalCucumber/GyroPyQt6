@@ -336,16 +336,20 @@ class AppWindow(QtWidgets.QWidget):
         arr = np.convolve([0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,1,1,1,1,1,0,0,0,0,1,1,1,0,1],
                           [0.1, 0.15, 0.4, 0.15, 0.1],
                           'same')
-        arr = np.round(arr)
-        print(arr)
-        start = np.where((arr[:-1] == 0) & (arr[1:] == 1))[0]
-        end = np.where((arr[:-1] == 1) & (arr[1:] == 0))[0]
+        # arr = np.round(arr)
+        # print(arr)
+        # start = np.where((arr[:-1] == 0) & (arr[1:] == 1))[0]
+        # end = np.where((arr[:-1] == 1) & (arr[1:] == 0))[0]
         # print(np.where(arr == 0)[0])
-        print(start)
-        print(end)
-        for i in range(max(len(start), len(end))):
-            print(arr[start[i]+1:end[i]])
+        # print(start)
+        # print(end)
+        # for i in range(max(len(start), len(end))):
+            # print(arr[start[i]+1:end[i]])
 
+        # print(self.prosessing_thr.custom_filter(5, 1))
+        # print(self.prosessing_thr.custom_filter(25, 0.1))
+        # print(self.prosessing_thr.custom_filter(35, 0.02))
+        # print(self.prosessing_thr.custom_filter(35, 0.01))
         # arr = np.round(arr)
         # # arr = arr - 0.5
         # print(arr)
@@ -369,6 +373,7 @@ class AppWindow(QtWidgets.QWidget):
     def start(self):
         self.check_filename()
         self.prosessing_thr.flag = True
+        self.prosessing_thr.fs = 1000
         self.prosessing_thr.start()
         # self.prosessing_thr.fft_from_file_median(["6021_135_4.4_1.txt", "6021_135_4.4_2.txt",
         #                                           "6021_135_4.4_3.txt", "6021_135_4.4_4.txt",
