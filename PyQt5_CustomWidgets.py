@@ -8,7 +8,7 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 import pyqtgraph.exporters
 import pyqtgraph as pg
 import numpy as np
-from openpyxl import load_workbook
+from openpyxl import load_workbook  # лучше использовать Pandas, наверняка работает быстрее
 import os
 import sys
 
@@ -106,7 +106,7 @@ class CustomViewBox(pg.ViewBox):
 
 
 class CustomTabWidget(QtWidgets.QTabWidget):
-    def __init__(self, fs=1000, GYRO_NUMBER=1, parent=None):
+    def __init__(self, fs=1000, GYRO_NUMBER=1, logger_name='', parent=None):
         # QtWidgets.QTabWidget.__init__(self)
         super(CustomTabWidget, self).__init__(parent)
         # QtWidgets.QWidget.__init__(self, parent)
@@ -163,7 +163,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.amp_plot_list: list[pg.PlotWidget] = []
         self.tab_widget_page_list: list[QtWidgets.QWidget] = []
 
-        self.logger = logging.getLogger('main')
+        self.logger = logging.getLogger(logger_name)
         self.spectrum_button.clicked.connect(self.switch_plot_x_axis)
 # -----------------------------------------------------------------------------
         self.groupbox = QtWidgets.QGroupBox(' Сохранение в .xlsx',
@@ -171,15 +171,23 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.median_plot_groupbox_layout = QtWidgets.QGroupBox(
             'Содержимое файла', maximumWidth=315, minimumWidth=215)
         self.median_plot_groupbox_layout = QtWidgets.QGridLayout(spacing=10)
+        # self.median_plot_groupbox_layout.setRowStretch(9, 1)
+        # self.median_plot_groupbox_layout.setRowStretch(4, 0)
+        # self.median_plot_groupbox_layout.setRowStretch(2, 0)
+        # self.median_plot_groupbox_layout.setRowStretch(3, 0)
+        # self.median_plot_groupbox_layout.setRowStretch(1, 0)
+        # self.median_plot_groupbox_layout.setRowStretch(0, 0)
+        # self.median_plot_groupbox_layout.setSpacing(0)
+        # self.median_plot_groupbox_layout.setContentsMargins(0, 0, 0, 0)
         self.groupbox.setLayout(self.median_plot_groupbox_layout)
 
         self.Q_label = QtWidgets.QLineEdit('Q=')
         self.f_r_label = QtWidgets.QLineEdit('f_r=')
         self.f_r_label = QtWidgets.QLineEdit()
         # self.layout.addWidget(self.Q_label)
-        self.test_combo_box = QtWidgets.QComboBox(editable=True)
+        self.projects_combo_box = QtWidgets.QComboBox(editable=True)
         # QToolButton # есть wordWrap
-        self.test_combo_box.lineEdit().setReadOnly(True)
+        self.projects_combo_box.lineEdit().setReadOnly(True)
 
         # if self.dict:
         #     self.test_combo_box.addItems(self.dict.keys())
@@ -187,7 +195,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         #         self.test_combo_box.setItemData(
         #             i, self.dict.get(self.test_combo_box.itemText(i)),
         #             QtCore.Qt.ItemDataRole.ToolTipRole)
-        self.median_plot_groupbox_layout.addWidget(self.test_combo_box, 0, 0, 1, 3)
+        self.median_plot_groupbox_layout.addWidget(self.projects_combo_box, 0, 0, 1, 3)
         # self.test_combo_box.currentTextChanged.connect(self.text_)
         # self.test_combo_box.currentIndexChanged.connect(self.ind)
 
@@ -313,6 +321,9 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.proxy = pg.SignalProxy(
             self.amp_plot_list[-1].scene().sigMouseMoved, delay=0.15,
             rateLimit=15, slot=self.update_crosshair)
+        # self.proxy = pg.SignalProxy(
+            # self.phase_plot_list[-1].scene().sigMouseMoved, delay=0.15,
+            # rateLimit=15, slot=self.update_crosshair) ####################
         self.mouse_x = None
         self.mouse_y = None
         # # self.plot_fft(True)
@@ -340,34 +351,29 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                 print(filename)
 
     def del_xlsx(self):
-        self.dict.pop(self.test_combo_box.currentText(), None)
-        self.test_combo_box.removeItem(self.test_combo_box.currentIndex())
+        self.dict.pop(self.projects_combo_box.currentText(), None)
+        self.projects_combo_box.removeItem(self.projects_combo_box.currentIndex())
 
     def add_xlsx(self):  # можно и del_xlsx сюда впихнуть
-        if self.sender().objectName() == 'change' and not self.test_combo_box.count():
+        if self.sender().objectName() == 'change' and not self.projects_combo_box.count():
             return
         if self.sender().objectName() == 'change':
-            self.dlg.path.setText(self.dict[self.test_combo_box.currentText()])
-            self.dlg.name.setText(self.test_combo_box.currentText())
+            self.dlg.path.setText(self.dict[self.projects_combo_box.currentText()])
+            self.dlg.name.setText(self.projects_combo_box.currentText())
         if self.dlg.exec():
             # self.logger.warning("Success!")
             if self.sender().objectName() == 'add':
-                self.test_combo_box.insertItem(0, self.dlg.name.text())
-                self.test_combo_box.setCurrentIndex(0)
+                self.projects_combo_box.insertItem(0, self.dlg.name.text())
+                self.projects_combo_box.setCurrentIndex(0)
             if self.sender().objectName() == 'change':
-                self.dict.pop(self.test_combo_box.currentText(), None)
+                self.dict.pop(self.projects_combo_box.currentText(), None)
             self.dict[self.dlg.name.text()] = self.dlg.path.text()
-            self.test_combo_box.setCurrentText(self.dlg.name.text())
-            self.test_combo_box.setItemText(self.test_combo_box.currentIndex(),
+            self.projects_combo_box.setCurrentText(self.dlg.name.text())
+            self.projects_combo_box.setItemText(self.projects_combo_box.currentIndex(),
                                             self.dlg.name.text())
-            self.test_combo_box.setItemData(self.test_combo_box.currentIndex(),
+            self.projects_combo_box.setItemData(self.projects_combo_box.currentIndex(),
                                             self.dict[self.dlg.name.text()],
                                             QtCore.Qt.ItemDataRole.ToolTipRole)
-            # print(self.dict)
-            # print(self.dict.keys())
-        # else:
-            # self.logger.warning("Cancel!")  
-        # print(dlg.close)
 
     # def get_new_item(self, flag):
         # self.test_combo_box.setCurrentText(self.dlg.name.text())
@@ -375,7 +381,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # print('close!')
  
     def write_xlsx(self):
-        self.currnt_xlsx_path = self.dict[self.test_combo_box.currentText()]
+        self.currnt_xlsx_path = self.dict[self.projects_combo_box.currentText()]
         self.currnt_xlsx_path = "test.xlsx"
         try:
             wb = load_workbook(self.currnt_xlsx_path)
@@ -409,12 +415,29 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                 self.mouse_y = self.infinite_line_y.setPos(self.y[index])
                 self.mouse_x = (self.x[index])
                 self.mouse_y = (self.y[index])
+        # else:
+        #     if self.phase_plot_list[-1].plotItem.sceneBoundingRect().contains(pos):
+        #         mousePoint = self.phase_plot_list[-1].plotItem.vb.mapSceneToView(pos)
+        #         mx = np.array(
+        #             [abs(float(i) - float(mousePoint.x())) for i in self.x])
+        #         index = mx.argmin()
+        #         if index >= 0 and index < len(self.x):
+        #             self.cursorlabel.setText(
+        #                     str((self.x[index], self.y[index])))
+        #             self.infinite_line_x.setPos(self.x[index])
+        #             self.infinite_line_y.setPos(self.y[index]) 
+        #             self.mouse_x = self.infinite_line_x.setPos(self.x[index])
+        #             self.mouse_y = self.infinite_line_y.setPos(self.y[index])
+        #             self.mouse_x = (self.x[index])
+        #             self.mouse_y = (self.y[index])
             
     def mousePressEvent(self, e):
-        if e.buttons() & QtCore.Qt.LeftButton & self.amp_plot_list[-1].underMouse():
+        if e.buttons() & QtCore.Qt.LeftButton & (self.amp_plot_list[-1].underMouse()): #| self.phase_plot_list[-1].underMouse()):
             # print(f'pressed {self.mouse_x, self.mouse_y}')
-            self.amp_info.setText(f'{self.mouse_y:.3f}')
-            self.freq_info.setText(f'{self.mouse_x:.3f}')
+            # self.amp_info.setText(f'{self.mouse_y:.3f}')
+            self.amp_info.setText(f'{self.mouse_y}')
+            self.freq_info.setText(f'{self.mouse_x}')
+            # self.freq_info.setText(f'{self.mouse_x:.3f}')
             # self.cursorlabel.setPos(self.mouse_x + 1, self.mouse_y + 1)
             # if self.mouse_x in self.x and self.mouse_y in self.y:
 # ----- plot change -----------------------------------------------------------
@@ -502,7 +525,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                 symbolSize=6, symbolBrush=self.COLOR_LIST[i]))
         self.amp_plot_list.append(pg.PlotWidget(plotItem=self.amp_plot_item))
         self.amp_plot_list[-1].getAxis('left').setWidth(60)
-        self.amp_plot_list[-1].setLimits(xMin=-5, xMax=int(self.fs*0.58), yMin=-0.1)
+        self.amp_plot_list[-1].setLimits(xMin=-5, xMax=int(self.fs*0.53), yMin=-0.1)
 
     def append_phase_plot(self):
         self.phase_plot_item = pg.PlotItem(viewBox=CustomViewBox(),
@@ -524,7 +547,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             pg.PlotWidget(plotItem=self.phase_plot_item))
         self.phase_plot_list[-1].getAxis('left').setWidth(60)
         self.phase_plot_list[-1].setLimits(
-            xMin=-5, xMax=int(self.fs*0.58), yMin=-380, yMax=20)
+            xMin=-5, xMax=int(self.fs*0.53), yMin=-380, yMax=20)
 
     @QtCore.pyqtSlot(str)
     def save_plot_image(self, path):
@@ -539,7 +562,6 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                 self.phase_plot_list[i].getPlotItem()).export(
                     path + f'_phase_plot_{i + 1}.png')
         # self.logger.info("Saving complite")
-
 
     def get_res_path(self, relative_path):
         """

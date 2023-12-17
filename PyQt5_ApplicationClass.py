@@ -3,7 +3,6 @@ import sys
 # from PyQt5.QtWidgets import QFileDialog # from PyQt5.QtCore import pyqtSignal, QThread, QIODevice
 import os
 import re
-# from pyqtgraph.Qt import QtCore, QtGui
 # from datetime import datetime # from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtSerialPort import QSerialPort, QSerialPortInfo
@@ -24,7 +23,6 @@ from time import time
 # pyinstaller --add-data "StyleSheets.css;." --add-data "icon_16.png;." --add-data "icon_24.png;." --add-data "icon_32.png;." --add-data "icon_48.png;." --windowed PyQt5_Application.py
 # pyinstaller --add-data "StyleSheets.css;." --onefile --windowed PyQt5_Application.py
 # -----------------------------------------------------------------------------
-#
 # -----------------------------------------------------------------------------
 
 
@@ -32,10 +30,10 @@ class AppWindow(QtWidgets.QWidget):
     def __init__(self, parent=None):
 
         QtWidgets.QWidget.__init__(self, parent)
-        QtWidgets.QApplication.setAttribute(
-            QtCore.Qt.ApplicationAttribute.
-            AA_UseStyleSheetPropagationInWidgetStyles,
-            True)  # наследование свойств оформления потомков от родителей
+        # QtWidgets.QApplication.setAttribute(
+            # QtCore.Qt.ApplicationAttribute.
+            # AA_UseStyleSheetPropagationInWidgetStyles,
+            # True)  # наследование свойств оформления потомков от родителей
 
 # ------ Init vars ------------------------------------------------------------
         self.PLOT_TIME_INTERVAL_SEC = 10
@@ -43,7 +41,6 @@ class AppWindow(QtWidgets.QWidget):
         self.READ_INTERVAL_MS = 100*2  #  125*2
         self.folder_name = os.getcwd() + '/'
         self.count: int = 0
-        # self.progress_bar_value = 0  #  ?
         self.progress_value = 0 # убрать?
         self.total_time: int = 0
         self.total_cycle_num: int = 1
@@ -52,6 +49,7 @@ class AppWindow(QtWidgets.QWidget):
         FILE_LOG_FLAG = True
         self.GYRO_NUMBER = 1
         self.filename_path_watcher = ""
+        LOGGER_NAME = 'main'
         self.Serial = QSerialPort(dataBits=QSerialPort.DataBits.Data8,
                                   stopBits=QSerialPort.StopBits.OneStop,
                                   parity=QSerialPort.Parity.NoParity)
@@ -68,7 +66,7 @@ class AppWindow(QtWidgets.QWidget):
         self.fs_watcher.fileChanged.connect(self.check_filename_and_get_data)
 # ------ Thread --------------------------------------------------------------
         self.prosessing_thr = PyQt5_Thread.MyThread(
-            gyro_number=self.GYRO_NUMBER)
+            gyro_number=self.GYRO_NUMBER, logger_name=LOGGER_NAME)
         self.prosessing_thr.package_num_signal.connect(self.plot_time_graph)
         self.prosessing_thr.fft_data_emit.connect(self.plot_fft)
         self.prosessing_thr.approximate_data_emit.connect(self.plot_fft_final)
@@ -227,7 +225,7 @@ class AppWindow(QtWidgets.QWidget):
 
         self.log_text_box = PyQt5_Logger.QTextEditLogger(
             self, file_log=FILE_LOG_FLAG)
-        self.logger = logging.getLogger('main')
+        self.logger = logging.getLogger(LOGGER_NAME)
 
         self.logs_groupbox_layout.addWidget(self.log_text_box.widget)
 
@@ -242,7 +240,7 @@ class AppWindow(QtWidgets.QWidget):
 # ------ plots ----------------------------------------------------------------
         """Plots in tab widget"""
         self.custom_tab_plot_widget = PyQt5_CustomWidgets.CustomTabWidget(
-            GYRO_NUMBER=1)  # !
+            GYRO_NUMBER=1, logger_name=LOGGER_NAME)  # !
 
 # ------ Others ------------------------------------------------------------
         # self.plot_groupbox = QtWidgets.QGroupBox('График', minimumWidth=395)
@@ -333,9 +331,17 @@ class AppWindow(QtWidgets.QWidget):
         # print(all(np.array([2, 0])))
         # print(all(np.array([2, 1])))
         # print(all([]))
-        arr = np.convolve([0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,1,1,1,1,1,0,0,0,0,1,1,1,0,1],
-                          [0.1, 0.15, 0.4, 0.15, 0.1],
-                          'same')
+        # arr = np.convolve([0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,1,1,1,1,1,0,0,0,0,1,1,1,0,1],
+        #                   [0.1, 0.15, 0.4, 0.15, 0.1],
+        #                   'same')
+        # print(re.split("_|.txt", "6021_135_4.4_1.txt"))
+        # print(list(filter(None, re.split("_|.txt", "6021_135_4.4_1.txt"))))
+        # fsddd = []
+        # # if any(fsddd):
+        # if (fsddd):
+        #     print(1)
+        # else:
+        #     print(2)
         # arr = np.round(arr)
         # print(arr)
         # start = np.where((arr[:-1] == 0) & (arr[1:] == 1))[0]
@@ -434,8 +440,8 @@ class AppWindow(QtWidgets.QWidget):
         self.logger.info(f"self.cycle_num = {self.total_cycle_num}")
         self.logger.warning("Start")
 
-        if self.Serial.read(5) is None:
-            self.logger.warning("No data from COM port!")
+        # if self.Serial.bytesAvailable() <= 14:
+            # self.logger.warning("No data from COM port!")
         self.Serial.clear()
         # self.timer_recieve.setInterval(0)
         # self.timer_sent_com.setInterval(0)
@@ -494,7 +500,7 @@ class AppWindow(QtWidgets.QWidget):
     def copy_variables_to_thread(self):
         self.prosessing_thr.rx = self.Serial.readAll().data()
         self.prosessing_thr.flag_recieve = True
-        self.prosessing_thr.count = self.count
+        self.prosessing_thr.count_fft_frame = self.count
         self.prosessing_thr.flag_pause = self.flag_sent
 
 # ------- Timer Sent ----------------------------------------------------------
@@ -506,7 +512,7 @@ class AppWindow(QtWidgets.QWidget):
         """
         if self.flag_sent:
             self.logger.info(f"count = {self.count}, num_rows={self.num_rows}")
-            if self.count >= self.num_rows:
+            if self.count >= self.num_rows:  # может, сделать конец цикла в середине паузы с помощью одиночного запуска таймера? (возможно, лучше для фурье)
                 if self.current_cylce < self.total_cycle_num:
                     self.cycle_end()
                 else:
@@ -834,11 +840,11 @@ class AppWindow(QtWidgets.QWidget):
             self.custom_tab_plot_widget.dict = self.settings.value('dict')
             # self.custom_tab_plot_widget.test_combo_box.addItems(self.custom_tab_plot_widget.dict.keys())
             if self.custom_tab_plot_widget.dict:
-                self.custom_tab_plot_widget.test_combo_box.addItems(self.custom_tab_plot_widget.dict.keys())
-                for i in range(self.custom_tab_plot_widget.test_combo_box.count()):
-                    self.custom_tab_plot_widget.test_combo_box.setItemData(
+                self.custom_tab_plot_widget.projects_combo_box.addItems(self.custom_tab_plot_widget.dict.keys())
+                for i in range(self.custom_tab_plot_widget.projects_combo_box.count()):
+                    self.custom_tab_plot_widget.projects_combo_box.setItemData(
                         i, self.custom_tab_plot_widget.dict.get(
-                            self.custom_tab_plot_widget.test_combo_box.itemText(i)),
+                            self.custom_tab_plot_widget.projects_combo_box.itemText(i)),
                         QtCore.Qt.ItemDataRole.ToolTipRole)
 
 # -----------------------------------------------------------------------------
