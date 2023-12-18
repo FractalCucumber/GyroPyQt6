@@ -38,15 +38,15 @@ class AppWindow(QtWidgets.QWidget):
 # ------ Init vars ------------------------------------------------------------
         self.PLOT_TIME_INTERVAL_SEC = 10
         self.PAUSE_INTERVAL_MS = 500
-        self.READ_INTERVAL_MS = 100*2  #  125*2
+        self.READ_INTERVAL_MS = 100 * 2  #  125*2
         self.folder_name = os.getcwd() + '/'
         self.count: int = 0
         self.progress_value = 0 # убрать?
         self.total_time: int = 0
         self.total_cycle_num: int = 1
         self.current_cylce: int = 0
-        STYLE_SHEETS_FILENAME = 'StyleSheets.css'
-        FILE_LOG_FLAG = True
+        STYLE_SHEETS_FILENAME = 'res\StyleSheets.css'
+        FILE_LOG_FLAG = False  # ! True
         self.GYRO_NUMBER = 1
         self.filename_path_watcher = ""
         LOGGER_NAME = 'main'
@@ -60,17 +60,25 @@ class AppWindow(QtWidgets.QWidget):
         self.timer_sent_com = QtCore.QTimer(
             timerType=QtCore.Qt.TimerType.PreciseTimer)
         self.timer_sent_com.timeout.connect(self.timer_event_sent_com)
-# ------ File watcher --------------------------------------------------------
+# ------ File watcher ---------------------------------------------------------
         self.fs_watcher = QtCore.QFileSystemWatcher()
         # self.fs_watcher.directoryChanged.connect(self.directory_changed)
         self.fs_watcher.fileChanged.connect(self.check_filename_and_get_data)
-# ------ Thread --------------------------------------------------------------
+# ------ Thread ---------------------------------------------------------------
         self.prosessing_thr = PyQt5_Thread.MyThread(
             gyro_number=self.GYRO_NUMBER, logger_name=LOGGER_NAME)
         self.prosessing_thr.package_num_signal.connect(self.plot_time_graph)
         self.prosessing_thr.fft_data_emit.connect(self.plot_fft)
         self.prosessing_thr.approximate_data_emit.connect(self.plot_fft_final)
-
+        self.logger = logging.getLogger(LOGGER_NAME)
+        self.prosessing_thr.warning_emit.connect(
+            lambda text: self.logger.warning(text))
+        # self.custom_tab_plot_widget.filenames_list_emit.connect( 
+        self.custom_tab_plot_widget.warning_emit.connect(
+            lambda text: self.logger.warning(text)) 
+# ------ Plots in tab widget --------------------------------------------------
+        self.custom_tab_plot_widget = PyQt5_CustomWidgets.CustomTabWidget(
+            GYRO_NUMBER=1, logger_name=LOGGER_NAME)  # !
 # ------ GUI ------------------------------------------------------------------
         self.main_grid_layout = QtWidgets.QGridLayout(self)
 # ------ Com Settings ---------------------------------------------------------
@@ -225,7 +233,6 @@ class AppWindow(QtWidgets.QWidget):
 
         self.log_text_box = PyQt5_Logger.QTextEditLogger(
             self, file_log=FILE_LOG_FLAG)
-        self.logger = logging.getLogger(LOGGER_NAME)
 
         self.logs_groupbox_layout.addWidget(self.log_text_box.widget)
 
@@ -236,11 +243,6 @@ class AppWindow(QtWidgets.QWidget):
             'Старт', objectName="start_button")  # START
         self.stop_button = QtWidgets.QPushButton(
             'Стоп', enabled=False, objectName="stop_button")  # STOP
-
-# ------ plots ----------------------------------------------------------------
-        """Plots in tab widget"""
-        self.custom_tab_plot_widget = PyQt5_CustomWidgets.CustomTabWidget(
-            GYRO_NUMBER=1, logger_name=LOGGER_NAME)  # !
 
 # ------ Others ------------------------------------------------------------
         # self.plot_groupbox = QtWidgets.QGroupBox('График', minimumWidth=395)
@@ -303,7 +305,7 @@ class AppWindow(QtWidgets.QWidget):
             self.setStyleSheet(style_sheets.read())
         app_icon = QtGui.QIcon()
         for i in [16, 24, 32, 48]:
-            app_icon.addFile(self.get_res_path(f'icon_{i}.png'), QtCore.QSize(i, i))
+            app_icon.addFile(self.get_res_path(f'res\icon_{i}.png'), QtCore.QSize(i, i))
         QtWidgets.QApplication.setWindowIcon(app_icon)
 
 # ------ Set settings --------------------------------------------------------------------------
@@ -366,6 +368,16 @@ class AppWindow(QtWidgets.QWidget):
         # self.plot_fft_final(True)
         # self.check_filename()
         # self.prosessing_thr.fft_for_file('', 1000)
+        # print(list(filter(None, re.split("_|_|_|.|\n", "6021_135_4.4_1.txt"))))  D:\Gyro2023_Git
+        # f = list(filter(None, re.split("//", "D:\Gyro2023_Git\ddddd_3242_444")))
+        # print(f)
+        # print(list(filter(None, re.split("_", f[-1])))[0])
+        self.custom_tab_plot_widget.plot_fft_median(
+            np.array([[1, 2, 4, 3], [1, 2, 4, 3], [1, 2, 4, 3], [1, 2, 4, 3]]), [], '')
+        
+        # from pandas import read_csv
+        # time_data = np.array(read_csv("//fs/Projects/АФЧХ/6231/6231_165_7_2.txt", delimiter='\t',
+                                    #   dtype=np.int32, header=None))
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
 #
@@ -378,9 +390,59 @@ class AppWindow(QtWidgets.QWidget):
     @QtCore.pyqtSlot()
     def start(self):
         self.check_filename()
-        self.prosessing_thr.flag = True
+
+        # path = 'sencors_nums.txt'
+        # with open(path, 'r') as sensor_list:
+        #     for sensor_number in sensor_list:
+        #         # print(sensor_number)
+        #         check = list(filter(None, re.split("\.|\n", sensor_number)))
+        #         # print(check)
+        #         if len(check[-1]) < 3:
+        #             sensor_number_ = check[-2] + "." + check[-1]
+        #         if len(check[-1]) == 4:
+        #             sensor_number_ = check[-1]
+        #         # print(f"sensor name {sensor_number_}")
+        #         mypath = '//fs/Projects/АФЧХ/' + sensor_number_
+        #         self.logger.info(f"path: {mypath}")
+        #         onlyfiles = [f for f in os.listdir(mypath) if os.path.isfile(os.path.join(mypath, f))]
+        #         name_list = []
+        #         for file in onlyfiles:
+        #             string = list(filter(None, re.split("_|_|.txt", file)))
+        #             # print(re.split("_|.|", "6021_135_4.4_1.txt"))
+        #             # print(file, string)
+        #             if len(string) == 4 and string[1] != 'fresh':
+        #                 name_list.append(file)
+        #                 last_str = string
+        #         self.logger.info(f"list: {name_list}")
+
+        #         while self.prosessing_thr.isRunning():
+        #             pass
+        #         self.prosessing_thr.fs = 1000
+        #         name = self.folder_name + last_str[0] + '_' + last_str[1] + '_' +  last_str[2] + f'%_{len(name_list)}%.txt_FRQ_AMP_dPh_{self.prosessing_thr.fs}Hz'
+        #         # print(last_str)
+        #         # print(name)
+        #         # name = self.folder_name + name
+        #         self.prosessing_thr.flag = True
+        #         self.prosessing_thr.name = name
+        #         self.prosessing_thr.name_list = name_list
         self.prosessing_thr.fs = 1000
+        if len(self.custom_tab_plot_widget.filenames):
+            self.prosessing_thr.flag_by_name = True
+            self.prosessing_thr.name_list = self.custom_tab_plot_widget.filenames
+        if False:
+            self.prosessing_thr.folder = self.folder_name
+            self.prosessing_thr.flag_all = True
         self.prosessing_thr.start()
+
+        # self.name_list = ["6021_135_4.4_1.txt", "6021_135_4.4_2.txt",
+        #                   "6021_135_4.4_3.txt", "6021_135_4.4_4.txt",
+        #                                "6021_135_4.4_5.txt", "6021_135_4.4_6.txt",
+        #                                "6021_135_4.4_7.txt", "6021_135_4.4_8.txt",
+        #                                "6021_135_4.4_9.txt", "6021_135_4.4_10.txt"]
+        # self.prosessing_thr.flag = True
+        # self.prosessing_thr.name = name
+        # self.prosessing_thr.fs = 1000
+        # self.prosessing_thr.start()
         # self.prosessing_thr.fft_from_file_median(["6021_135_4.4_1.txt", "6021_135_4.4_2.txt",
         #                                           "6021_135_4.4_3.txt", "6021_135_4.4_4.txt",
         #                                           "6021_135_4.4_5.txt", "6021_135_4.4_6.txt",
@@ -612,13 +674,15 @@ class AppWindow(QtWidgets.QWidget):
             self.prosessing_thr.bourder)
         self.logger.info("plot_fft")
 
-    @QtCore.pyqtSlot(bool)
-    def plot_fft_final(self, _):
+    # @QtCore.pyqtSlot(str)
+    def plot_fft_final(self, name):
         self.logger.info("Final median plot")
-        self.custom_tab_plot_widget.plot_fft_median(
+        # self.custom_tab_plot_widget.plot_fft_median(
+        self.custom_tab_plot_widget.plot_fft_median2(
             self.prosessing_thr.amp_and_freq,
             np.array([]),
-            re.split("_", self.file_name_line_edit.text())[0])
+            name)
+            # re.split("_", self.file_name_line_edit.text())[0])
 
     @QtCore.pyqtSlot()
     def save_image(self):

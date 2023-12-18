@@ -19,7 +19,7 @@ class CustomDialog(QtWidgets.QDialog):
 
     def __init__(self):
         super().__init__()
-        STYLE_SHEETS_FILENAME = 'StyleSheets2.css'
+        STYLE_SHEETS_FILENAME = 'res\StyleSheets2.css'
         with open(self.get_res_path(STYLE_SHEETS_FILENAME), "r") as style_sheets:
             self.setStyleSheet(style_sheets.read())
         self.setMaximumSize(500, 300)
@@ -106,6 +106,8 @@ class CustomViewBox(pg.ViewBox):
 
 
 class CustomTabWidget(QtWidgets.QTabWidget):
+    warning_emit = QtCore.pyqtSignal(str)
+
     def __init__(self, fs=1000, GYRO_NUMBER=1, logger_name='', parent=None):
         # QtWidgets.QTabWidget.__init__(self)
         super(CustomTabWidget, self).__init__(parent)
@@ -251,9 +253,9 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 
         self.infinite_line_x = pg.InfiniteLine(angle=90, movable=False)
         self.infinite_line_y = pg.InfiniteLine(angle=0, movable=False)
-        self.cursorlabel = pg.TextItem()
-        self.cursorlabel.setPos(1, 0.9)
-        self.cursor = QtCore.Qt.CrossCursor # was
+        # self.cursorlabel = pg.TextItem()   #######################
+        # self.cursorlabel.setPos(1, 0.9)#############################
+        # self.cursor = QtCore.Qt.CrossCursor # was############################
 
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
@@ -282,8 +284,16 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.region.setRegion([frame[0]/fs, frame[1]/fs])
 
 # ------ FFT median plot ------------------------------------------------------------------
+    def plot_fft_median2(self, freq_data: np.ndarray, special_points: np.ndarray, folder: str):
+        self.name_info.setText(folder)
+        for i in range(self.GYRO_NUMBER):
+            self.amp_curves[-1 - i].setData(freq_data[:, -4],
+                                        freq_data[:, -3])
+            self.phase_curves[-1 - i].setData(freq_data[:, -4],
+                                        freq_data[:, -2])
+        self.amp_plot_list[-1].autoRange()
 
-    def plot_fft_median(self, freq_data: np.ndarray, special_points: np.ndarray, folder):
+    def plot_fft_median(self, freq_data: np.ndarray, special_points: np.ndarray, folder: str):
         self.logger.info("Final median plot")
         # self.append_fft_plot_tab()
         self.last_tab_layout = QtWidgets.QGridLayout(spacing=0)
@@ -311,16 +321,17 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # self.amp_curves[-1].setData(self.x, self.y)
         # self.plot_2d_scatter(self.time_plot, self.x, self.y)
         # self.cursor = Qt.BlankCursor
-        self.amp_plot_list[-1].setCursor(self.cursor)  # self.cursor
+        # self.amp_plot_list[-1].setCursor(self.cursor)  # self.cursor ##########################
 
         # Add lines
-        self.amp_plot_list[-1].addItem(self.infinite_line_x, ignoreBounds=True)
-        self.amp_plot_list[-1].addItem(self.infinite_line_y, ignoreBounds=True)
+        # self.amp_plot_list[-1].addItem(self.infinite_line_x, ignoreBounds=True)
+        # self.amp_plot_list[-1].addItem(self.infinite_line_y, ignoreBounds=True)
     
-        self.amp_plot_list[-1].addItem(self.cursorlabel)
-        self.proxy = pg.SignalProxy(
-            self.amp_plot_list[-1].scene().sigMouseMoved, delay=0.15,
-            rateLimit=15, slot=self.update_crosshair)
+        # self.amp_plot_list[-1].addItem(self.cursorlabel)#################################
+        # self.proxy = pg.SignalProxy(
+        #     self.amp_plot_list[-1].scene().sigMouseMoved, delay=0.15,##############################
+        #     rateLimit=15, slot=self.update_crosshair)
+
         # self.proxy = pg.SignalProxy(
             # self.phase_plot_list[-1].scene().sigMouseMoved, delay=0.15,
             # rateLimit=15, slot=self.update_crosshair) ####################
@@ -348,7 +359,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             # "All Files (*);;Python Files (*.py);;Text Files (*.txt)")
         if self.filenames:
             for filename in self.filenames:
-                print(filename)
+                # print(filename)
+                pass
 
     def del_xlsx(self):
         self.dict.pop(self.projects_combo_box.currentText(), None)
@@ -386,7 +398,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         try:
             wb = load_workbook(self.currnt_xlsx_path)
         except FileNotFoundError:
-            self.logger.warning("File not found!")
+            # self.logger.warning("File not found!")
+            self.warning_emit.emit("File not found!")
             return
         ws = wb['Лист1']  # or wb.active
         ws['F3'] = self.name_info.text()
@@ -396,7 +409,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         try:
             wb.save(self.currnt_xlsx_path)
         except IOError:
-            self.logger.warning("File was open! Close and try again")
+            # self.logger.warning("File was open! Close and try again")
+            self.warning_emit.emit("File was open! Close and try again")
 
     def update_crosshair(self, e):
         pos = e[0]
@@ -409,10 +423,10 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             if index >= 0 and index < len(self.x):
                 self.cursorlabel.setText(
                         str((self.x[index], self.y[index])))
-                self.infinite_line_x.setPos(self.x[index])
-                self.infinite_line_y.setPos(self.y[index]) 
-                self.mouse_x = self.infinite_line_x.setPos(self.x[index])
-                self.mouse_y = self.infinite_line_y.setPos(self.y[index])
+                # self.infinite_line_x.setPos(self.x[index])
+                # self.infinite_line_y.setPos(self.y[index]) 
+                # self.mouse_x = self.infinite_line_x.setPos(self.x[index])
+                # self.mouse_y = self.infinite_line_y.setPos(self.y[index])
                 self.mouse_x = (self.x[index])
                 self.mouse_y = (self.y[index])
         # else:
