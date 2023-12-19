@@ -21,7 +21,8 @@ class QTextEditLogger():
             logging.basicConfig(
                 filename='gyro_test_pyqt5_log.log',
                 filemode='w',
-                format=('#%(levelname)-s,\t%(pathname)s\tline %(lineno)d,\t[%(asctime)s]: %(message)s'),
+                format=('#%(levelname)-s,\t%(pathname)s:%(lineno)d,\t%(asctime)s, %(message)s'),
+                # format=('#%(levelname)-s,\t%(pathname)s,\tline %(lineno)d,\t[%(asctime)s]: %(message)s'),
                 level=logging.INFO)
         # file_handler = logging.FileHandler('pyqt6_log.log')
         # file_handler.setLevel(logging.INFO)

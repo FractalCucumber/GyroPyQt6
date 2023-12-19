@@ -37,7 +37,7 @@ class AppWindow(QtWidgets.QWidget):
 
 # ------ Init vars ------------------------------------------------------------
         self.PLOT_TIME_INTERVAL_SEC = 10
-        self.PAUSE_INTERVAL_MS = 500
+        self.PAUSE_INTERVAL_MS = 750
         self.READ_INTERVAL_MS = 100 * 2  #  125*2
         self.folder_name = os.getcwd() + '/'
         self.count: int = 0
@@ -46,7 +46,8 @@ class AppWindow(QtWidgets.QWidget):
         self.total_cycle_num: int = 1
         self.current_cylce: int = 0
         STYLE_SHEETS_FILENAME = 'res\StyleSheets.css'
-        FILE_LOG_FLAG = False  # ! True
+        # FILE_LOG_FLAG = False
+        FILE_LOG_FLAG = True
         self.GYRO_NUMBER = 1
         self.filename_path_watcher = ""
         LOGGER_NAME = 'main'
@@ -68,17 +69,21 @@ class AppWindow(QtWidgets.QWidget):
         self.prosessing_thr = PyQt5_Thread.MyThread(
             gyro_number=self.GYRO_NUMBER, logger_name=LOGGER_NAME)
         self.prosessing_thr.package_num_signal.connect(self.plot_time_graph)
-        self.prosessing_thr.fft_data_emit.connect(self.plot_fft)
-        self.prosessing_thr.approximate_data_emit.connect(self.plot_fft_final)
+        self.prosessing_thr.fft_data_signal.connect(self.plot_fft)
+        self.prosessing_thr.median_data_ready_signal.connect(
+            self.plot_fft_final)
         self.logger = logging.getLogger(LOGGER_NAME)
-        self.prosessing_thr.warning_emit.connect(
+        self.prosessing_thr.warning_signal.connect(
             lambda text: self.logger.warning(text))
         # self.custom_tab_plot_widget.filenames_list_emit.connect( 
-        self.custom_tab_plot_widget.warning_emit.connect(
-            lambda text: self.logger.warning(text)) 
 # ------ Plots in tab widget --------------------------------------------------
         self.custom_tab_plot_widget = PyQt5_CustomWidgets.CustomTabWidget(
             GYRO_NUMBER=1, logger_name=LOGGER_NAME)  # !
+        self.custom_tab_plot_widget.warning_signal.connect(
+            lambda text: self.logger.warning(text)) 
+        self.custom_tab_plot_widget.get_filename_signal.connect(
+            self.run_thread_for_file_prosessing
+        )
 # ------ GUI ------------------------------------------------------------------
         self.main_grid_layout = QtWidgets.QGridLayout(self)
 # ------ Com Settings ---------------------------------------------------------
@@ -114,6 +119,7 @@ class AppWindow(QtWidgets.QWidget):
             settings=self.settings,
             settings_name="fs_settings",
             default_items_list=['1000', '2000', '741'])
+        self.fs = int(self.fs_combo_box.currentText())
         self.com_param_groupbox_layout.addWidget(QtWidgets.QLabel('Fs, Hz:'),
                                                  2, 0, 1, 1)
         self.com_param_groupbox_layout.addWidget(self.fs_combo_box,
@@ -312,7 +318,7 @@ class AppWindow(QtWidgets.QWidget):
         self.load_previous_settings(self.settings)
 
 # ------ Signal Connect --------------------------------------------------------------------
-        self.start_button.clicked.connect(self.start)
+        self.start_button.clicked.connect(self.measurement_start)
         self.stop_button.clicked.connect(self.stop)
         self.choose_file.clicked.connect(self.choose_and_load_file)
         self.cycle_num_widget.valueChanged.connect(self.cycle_num_value_change)
@@ -330,50 +336,10 @@ class AppWindow(QtWidgets.QWidget):
         for i in range(self.GYRO_NUMBER + 1):
             self.check_box_list[i].stateChanged.connect(
                 self.custom_tab_plot_widget.change_curve_visibility)
-        # print(all(np.array([2, 0])))
-        # print(all(np.array([2, 1])))
-        # print(all([]))
-        # arr = np.convolve([0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,1,1,1,1,1,0,0,0,0,1,1,1,0,1],
-        #                   [0.1, 0.15, 0.4, 0.15, 0.1],
-        #                   'same')
-        # print(re.split("_|.txt", "6021_135_4.4_1.txt"))
-        # print(list(filter(None, re.split("_|.txt", "6021_135_4.4_1.txt"))))
-        # fsddd = []
-        # # if any(fsddd):
-        # if (fsddd):
-        #     print(1)
-        # else:
-        #     print(2)
-        # arr = np.round(arr)
-        # print(arr)
-        # start = np.where((arr[:-1] == 0) & (arr[1:] == 1))[0]
-        # end = np.where((arr[:-1] == 1) & (arr[1:] == 0))[0]
-        # print(np.where(arr == 0)[0])
-        # print(start)
-        # print(end)
-        # for i in range(max(len(start), len(end))):
-            # print(arr[start[i]+1:end[i]])
-
-        # print(self.prosessing_thr.custom_filter(5, 1))
-        # print(self.prosessing_thr.custom_filter(25, 0.1))
-        # print(self.prosessing_thr.custom_filter(35, 0.02))
-        # print(self.prosessing_thr.custom_filter(35, 0.01))
-        # arr = np.round(arr)
-        # # arr = arr - 0.5
-        # print(arr)
-        # print(np.unique(arr[0:3], return_index=True)[1])
         
-        # print(np.round(arr))
-        # self.fs = 500
-        # self.plot_fft_final(True)
-        # self.check_filename()
         # self.prosessing_thr.fft_for_file('', 1000)
         # print(list(filter(None, re.split("_|_|_|.|\n", "6021_135_4.4_1.txt"))))  D:\Gyro2023_Git
-        # f = list(filter(None, re.split("//", "D:\Gyro2023_Git\ddddd_3242_444")))
-        # print(f)
         # print(list(filter(None, re.split("_", f[-1])))[0])
-        self.custom_tab_plot_widget.plot_fft_median(
-            np.array([[1, 2, 4, 3], [1, 2, 4, 3], [1, 2, 4, 3], [1, 2, 4, 3]]), [], '')
         
         # from pandas import read_csv
         # time_data = np.array(read_csv("//fs/Projects/АФЧХ/6231/6231_165_7_2.txt", delimiter='\t',
@@ -387,71 +353,45 @@ class AppWindow(QtWidgets.QWidget):
 # ----------------------------------------------------------------------------------------------
 
 
-    @QtCore.pyqtSlot()
-    def start(self):
-        self.check_filename()
-
-        # path = 'sencors_nums.txt'
-        # with open(path, 'r') as sensor_list:
-        #     for sensor_number in sensor_list:
-        #         # print(sensor_number)
-        #         check = list(filter(None, re.split("\.|\n", sensor_number)))
-        #         # print(check)
-        #         if len(check[-1]) < 3:
-        #             sensor_number_ = check[-2] + "." + check[-1]
-        #         if len(check[-1]) == 4:
-        #             sensor_number_ = check[-1]
-        #         # print(f"sensor name {sensor_number_}")
-        #         mypath = '//fs/Projects/АФЧХ/' + sensor_number_
-        #         self.logger.info(f"path: {mypath}")
-        #         onlyfiles = [f for f in os.listdir(mypath) if os.path.isfile(os.path.join(mypath, f))]
-        #         name_list = []
-        #         for file in onlyfiles:
-        #             string = list(filter(None, re.split("_|_|.txt", file)))
-        #             # print(re.split("_|.|", "6021_135_4.4_1.txt"))
-        #             # print(file, string)
-        #             if len(string) == 4 and string[1] != 'fresh':
-        #                 name_list.append(file)
-        #                 last_str = string
-        #         self.logger.info(f"list: {name_list}")
-
-        #         while self.prosessing_thr.isRunning():
-        #             pass
-        #         self.prosessing_thr.fs = 1000
-        #         name = self.folder_name + last_str[0] + '_' + last_str[1] + '_' +  last_str[2] + f'%_{len(name_list)}%.txt_FRQ_AMP_dPh_{self.prosessing_thr.fs}Hz'
-        #         # print(last_str)
-        #         # print(name)
-        #         # name = self.folder_name + name
-        #         self.prosessing_thr.flag = True
-        #         self.prosessing_thr.name = name
-        #         self.prosessing_thr.name_list = name_list
-        self.prosessing_thr.fs = 1000
-        if len(self.custom_tab_plot_widget.filenames):
+    @QtCore.pyqtSlot(bool)
+    def run_thread_for_file_prosessing(self, _):
+        self.logger.info(f"files: {self.custom_tab_plot_widget.filenames_to_fft}")
+        if self.prosessing_thr.isRunning():
+            return
+        # self.prosessing_thr.TIMER_INTERVAL = self.READ_INTERVAL_MS
+        # self.prosessing_thr.num_measurement_rows = self.num_rows
+        # self.prosessing_thr.total_cycle_num = self.total_cycle_num
+        # self.prosessing_thr.fs = 1000
+        if len(self.custom_tab_plot_widget.filenames_to_fft):
+            self.custom_tab_plot_widget.clear_plots()
+            self.check_filename()
+            self.fs = int(self.fs_combo_box.currentText())
+            # Copy variables to another classes and start thread
+            self.custom_tab_plot_widget.fs = self.fs
+            self.prosessing_thr.fs = self.fs
+            self.prosessing_thr.folder = self.folder_name
             self.prosessing_thr.flag_by_name = True
-            self.prosessing_thr.name_list = self.custom_tab_plot_widget.filenames
+            # self.prosessing_thr.flag_all = True
+            self.prosessing_thr.filenames_to_fft = self.custom_tab_plot_widget.filenames_to_fft
+            self.prosessing_thr.start()
         if False:
+            path = 'sencors_nums.txt'
             self.prosessing_thr.folder = self.folder_name
             self.prosessing_thr.flag_all = True
-        self.prosessing_thr.start()
 
+    @QtCore.pyqtSlot()
+    def measurement_start(self):
         # self.name_list = ["6021_135_4.4_1.txt", "6021_135_4.4_2.txt",
         #                   "6021_135_4.4_3.txt", "6021_135_4.4_4.txt",
         #                                "6021_135_4.4_5.txt", "6021_135_4.4_6.txt",
         #                                "6021_135_4.4_7.txt", "6021_135_4.4_8.txt",
         #                                "6021_135_4.4_9.txt", "6021_135_4.4_10.txt"]
-        # self.prosessing_thr.flag = True
-        # self.prosessing_thr.name = name
-        # self.prosessing_thr.fs = 1000
-        # self.prosessing_thr.start()
         # self.prosessing_thr.fft_from_file_median(["6021_135_4.4_1.txt", "6021_135_4.4_2.txt",
         #                                           "6021_135_4.4_3.txt", "6021_135_4.4_4.txt",
         #                                           "6021_135_4.4_5.txt", "6021_135_4.4_6.txt",
         #                                           "6021_135_4.4_7.txt", "6021_135_4.4_8.txt",
         #                                           "6021_135_4.4_9.txt", "6021_135_4.4_10.txt"], 1000) 
-        # self.prosessing_thr.flag = False
-        # self.prosessing_thr.fft_from_file_median(["6021_135_4.4_5.txt", "6021_135_4.4_6.txt",
-                                                #   "6021_135_4.4_7.txt", "6021_135_4.4_8.txt"], 1000) 
-        return
+
         self.exp_package_num = 0
 
         self.progress_bar.setValue(0)
@@ -516,14 +456,14 @@ class AppWindow(QtWidgets.QWidget):
         # Copy variables to another classes and start thread
         self.custom_tab_plot_widget.fs = self.fs
         self.prosessing_thr.fs = self.fs
-        self.prosessing_thr.flag_start = True
+        self.prosessing_thr.flag_measurement_start = True
         self.prosessing_thr.TIMER_INTERVAL = self.READ_INTERVAL_MS
         self.prosessing_thr.num_measurement_rows = self.num_rows
         self.prosessing_thr.total_cycle_num = self.total_cycle_num
         self.prosessing_thr.start()
 
         self.custom_tab_plot_widget.clear_plots()
-
+        self.custom_tab_plot_widget.append_fft_plot_tab() 
 # ------ Timer Recieve --------------------------------------------------------
     @QtCore.pyqtSlot()
     def timer_read_event(self):
@@ -576,10 +516,12 @@ class AppWindow(QtWidgets.QWidget):
             self.logger.info(f"count = {self.count}, num_rows={self.num_rows}")
             if self.count >= self.num_rows:  # может, сделать конец цикла в середине паузы с помощью одиночного запуска таймера? (возможно, лучше для фурье)
                 if self.current_cylce < self.total_cycle_num:
-                    self.cycle_end()
+                    self.new_cycle_event()
+                    # self.flag_sent = False # double pause
+                    self.sent_stop_vibro_command()
                 else:
                     self.stop()
-                    return
+                return
         if self.flag_sent:
             self.sent_vibro_command()
         else:
@@ -608,7 +550,7 @@ class AppWindow(QtWidgets.QWidget):
         self.logger.info("- Command was sent -")
 
 # ----- End cycle, stop, etc --------------------------------------------------
-    def cycle_end(self):
+    def new_cycle_event(self):
         self.logger.warning(
             f"End of cycle {self.current_cylce} of {self.total_cycle_num}")
         self.current_cylce += 1
@@ -645,7 +587,7 @@ class AppWindow(QtWidgets.QWidget):
                         None, "Warning",
                         f"You set fs = {self.fs} Hz," +
                         f"but in fact it's close to {check} Hz")
-        self.prosessing_thr.flag_start = False
+        self.prosessing_thr.flag_measurement_start = False
 
 ###############################################################################
 # ----- plotting --------------------------------------------------------------
@@ -671,14 +613,14 @@ class AppWindow(QtWidgets.QWidget):
         """Adds points to frequency graphs"""
         self.custom_tab_plot_widget.set_fft_data(
             self.prosessing_thr.amp_and_freq_for_plot,
-            self.prosessing_thr.bourder)
+            self.prosessing_thr.bourder, self.fs)
         self.logger.info("plot_fft")
 
-    # @QtCore.pyqtSlot(str)
+    @QtCore.pyqtSlot(str)
     def plot_fft_final(self, name):
         self.logger.info("Final median plot")
         # self.custom_tab_plot_widget.plot_fft_median(
-        self.custom_tab_plot_widget.plot_fft_median2(
+        self.custom_tab_plot_widget.set_fft_median_data(
             self.prosessing_thr.amp_and_freq,
             np.array([]),
             name)
@@ -707,7 +649,8 @@ class AppWindow(QtWidgets.QWidget):
             self.total_cycle_num = self.cycle_num_widget.value()
             self.progress_bar.setMaximum(int(
                 self.total_cycle_num * (self.total_time +
-                 self.num_rows * self.PAUSE_INTERVAL_MS / 1000)))
+                 self.num_rows * self.PAUSE_INTERVAL_MS / 1000 +
+                 self.PAUSE_INTERVAL_MS / 1000)))
             # self.progress_bar.setValue(0)
 
     def set_avaliable_butttons(self, flag_running: bool):
@@ -737,6 +680,10 @@ class AppWindow(QtWidgets.QWidget):
             filename = self.folder_name + 'test'
         else:
             filename = self.folder_name + self.file_name_line_edit.text()
+
+        self.prosessing_thr.fft_filename = filename + \
+            f'%_{self.total_cycle_num}%.txt_FRQ_AMP_dPh_{self.fs}Hz.txt'
+
         extension = '.txt'
         if self.create_folder.isChecked():
             folder = re.split("_", self.file_name_line_edit.text())[0]
@@ -765,6 +712,7 @@ class AppWindow(QtWidgets.QWidget):
                 for j in range(self.GYRO_NUMBER):
                     new_name_list[j] = filename + f"_{j + 1}({i})" + extension
         self.prosessing_thr.filename = [filename, f"({i})" + extension]
+
         return True
 
     # def directory_changed(self, path):
@@ -780,12 +728,13 @@ class AppWindow(QtWidgets.QWidget):
         self.folder_name = temp + '/'
         self.saving_result_folder_label.setText(self.folder_name)
 
-    @QtCore.pyqtSlot()
+    @QtCore.pyqtSlot(str)
     def check_filename_and_get_data(self, path):
+        """Вызывается при изменении файла"""
         self.logger.info(
             f'File Changed, {path},' +
-            f'thr run: {self.prosessing_thr.flag_start}')
-        if not self.prosessing_thr.flag_start and os.path.exists(path):
+            f'thr run: {self.prosessing_thr.flag_measurement_start}')
+        if not self.prosessing_thr.flag_measurement_start and os.path.exists(path):
             self.get_data_from_file(path)
 
     def choose_and_load_file(self):
@@ -894,6 +843,8 @@ class AppWindow(QtWidgets.QWidget):
                 self.filename_and_path_widget.setText(name)
                 if self.get_data_from_file(name):
                     self.logger.warning("The previous file is loaded")
+                self.filename_path_watcher = self.filename_and_path_widget.toPlainText()  # os.path.basename(filename)
+                self.fs_watcher.addPath(self.filename_path_watcher)
         if settings.contains("current_folder"):
             if os.path.isdir(settings.value("current_folder")):
                 self.saving_result_folder_label.setText(
@@ -910,6 +861,7 @@ class AppWindow(QtWidgets.QWidget):
                         i, self.custom_tab_plot_widget.dict.get(
                             self.custom_tab_plot_widget.projects_combo_box.itemText(i)),
                         QtCore.Qt.ItemDataRole.ToolTipRole)
+
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
