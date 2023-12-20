@@ -338,7 +338,7 @@ class MyThread(QtCore.QThread):
             self.i = 0
             self.amp_and_freq_for_plot.resize(self.count_fft_frame, 4, refcheck=False)  # !!!!!!!!!!!!!!!!!!!!!!!!!
             self.logger.info(f"old bourders = {self.bourder}")
-            self.bourder = self.get_new_bourder(self.bourder)  # !!!!!!!!!!!!!!!!!!!!!!!!
+            self.bourder = self.get_new_bourder(self.bourder, self.fs)  # !!!!!!!!!!!!!!!!!!!!!!!!
             self.logger.info(f"\tnew bourders = {self.bourder}")
             if all(self.bourder):
                 [freq, amp, d_phase, tau] = self.fft_data(
@@ -478,9 +478,9 @@ class MyThread(QtCore.QThread):
         # # self.check_f_c() 
         # # name_part = ('' if self.GYRO_NUMBER == 1 else f"_{i + 1}")
 
-    def fft_for_file(self, filename: str, threshold: int = 6000):
-        # min_frame_len = 1.0 * self.fs  # сколько времени минимум длится вибрация + пауза, при 1 работало
-        min_frame_len = 1.5 * self.fs  # сколько времени минимум длится вибрация + пауза, при 1 работало
+    def fft_for_file(self, filename: str, threshold: int = 5500):
+        min_frame_len = 1.0 * self.fs  # сколько времени минимум длится вибрация + пауза, при 1 работало
+        # min_frame_len = 1.5 * self.fs  # сколько времени минимум длится вибрация + пауза, при 1 работало
         # очень важный параметр
 
         # при 1 Гц раз в 0.5 Fs появляются лишние начало и конец; сгладить сложно да и незачем
@@ -489,7 +489,7 @@ class MyThread(QtCore.QThread):
         # g_filter = self.custom_g_filter(len=59, k=0.0065) * 1.4
         # g_filter = self.custom_g_filter(len=47, k=0.0075) * 1.45
         # g_filter = self.custom_g_filter(len=255, k=0.00001) * 1.45
-        const_filter = (np.ones(275) / 275 * 1.5).astype(np.float32)
+        const_filter = (np.ones(281) / 281 * 1.5).astype(np.float32)
         g_filter = (self.custom_g_filter(len=25, k=0.0075) * 1).astype(np.float32)
         # print(g_filter)
         # print(self.custom_g_filter(len=25, k=0.0075))
@@ -529,7 +529,86 @@ class MyThread(QtCore.QThread):
         # start_arr = np.insert(start_arr, len(start_arr), st)
 
         end = np.where((self.bool_arr[:-1] >= 0.5) & (self.bool_arr[1:] < 0.5))[0]
-        # self.logger.info(f"\nstart= {start}\n end = {end}")
+        self.logger.info(f"\n111start= {start}\n end = {end}")
+
+        # self.bool_arr = np.greater(abs(time_data[:, 2-1]), threshold).astype(np.float32)  # self сделал, чтобы сохранять в конце
+        # self.bool_arr = np.convolve(self.bool_arr, (np.ones(400) / 400 * 1.5).astype(np.float32), 'same') # работает
+        # self.bool_arr = np.convolve(
+        #     self.bool_arr, g_filter, 'same') # 
+        # # arr = np.convolve(arr, self.custom_filter(75, 0.005)*1.55, 'same') # работает
+        # self.logger.info("3")
+        # start = np.where((self.bool_arr[:-1] <= 0.5) & (self.bool_arr[1:] > 0.5))[0]
+        # # start = np.where((arr[:-1] == 0) & (arr[1:] == 1))[0]
+        # # real_start = np.where(np.diff(start) > min_frame_len)[0]
+        # start_arr = np.where(np.diff(start) > min_frame_len)[0]
+        # # start_arr = np.insert(start[start_arr + 1], 0, start[0])
+        # # self.logger.info(f"\nstart qeweqwarr= {start_arr}")
+        # # st = start[start_arr[-1] + 1]
+        # start_arr = np.insert(start[start_arr + 1], 0, start[0])
+        # # start_arr = np.insert(start_arr, len(start_arr), st)
+
+        # end = np.where((self.bool_arr[:-1] >= 0.5) & (self.bool_arr[1:] < 0.5))[0]
+        # self.logger.info(f"\n400start= {start}\n end = {end}")
+
+        # self.bool_arr = np.greater(abs(time_data[:, 2-1]), threshold).astype(np.float32)  # self сделал, чтобы сохранять в конце
+        # self.bool_arr = np.convolve(self.bool_arr, (np.ones(350) / 350 * 1.5).astype(np.float32), 'same') # работает
+        # self.bool_arr = np.convolve(
+        #     self.bool_arr, g_filter, 'same') # 
+        # # arr = np.convolve(arr, self.custom_filter(75, 0.005)*1.55, 'same') # работает
+        # self.logger.info("3")
+        # start = np.where((self.bool_arr[:-1] <= 0.5) & (self.bool_arr[1:] > 0.5))[0]
+        # # start = np.where((arr[:-1] == 0) & (arr[1:] == 1))[0]
+        # # real_start = np.where(np.diff(start) > min_frame_len)[0]
+        # start_arr = np.where(np.diff(start) > min_frame_len)[0]
+        # # start_arr = np.insert(start[start_arr + 1], 0, start[0])
+        # # self.logger.info(f"\nstart qeweqwarr= {start_arr}")
+        # # st = start[start_arr[-1] + 1]
+        # start_arr = np.insert(start[start_arr + 1], 0, start[0])
+        # # start_arr = np.insert(start_arr, len(start_arr), st)
+
+        # end = np.where((self.bool_arr[:-1] >= 0.5) & (self.bool_arr[1:] < 0.5))[0]
+        # self.logger.info(f"\n350start= {start}\n end = {end}")
+
+        # self.bool_arr = np.greater(abs(time_data[:, 2-1]), threshold).astype(np.float32)  # self сделал, чтобы сохранять в конце
+        # self.bool_arr = np.convolve(self.bool_arr, (np.ones(350) / 350 * 1.5).astype(np.float32), 'same') # работает
+        # self.bool_arr = np.convolve(
+        #     self.bool_arr, g_filter, 'same') # 
+        # self.bool_arr = np.convolve(
+        #     self.bool_arr, g_filter, 'same') # 
+        # # arr = np.convolve(arr, self.custom_filter(75, 0.005)*1.55, 'same') # работает
+        # self.logger.info("3")
+        # start = np.where((self.bool_arr[:-1] <= 0.5) & (self.bool_arr[1:] > 0.5))[0]
+        # # start = np.where((arr[:-1] == 0) & (arr[1:] == 1))[0]
+        # # real_start = np.where(np.diff(start) > min_frame_len)[0]
+        # start_arr = np.where(np.diff(start) > min_frame_len)[0]
+        # # start_arr = np.insert(start[start_arr + 1], 0, start[0])
+        # # self.logger.info(f"\nstart qeweqwarr= {start_arr}")
+        # # st = start[start_arr[-1] + 1]
+        # start_arr = np.insert(start[start_arr + 1], 0, start[0])
+        # # start_arr = np.insert(start_arr, len(start_arr), st)
+
+        # end = np.where((self.bool_arr[:-1] >= 0.5) & (self.bool_arr[1:] < 0.5))[0]
+        # self.logger.info(f"\n350 x2 start= {start}\n end = {end}")
+
+        # self.bool_arr = np.greater(abs(time_data[:, 2-1]), threshold).astype(np.float32)  # self сделал, чтобы сохранять в конце
+        # self.bool_arr = np.convolve(self.bool_arr, const_filter, 'same') # работает
+        # self.bool_arr = np.convolve(
+        #     self.bool_arr, g_filter, 'same') # 
+        # # arr = np.convolve(arr, self.custom_filter(75, 0.005)*1.55, 'same') # работает
+        # self.logger.info("3")
+        # start = np.where((self.bool_arr[:-1] <= 0.5) & (self.bool_arr[1:] > 0.5))[0]
+        # # start = np.where((arr[:-1] == 0) & (arr[1:] == 1))[0]
+        # # real_start = np.where(np.diff(start) > min_frame_len)[0]
+        # start_arr = np.where(np.diff(start) > min_frame_len)[0]
+        # # start_arr = np.insert(start[start_arr + 1], 0, start[0])
+        # # self.logger.info(f"\nstart qeweqwarr= {start_arr}")
+        # # st = start[start_arr[-1] + 1]
+        # start_arr = np.insert(start[start_arr + 1], 0, start[0])
+        # # start_arr = np.insert(start_arr, len(start_arr), st)
+
+        # end = np.where((self.bool_arr[:-1] >= 0.5) & (self.bool_arr[1:] < 0.5))[0]
+        # self.logger.info(f"\n555start= {start}\n end = {end}")
+
         # end = np.where((arr[:-1] == 1) & (arr[1:] == 0))[0]
         # real_end = np.where(np.diff(end) > min_frame_len)[0]
         end_arr = np.where(np.diff(end) > min_frame_len)[0]
@@ -548,8 +627,8 @@ class MyThread(QtCore.QThread):
                 if start_arr[i] < end_arr[i - 1]:
                     ###self.logger.info(f"!!! start[{i}]={start_arr[i]}, end[{i}]={end_arr[i]}")
                     start_arr[i] = end_arr[i - 1]
-            self.logger.info(f"old bourders = {bourder}")
-            bourder = self.get_new_bourder([start_arr[i], end_arr[i]])
+            self.logger.info(f"old bourders = {start_arr[i], end_arr[i]}")
+            bourder = self.get_new_bourder([start_arr[i], end_arr[i]], self.fs)
             self.logger.info(f"\tnew bourders = {bourder}")
             self.amp_and_freq_for_plot.resize(i + 1, 4, refcheck=False)
             if all(bourder):
@@ -588,10 +667,10 @@ class MyThread(QtCore.QThread):
         return custom_filter
 
     @staticmethod
-    def get_new_bourder(self, bourder):
+    def get_new_bourder(bourder, fs):
         # bourder[0] = bourder[1] - ((bourder[1] - bourder[0]) // self.fs) * self.fs
-        bourder[1] = bourder[0] + ((bourder[1] - bourder[0]) // self.fs) * self.fs
-        if (bourder[1] - bourder[0]) < self.fs:
+        bourder[1] = bourder[0] + ((bourder[1] - bourder[0]) // fs) * fs
+        if (bourder[1] - bourder[0]) < fs:
             return [0, 0]
         # ###self.logger.info(f"before")
         return bourder
