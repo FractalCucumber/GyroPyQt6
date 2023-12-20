@@ -61,10 +61,11 @@ class MyThread(QtCore.QThread):
             file = os.path.basename(self.filenames_to_fft[0])
             last_str = list(filter(None, re.split("_|_|.txt", file)))
             if len(last_str) >= 3:
+                # переделать так, чтобы результат сохранялся в ту папку, из которой берется файл
                 self.fft_filename = self.folder + last_str[0] + '_' + last_str[1] + '_' +  last_str[2] + \
                     f'%_{len(self.filenames_to_fft)}%.txt_FRQ_AMP_dPh_{self.fs}Hz.txt'
             else:
-                self.fft_filename = file + \
+                self.fft_filename = self.folder + file + \
                     f'%_{len(self.filenames_to_fft)}%.txt_FRQ_AMP_dPh_{self.fs}Hz.txt'                
             self.fft_from_file_median(self.filenames_to_fft, self.fs)  #, self.fft_filename)
 
@@ -97,10 +98,12 @@ class MyThread(QtCore.QThread):
             if self.flag_recieve:
 ######################
                 self.logger.info("start matrix prosessing data frame")  
-                i = self.rx.find(0x72) + 1
-                bytes_arr = np.frombuffer(self.rx[i:], dtype=np.uint8)
-                start = np.where((bytes_arr[:-1] == 0x27) & (bytes_arr[1:] == 0x72))[0] + 2
-                start = np.insert(start, 0, 0)
+                # i = self.rx.find(0x72) + 1
+                # bytes_arr = np.frombuffer(self.rx[i:], dtype=np.uint8)
+                bytes_arr = np.frombuffer(self.rx, dtype=np.uint8)
+                start = np.where((bytes_arr[:-13] == 0x72) & (bytes_arr[13:] == 0x27))[0] + 1
+                # start = np.where((bytes_arr[:-1] == 0x27) & (bytes_arr[1:] == 0x72))[0] + 2
+                # start = np.insert(start, 0, 0)
                 expand = len(start)
                 start = start[np.where(np.diff(start) == 14)[0]]
                 array_r = np.zeros((expand, 4, 4), dtype=np.uint8)
@@ -218,7 +221,7 @@ class MyThread(QtCore.QThread):
                     self.filenames_to_fft.append(mypath + '/' + file)
                     last_str = string
             ###self.logger.info(f"list: {name_list}")
-
+            ## mypath + '/' добавлять это, чтобы сохранять в той же папке
             self.fft_filename = self.folder + last_str[0] + '_' + last_str[1] + '_' +  last_str[2] + \
                 f'%_{len(self.filenames_to_fft)}%.txt_FRQ_AMP_dPh_{self.fs}Hz.txt'
             # self.name = self.folder + last_str[0] + '_' + last_str[1] + '_' +  last_str[2] + f'%_{len(name_list)}%.txt_FRQ_AMP_dPh_{self.fs}Hz.txt'

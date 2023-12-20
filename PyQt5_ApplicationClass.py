@@ -369,7 +369,8 @@ class AppWindow(QtWidgets.QWidget):
             # Copy variables to another classes and start thread
             self.custom_tab_plot_widget.fs = self.fs
             self.prosessing_thr.fs = self.fs
-            self.prosessing_thr.folder = self.folder_name
+            # лучше, чтобы файл сохранялся в ту же папку, из которой его выбрали
+            # self.prosessing_thr.folder = self.folder_name  # chech_filename create
             self.prosessing_thr.flag_by_name = True
             # self.prosessing_thr.flag_all = True
             self.prosessing_thr.filenames_to_fft = self.custom_tab_plot_widget.filenames_to_fft
@@ -681,9 +682,6 @@ class AppWindow(QtWidgets.QWidget):
         else:
             filename = self.folder_name + self.file_name_line_edit.text()
 
-        self.prosessing_thr.fft_filename = filename + \
-            f'%_{self.total_cycle_num}%.txt_FRQ_AMP_dPh_{self.fs}Hz.txt'
-
         extension = '.txt'
         if self.create_folder.isChecked():
             folder = re.split("_", self.file_name_line_edit.text())[0]
@@ -691,6 +689,10 @@ class AppWindow(QtWidgets.QWidget):
                 os.mkdir(folder)
             filename = self.folder_name + folder + '/' + self.file_name_line_edit.text()
             self.saving_result_folder_label.setText(self.folder_name + folder + '/')
+
+        self.prosessing_thr.folder = self.folder_name + folder + '/'
+        self.prosessing_thr.fft_filename = filename + \
+            f'%_{self.total_cycle_num}%.txt_FRQ_AMP_dPh_{self.fs}Hz.txt'
 
         new_name_list: list[str] = []
         if self.GYRO_NUMBER == 1:
