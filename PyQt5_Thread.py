@@ -76,8 +76,8 @@ class MyThread(QtCore.QThread):
 
         if self.flag_measurement_start:
             self.package_num_list: list = [0]
-            self.total_num_rows = 0
-            self.package_num = 0
+            self.total_num_time_rows = 0  #
+            self.package_num = 1
             self.time_data = np.ndarray((self.SIZE_EXTENTION_STEP, 5),
                                         dtype=np.int32)
             self.time_data2 = np.ndarray((self.SIZE_EXTENTION_STEP, 5),
@@ -111,7 +111,7 @@ class MyThread(QtCore.QThread):
                     for j in range(3):
                         array_r[:, i, j] = bytes_arr[np.add(start, 3*i + j)]
                 self.time_data2.resize(self.package_num + expand, 5)
-                self.time_data2[self.package_num:, 0] = np.arange(0, expand) + self.package_num + 1
+                self.time_data2[self.package_num:, 0] = np.arange(self.package_num + 1, expand + self.package_num + 1)
                 self.time_data2[self.package_num:, 1:] = (np.einsum("ijk,jk->ij", array_r, powers) / 256)
                 # self.package_num += expand  
 ##############################
@@ -261,11 +261,11 @@ class MyThread(QtCore.QThread):
         self.logger.info("end saving fft file")
 
     def extend_array_size(self):
-        if self.package_num >= self.total_num_rows:
-            self.total_num_rows += self.SIZE_EXTENTION_STEP
+        if self.package_num >= self.total_num_time_rows:
+            self.total_num_time_rows += self.SIZE_EXTENTION_STEP
             # self.time_data = np.resize(
             #     self.time_data, (self.num_rows, 5))
-            self.time_data.resize(self.total_num_rows, 5)  # !!!!!
+            self.time_data.resize(self.total_num_time_rows, 5)  # !!!!!
         # self.num_rows = self.package_num + int(len(self.rx)/14) + 1
         # self.all_data = np.resize(
         #     self.all_data, (self.num_rows, 5))  # !!!!!
@@ -337,7 +337,9 @@ class MyThread(QtCore.QThread):
             self.bourder[1] = self.package_num  # frame end
             self.i = 0
             self.amp_and_freq_for_plot.resize(self.count_fft_frame, 4, refcheck=False)  # !!!!!!!!!!!!!!!!!!!!!!!!!
+            self.logger.info(f"old bourders = {self.bourder}")
             self.bourder = self.get_new_bourder(self.bourder)  # !!!!!!!!!!!!!!!!!!!!!!!!
+            self.logger.info(f"\tnew bourders = {self.bourder}")
             if all(self.bourder):
                 [freq, amp, d_phase, tau] = self.fft_data(
                     gyro=gyro[self.bourder[0]:self.bourder[1]],
@@ -413,7 +415,7 @@ class MyThread(QtCore.QThread):
             #     ###self.logger.info(f"amp 10 = {self.freq_w_c[1]}")
         # self.f_Q = f_max / abs(self.freq_w_c[1] - self.freq_w_c[0])
 
-    # @staticmethod
+    @staticmethod
     def point_on_line(self, x: list, y: list, y_point_to_find=0):
         k = (x[0] - x[1]) / (y[0] - y[1])
         b = y[0] - k * x[0]
@@ -546,7 +548,9 @@ class MyThread(QtCore.QThread):
                 if start_arr[i] < end_arr[i - 1]:
                     ###self.logger.info(f"!!! start[{i}]={start_arr[i]}, end[{i}]={end_arr[i]}")
                     start_arr[i] = end_arr[i - 1]
+            self.logger.info(f"old bourders = {bourder}")
             bourder = self.get_new_bourder([start_arr[i], end_arr[i]])
+            self.logger.info(f"\tnew bourders = {bourder}")
             self.amp_and_freq_for_plot.resize(i + 1, 4, refcheck=False)
             if all(bourder):
                 [freq, amp, d_phase, tau] = self.fft_data(
@@ -583,16 +587,16 @@ class MyThread(QtCore.QThread):
         custom_filter = custom_filter/np.sum(custom_filter)
         return custom_filter
 
+    @staticmethod
     def get_new_bourder(self, bourder):
         # bourder[0] = bourder[1] - ((bourder[1] - bourder[0]) // self.fs) * self.fs
-        self.logger.info(f"\old bourders = {bourder}")
         bourder[1] = bourder[0] + ((bourder[1] - bourder[0]) // self.fs) * self.fs
-        self.logger.info(f"\tnew bourders = {bourder}")
         if (bourder[1] - bourder[0]) < self.fs:
             return [0, 0]
         # ###self.logger.info(f"before")
         return bourder
 
+    # не могу сделать статическим из-за k_amp, можно просто вынести коэффициент
     def fft_data(self, gyro: np.ndarray, encoder: np.ndarray, fs: int):
         """
         Detailed explanation goes here:
@@ -626,6 +630,7 @@ class MyThread(QtCore.QThread):
         # ###self.logger.info(f"\tne {ne}, Me {Me}\tng {ng}, Mg {Mg}")
 
         d_phase = np.angle(Yg[ng], deg=False) - np.angle(Ye[ne], deg=False)
+        # deg=True ???
         amp = Mg/Me
         ###self.logger.info(
             ####f"FFt results\t\tamp {amp}\tfreq {freq}")
