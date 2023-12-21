@@ -39,7 +39,7 @@ class QTextEditLogger():
             ('>>> %(asctime)s %(message)s\n'), datefmt='%H:%M:%S'
         )
         log_window_handler = logging.Handler()
-        self.widget = QTextEdit(parent, readOnly=True)
+        self.widget = QTextEdit(parent, readOnly=True, objectName="logger")
         log_window_handler.emit = lambda record: self.widget.insertPlainText(
             log_window_handler.format(record)
         )

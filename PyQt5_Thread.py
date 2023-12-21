@@ -87,8 +87,9 @@ class MyThread(QtCore.QThread):
             self.flag_pause = True
             self.bourder = np.array([0, 0], dtype=np.uint32)
             # self.amp_and_freq_for_plot = np.array([])
-            self.amp_and_freq = np.resize(self.amp_and_freq,
-                                        (self.num_measurement_rows, 4 * (self.total_cycle_num + 1)))
+            self.amp_and_freq = np.resize(
+                self.amp_and_freq,
+                (self.num_measurement_rows, 4 * (self.total_cycle_num + 1)))
             self.amp_and_freq *= np.nan
         while self.flag_measurement_start or self.flag_recieve:
             if not self.flag_recieve:
@@ -100,7 +101,8 @@ class MyThread(QtCore.QThread):
                 # i = self.rx.find(0x72) + 1
                 # bytes_arr = np.frombuffer(self.rx[i:], dtype=np.uint8)
                 bytes_arr = np.frombuffer(self.rx, dtype=np.uint8)
-                start = np.where((bytes_arr[:-13] == 0x72) & (bytes_arr[13:] == 0x27))[0] + 1
+                start = np.where(
+                    (bytes_arr[:-13] == 0x72) & (bytes_arr[13:] == 0x27))[0] + 1
                 # start = np.where((bytes_arr[:-1] == 0x27) & (bytes_arr[1:] == 0x72))[0] + 2
                 # start = np.insert(start, 0, 0)
                 start = start[np.where(np.diff(start) == 14)[0]]
@@ -110,24 +112,19 @@ class MyThread(QtCore.QThread):
                     for j in range(3):
                         array_r[:, i, j] = bytes_arr[np.add(start, 3*i + j)]
                 # self.time_data2.resize(self.package_num + expand, 5)
-                self.time_data2.resize(self.package_num -1 + expand, 5)
-                self.time_data2[self.package_num-1:, 0] = np.arange(self.package_num, expand + self.package_num)
+                self.time_data2.resize(self.package_num - 1 + expand, 5)
+                self.time_data2[self.package_num - 1:, 0] = np.arange(
+                    self.package_num, expand + self.package_num)
                 # self.time_data2[self.package_num:, 0] = np.arange(self.package_num + 1, expand + self.package_num + 1)
                 # self.time_data2[self.package_num:, 1:] = (np.einsum("ijk,jk->ij", array_r, powers) / 256)
-                self.time_data2[self.package_num-1:, 1:] = (np.einsum("ijk,jk->ij", array_r, powers) / 256)
+                self.time_data2[self.package_num - 1:, 1:] = np.einsum(
+                    "ijk,jk->ij", array_r, powers) / 256
                 # self.package_num += expand
 ##############################
-                
-                self.logger.info("start")
-                self.logger.info(f"start prosessing data frame")
                 self.logger.info("start prosessing data frame")
                 i = self.rx.find(0x72)
                 ###self.logger.info(
                     ###f"thread_start, i = {i}, len rx = {len(self.rx)}")
-                # start = np.where((self.rx[:-1] == 0x72) & (self.rx[1:] == 0x27))[0]
-                # после нахождения всех нужных индексов блоками по 3 байта преобразовать массив в числа
-                # bytes_array = np.array([byte1, byte2, byte3], dtype=np.uint8)
-                # int_value = np.dot(bytes_array, 256 ** np.arange(len(bytes_array))[::-1])
                 while (i + 13) < len(self.rx):
                     if not (self.rx[i] == 0x72 and self.rx[i + 13] == 0x27):
                         ###self.logger.info(f"before i={i}, 0x72:{self.rx[i] == 0x72}, 0x27:{self.rx[i + 13] == 0x27}")
@@ -166,9 +163,8 @@ class MyThread(QtCore.QThread):
                           "_matrix_check_" + self.filename[1], header=None, index=None,
                           sep='\t', mode='w', date_format='%d')  ################################
                 # name_part = ('' if self.GYRO_NUMBER == 1 else f"_{i + 1}")
-                # # with open(self.filename[0] + name_part
-                #         #   + self.filename[1], 'w') as file:
-                #     # np.savetxt(file, self.time_data, delimiter='\t', fmt='%d')
+                #     # np.savetxt(self.filename[0] + name_part
+                #         #   + self.filename[1], self.time_data, delimiter='\t', fmt='%d')
                 # time_data_df = DataFrame(self.time_data)  # !!!!!!!!!!!!!!!!!!!!
                 # time_data_df.to_csv(self.filename[0] + name_part
                 #           + self.filename[1], header=None, index=None,
@@ -188,14 +184,9 @@ class MyThread(QtCore.QThread):
                 # else:
                 #     # self.check_f_c()  
                 #     name_part = ('' if self.GYRO_NUMBER == 1 else f"_{i + 1}")
-                #     # if self.GYRO_NUMBER == 1:
-                #     #     name_part = ''
-                #     # else:
-                #     #     name_part = f"_{i + 1}"
                 #     ###self.logger.info("save fft file")
-                #     with open(self.filename[0] + '_FFT' + name_part
-                #               + self.filename[1], 'w') as file:
-                #         np.savetxt(file, self.amp_and_freq,
+                #         np.savetxt(self.filename[0] + '_FFT' + name_part
+                #               + self.filename[1], self.amp_and_freq,
                 #                 delimiter='\t', fmt='%.3f')
                 # # self.approximate = np.array(self.fft_approximation(self.amp_and_freq))
 
@@ -481,13 +472,8 @@ class MyThread(QtCore.QThread):
                     (int(self.amp_and_freq_for_plot.size / 4),
                     4 * (self.total_cycle_num + 1)))
                 self.amp_and_freq *= np.nan
-            self.logger.info(f"total_cycle_num={self.total_cycle_num} " +
-                             f"cycle_count={self.cycle_count}")
             if self.cycle_count != self.total_cycle_num:
                 self.new_cycle()
-            self.logger.info(f"total_cycle_num={self.total_cycle_num} " +
-                             f"cycle_count={self.cycle_count}")
-        # print("????")
         # self.save_fft(0, name)  ## в конце run сохранение есть
         # self.fft_approximation()
         # # amp_max_i = np.argmax(self.amp_and_freq[:, -3])
@@ -502,22 +488,19 @@ class MyThread(QtCore.QThread):
         min_frame_len = 1.0 * self.fs  # сколько времени минимум длится вибрация + пауза, при 1 работало
         # min_frame_len = 1.5 * self.fs  # сколько времени минимум длится вибрация + пауза, при 1 работало
         # очень важный параметр
-
         # при 1 Гц раз в 0.5 Fs появляются лишние начало и конец; сгладить сложно да и незачем
         # g_filter = self.custom_g_filter(len=59, k=0.0065) * 1.49
-
         # g_filter = self.custom_g_filter(len=59, k=0.0065) * 1.4
         # g_filter = self.custom_g_filter(len=47, k=0.0075) * 1.45
         # g_filter = self.custom_g_filter(len=255, k=0.00001) * 1.45
-        const_filter = (np.ones(301) / 301 * 1.5).astype(np.float32)
+        filter_len = int(self.fs * 0.15) * 2 + 1
+        # const_filter = (np.ones(301) / 301 * 1.5).astype(np.float32)
+        const_filter = (np.ones(filter_len) / filter_len * 1.5).astype(np.float32)
         g_filter = (self.custom_g_filter(len=25, k=0.0075) * 1).astype(np.float32)
-        # print(g_filter)
         # print(self.custom_g_filter(len=25, k=0.0075))
-        # threshold = 6000  # работает # = 6200   # работает
         self.logger.info(f"start download")
         self.logger.info(filename)
         # пример чтения части столбцов (возможно, лучше делать так)
-        # print(np.arange(1, 5))
         time_data = np.array(read_csv(filename, delimiter='\t',
                                       dtype=np.int32, header=None,  #,
                                       keep_default_na=False,
@@ -529,10 +512,10 @@ class MyThread(QtCore.QThread):
         #                               keep_default_na=False,
         #                               na_filter=False))
         # self.logger.info(f"1, end download, file len {len(time_data)}")
-        self.bool_arr = np.greater(abs(time_data[:, 2-1]), threshold).astype(np.float32)  # self сделал, чтобы сохранять в конце
+        self.bool_arr = np.greater(
+            abs(time_data[:, 2-1]), threshold).astype(np.float32)  # self сделал, чтобы сохранять в конце
         ###self.logger.info("2")
         # arr = np.convolve(arr, self.custom_filter(45, 0.0075)*1.4, 'same')
-        # можно фильтр в int32 сделать
         self.bool_arr = np.convolve(self.bool_arr, const_filter, 'same') # работает
         self.bool_arr = np.convolve(
             self.bool_arr, g_filter, 'same') # 
@@ -546,102 +529,26 @@ class MyThread(QtCore.QThread):
         # start_arr = np.insert(start[start_arr + 1], 0, start[0])
         # self.logger.info(f"\nstart qeweqwarr= {start_arr}")
         # st = start[start_arr[-1] + 1]
-        start_arr = np.insert(start[start_arr + 1], 0, start[0])
+        start_arr = np.insert(
+            start[start_arr + 1], 0, start[0]) + int(0.015 * self.fs)
         # start_arr = np.insert(start_arr, len(start_arr), st)
 
         end = np.where(
             (self.bool_arr[:-1] >= 0.5) & (self.bool_arr[1:] < 0.5))[0]
-        self.logger.info(f"\n111start= {start}\n end = {end}")
-
-        # self.bool_arr = np.greater(abs(time_data[:, 2-1]), threshold).astype(np.float32)  # self сделал, чтобы сохранять в конце
-        # self.bool_arr = np.convolve(self.bool_arr, (np.ones(400) / 400 * 1.5).astype(np.float32), 'same') # работает
-        # self.bool_arr = np.convolve(
-        #     self.bool_arr, g_filter, 'same') # 
-        # # arr = np.convolve(arr, self.custom_filter(75, 0.005)*1.55, 'same') # работает
-        # self.logger.info("3")
-        # start = np.where((self.bool_arr[:-1] <= 0.5) & (self.bool_arr[1:] > 0.5))[0]
-        # # start = np.where((arr[:-1] == 0) & (arr[1:] == 1))[0]
-        # # real_start = np.where(np.diff(start) > min_frame_len)[0]
-        # start_arr = np.where(np.diff(start) > min_frame_len)[0]
-        # # start_arr = np.insert(start[start_arr + 1], 0, start[0])
-        # # self.logger.info(f"\nstart qeweqwarr= {start_arr}")
-        # # st = start[start_arr[-1] + 1]
-        # start_arr = np.insert(start[start_arr + 1], 0, start[0])
-        # # start_arr = np.insert(start_arr, len(start_arr), st)
-
-        # end = np.where((self.bool_arr[:-1] >= 0.5) & (self.bool_arr[1:] < 0.5))[0]
-        # self.logger.info(f"\n400start= {start}\n end = {end}")
-
-        # self.bool_arr = np.greater(abs(time_data[:, 2-1]), threshold).astype(np.float32)  # self сделал, чтобы сохранять в конце
-        # self.bool_arr = np.convolve(self.bool_arr, (np.ones(350) / 350 * 1.5).astype(np.float32), 'same') # работает
-        # self.bool_arr = np.convolve(
-        #     self.bool_arr, g_filter, 'same') # 
-        # # arr = np.convolve(arr, self.custom_filter(75, 0.005)*1.55, 'same') # работает
-        # self.logger.info("3")
-        # start = np.where((self.bool_arr[:-1] <= 0.5) & (self.bool_arr[1:] > 0.5))[0]
-        # # start = np.where((arr[:-1] == 0) & (arr[1:] == 1))[0]
-        # # real_start = np.where(np.diff(start) > min_frame_len)[0]
-        # start_arr = np.where(np.diff(start) > min_frame_len)[0]
-        # # start_arr = np.insert(start[start_arr + 1], 0, start[0])
-        # # self.logger.info(f"\nstart qeweqwarr= {start_arr}")
-        # # st = start[start_arr[-1] + 1]
-        # start_arr = np.insert(start[start_arr + 1], 0, start[0])
-        # # start_arr = np.insert(start_arr, len(start_arr), st)
-
-        # end = np.where((self.bool_arr[:-1] >= 0.5) & (self.bool_arr[1:] < 0.5))[0]
-        # self.logger.info(f"\n350start= {start}\n end = {end}")
-
-        # self.bool_arr = np.greater(abs(time_data[:, 2-1]), threshold).astype(np.float32)  # self сделал, чтобы сохранять в конце
-        # self.bool_arr = np.convolve(self.bool_arr, (np.ones(350) / 350 * 1.5).astype(np.float32), 'same') # работает
-        # self.bool_arr = np.convolve(
-        #     self.bool_arr, g_filter, 'same') # 
-        # self.bool_arr = np.convolve(
-        #     self.bool_arr, g_filter, 'same') # 
-        # # arr = np.convolve(arr, self.custom_filter(75, 0.005)*1.55, 'same') # работает
-        # self.logger.info("3")
-        # start = np.where((self.bool_arr[:-1] <= 0.5) & (self.bool_arr[1:] > 0.5))[0]
-        # # start = np.where((arr[:-1] == 0) & (arr[1:] == 1))[0]
-        # # real_start = np.where(np.diff(start) > min_frame_len)[0]
-        # start_arr = np.where(np.diff(start) > min_frame_len)[0]
-        # # start_arr = np.insert(start[start_arr + 1], 0, start[0])
-        # # self.logger.info(f"\nstart qeweqwarr= {start_arr}")
-        # # st = start[start_arr[-1] + 1]
-        # start_arr = np.insert(start[start_arr + 1], 0, start[0])
-        # # start_arr = np.insert(start_arr, len(start_arr), st)
-
-        # end = np.where((self.bool_arr[:-1] >= 0.5) & (self.bool_arr[1:] < 0.5))[0]
-        # self.logger.info(f"\n350 x2 start= {start}\n end = {end}")
-
-        # self.bool_arr = np.greater(abs(time_data[:, 2-1]), threshold).astype(np.float32)  # self сделал, чтобы сохранять в конце
-        # self.bool_arr = np.convolve(self.bool_arr, const_filter, 'same') # работает
-        # self.bool_arr = np.convolve(
-        #     self.bool_arr, g_filter, 'same') # 
-        # # arr = np.convolve(arr, self.custom_filter(75, 0.005)*1.55, 'same') # работает
-        # self.logger.info("3")
-        # start = np.where((self.bool_arr[:-1] <= 0.5) & (self.bool_arr[1:] > 0.5))[0]
-        # # start = np.where((arr[:-1] == 0) & (arr[1:] == 1))[0]
-        # # real_start = np.where(np.diff(start) > min_frame_len)[0]
-        # start_arr = np.where(np.diff(start) > min_frame_len)[0]
-        # # start_arr = np.insert(start[start_arr + 1], 0, start[0])
-        # # self.logger.info(f"\nstart qeweqwarr= {start_arr}")
-        # # st = start[start_arr[-1] + 1]
-        # start_arr = np.insert(start[start_arr + 1], 0, start[0])
-        # # start_arr = np.insert(start_arr, len(start_arr), st)
-
-        # end = np.where((self.bool_arr[:-1] >= 0.5) & (self.bool_arr[1:] < 0.5))[0]
-        # self.logger.info(f"\n555start= {start}\n end = {end}")
+        self.logger.info(f"\nstart= {start}\n end = {end}")
 
         # end = np.where((arr[:-1] == 1) & (arr[1:] == 0))[0]
         # real_end = np.where(np.diff(end) > min_frame_len)[0]
         end_arr = np.where(np.diff(end) > min_frame_len)[0]
         # self.logger.info(f"\nd start= {np.diff(start)}\nd  end = {np.diff(end)}")
-        end_arr = np.insert(end[end_arr], len(end[end_arr]), end[-1])
+        end_arr = np.insert(
+            end[end_arr], len(end[end_arr]), end[-1]) - int(0.015 * self.fs)
         if len(start_arr) != len(end_arr):
             self.warning_signal.emit(
                 f"Problems with frame selection! ({os.path.basename(filename)})")  # !!!!!!!!!!!!!!!!!!!!!!!!!
             np.savetxt('error_' + os.path.basename(filename),
                        self.bool_arr, delimiter='\t', fmt='%.3f')
-        # self.logger.info(f"\n\nstart arr= {start_arr}\n end  arr = {end_arr}")
+        self.logger.info(f"\n\nstart arr= {start_arr}\n end  arr = {end_arr}")
         self.logger.info(
             f"4, len start = {len(start)}, len start after = {len(start_arr)}")
         self.logger.info(
@@ -677,7 +584,6 @@ class MyThread(QtCore.QThread):
         # print(os.path.basename(filename), np.nanmedian(np.diff(self.amp_and_freq_for_plot[:, 1])))
         self.logger.info(f"median noise {os.path.basename(filename)}, " +
                          f"{np.nanmedian(abs(np.diff(self.amp_and_freq_for_plot[:, 1])))}")
-        # print(np.nanmean(np.diff(self.amp_and_freq_for_plot[:, 1])))
         self.logger.info(
             np.nanmean(abs(np.diff(self.amp_and_freq_for_plot[:, 1]))))
 
@@ -719,13 +625,14 @@ class MyThread(QtCore.QThread):
         L = len(gyro)  # длина записи
         next_power = np.ceil(np.log2(L))  # показатель степени 2 дл¤ числа длины записи
         NFFT = int(np.power(2, next_power))
-        half = int(NFFT/2)
+        half = int(NFFT / 2)
+
         Yg = np.fft.fft(gyro, NFFT) / L  # преобразование Фурье сигнала гироскопа
         # Yg = np.fft.rfft(gyro, NFFT)/L  #
         Ye = np.fft.fft(encoder, NFFT) / L  # преобразование Фурье сигнала энкодера
         # Ye = np.fft.rfft(encoder, NFFT)/L  #
         f = fs / 2 * np.linspace(0, 1, half + 1, endpoint=True)  # получение вектора частот
-        #  delta_phase = asin(2*mean(encoder1.*gyro1)/(mean(abs(encoder1))*mean(abs(gyro1))*pi^2/4))*180/pi
+        #  delta_phase = asin(2*np.mean(encoder1.*gyro1)/(np.mean(abs(encoder1))*np.mean(abs(gyro1))*pi^2/4))*180/pi
         ng = np.argmax(abs(Yg[0:half]))
         Mg = 2 * abs(Yg[ng])
         # freq = f[ne]  # make sence?
@@ -735,19 +642,14 @@ class MyThread(QtCore.QThread):
         freq = f[ne]
         # ###self.logger.info(f"\tne {ne}, Me {Me}\tng {ng}, Mg {Mg}")
 
-        d_phase = np.angle(Yg[ng], deg=False) - np.angle(Ye[ne], deg=False)
-        # deg=True ???
+        d_phase = np.angle(Yg[ng], deg=True) - np.angle(Ye[ne], deg=True)
         amp = Mg/Me
         ###self.logger.info(
             ####f"FFt results\t\tamp {amp}\tfreq {freq}")
             # f"FFt results\td_phase {d_phase}\tamp {amp}\tfreq {freq}")
         #  amp = std(gyro)/std(encoder)% пошуму (метод —урова)
-
-        while d_phase > 0:
-            d_phase -= 2 * np.pi
-        while d_phase < -2 * np.pi:
-            d_phase += 2 * np.pi
-        d_phase = d_phase * 180/np.pi
+        while not (-360 < d_phase <= 0 ):
+            d_phase += (360 if d_phase < -360 else -360)
 
         if 1.5 > freq > 0.5 and amp > 0:
             if -200 < d_phase < -160:
@@ -758,108 +660,31 @@ class MyThread(QtCore.QThread):
             ###self.logger.info(f"sign = {sign}")
             self.k_amp = amp * sign
             amp = 1
-            ###self.logger.info(f"k_amp = {self.k_amp}")
+            self.logger.info(f"k_amp = {self.k_amp}")
         
         tau = -1000 * d_phase / freq / 360
         ###self.logger.info(f"FFt\td_phase {d_phase}\ttau {tau}")
         return [freq, amp, d_phase, tau]
 
-    # def data_for_fft_graph_____(self, data: np.ndarray, gyro: np.ndarray, Fs):
-    # #     fft_data = np.array([]) 
-    # #     bourder = np.array([0, 0]) 
-    # #     i = 0
-    # #     flag_wait = False
-    # #     if flag_sent:
-    # #         flag_wait = True
-    # #         i +=1
-    # #         if i > 5:
-    # #             bourder[0] = i
-    # #     if flag_wait:
-    # #         if not flag_sent:
-    # #             flag_wait = False
-    # #             bourder[1] = i
-        
-    #     # data = dlmread(fullfile(PathName,FileName));
-    #     # encoder = data(:,3)./1000;
-    #     # %
-    #     # Flag = 0;
-    #     # okno = 195;
-    #     # R = zeros(2,2); % границы интервалов воздействия
-    #     # k = 0;
-    #     # l = 0;
-    #     # porog = 3;
-    #     # for i = 12000:okno:size(data,1)-2*okno
-    #     #     if Flag == 0 % определение начала интервала воздействия
-    #     #         D = std(encoder(i:i+okno,1));
-    #     #         if D > porog
-    #     #             k = k+1;
-    #     #             R(k,1) = i + 3*okno;%2 + step
-    #     #             Flag = 1;
-    #     #         end
-    #     #     end
-    #     #     if Flag == 1 % определение конца интервала воздействия
-    #     #         D = std(encoder(i:i+2*okno,1));%1
-    #     #         if D < porog
-    #     #             l = l+1;
-    #     #             R(l,2) = i-2*okno;%1
-    #     #             Flag = 0;
-    #     #         end
-    #     #     end
-    #     # end
-    #     # %
-    #     # рассмотрим ситуацию, в которой нам известен промежуотк данных,
-    #     # то есть, что ничего не надо выделять
-    #     MK = -1
-    #     Fs = Fs
-    #     T = 1/Fs
-    #     # for i in range(size(R,1):
-    #     gyro = np.array(-gyro)
-    #     encoder = np.divide(data, 1000)
-    #     amp, d_phase, freq = self.fft_data(gyro, encoder, Fs)  # менял gyro на encoder  ampPhF( gyro,encoder,Fs );
-    #     # end
-    #     amp = amp/amp[0]  # нормирующий множитель: считаем, что при 1 Гц АЧХ=1
-    #     # %%поиск максимальной амплитуды
-    #     # [amp_max, i_max] = max(amp)
-    #     i_max = np.argmax(amp)
-    #     amp_max = amp[i_max]
 
-    #     # поиск частоты среза (границы полосы пропускания)
-    #     for i in range(len(amp)):
-    #         if amp[i] < 0.707:
-    #             n = i
-    #             break
-    #     # for i=1:size(amp,1)
-    #     #     if amp(i,1)<0.707
-    #     #         n = i;
-    #     #         break
-    #     #     end
-    #     # end
-    #     # if (exist('n','var')==1)
-    #     # if  (n>1)
-    #     # p = polyfit([amp(n-1,1) amp(n,1)],[freq(n-1,1) freq(n,1)],1);
-    #     # Fpp = polyval(p,0.707); % частота среза
-    #     # end
-    #     # end
+# ----------------------------------------------------------------------------
+#
+# ----------------------------------------------------------------------------
+#
+# ----------------------------------------------------------------------------
 
-    #     # поиск частоты, при которой происходит сдвиг фазы на 180
 
-    #     # dPh =  unwrap(d_phase(:,1))*180/pi;
-    #     # for j=1:size(d_phase,1)
-    #     #     if (dPh(j,1) < -180)
-    #     #         nn = j;
-    #     #         break
-    #     #     end
-    #     # end
-    #     # if (exist('nn','var')==1)
-    #     #     if (nn>1)
-    #     # p = polyfit([dPh(nn-1,1) dPh(nn,1)],[freq(nn-1,1) freq(nn,1)],1);
-    #     # Fh = polyval(p,-180); % частота, при которой происходит сдвиг фазы на 180
-    #     #     end
-    #     # end
-
-    #     tau = 1000*dPh/freq/360 ## временная задержка
-
-    #     return [freq, amp, dPh, tau]
+if __name__ == "__main__":
+    import PyQt5_ApplicationClass
+    from PyQt5 import QtWidgets
+    import sys
+    app = QtWidgets.QApplication(sys.argv)
+    app.setStyle('Fusion')  # 'Fusion' ... QtWidgets.QStyle
+    window = PyQt5_ApplicationClass.AppWindow()
+    window.setWindowTitle("GyroVibroTest")
+    # window.resize(850, 500)
+    window.show()
+    sys.exit(app.exec())
 
         # def fft_approximation(self, freq, amp, phase,):
         # # freq_approximation = np.linspace(freq[0], freq[-1], num=100)
@@ -890,26 +715,6 @@ class MyThread(QtCore.QThread):
         # # phase_approximation = np.rad2deg(phase_approximation)
         # # result = np.array([amp_approximation,
         # #                    phase_approximation, freq_approximation])
-        
-        # #  этап 1 - проверка на то, что все частоты +- совпадают
-        # #  этап 2 - проверка на выбросы по амплитуде и частоте
-        # #  формируется массив номеров опытов, которые требуется исключить
-        # #  для данного значения частоты
-        # self.mediana = np.ndarray((self.amp_and_freq.size))
-        # cols_num = 4*(self.cycle_count + 1)
-        # self.amp_and_freq = np.resize(self.amp_and_freq,
-        #         (self.num_measurement_rows, cols_num))
-        # self.amp_and_freq[:, cols_num:(cols_num + 4)] = np.nan
-        # # можно результирующие значения не в отдельном массиве, а рядом записать
-        # # self.temp = np.ndarray((self.amp_and_freq.size))
-        # for i in range(len(self.amp_and_freq[:, 1])):  # цикл по всем частотам
-        #     for j in range(4):  # надо вычислить среднее для A, f, fi, tay
-        #         # self.temp = self.amp_and_freq[self.amp_and_freq[i, j:-1:4].argsort()]
-        #         # [i, j:-1:4] - строка i, столбец j с шагом 4 до конца массива
-        #         # так получиаем элементы из всех циклов
-        #         self.amp_and_freq[i, cols_num + j] = np.nanmedian(self.amp_and_freq[i, j:-1:4])
-        # self.approximate_data_emit.emit(True)         
-        # # return result
     
     # def fft_for_file(self, filename: str):
     #     # sz = 53 * os.path.getsize(filename)

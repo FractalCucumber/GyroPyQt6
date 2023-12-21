@@ -13,6 +13,7 @@ import PyQt5_Logger
 import PyQt5_Thread
 import PyQt5_CustomWidgets
 from time import time
+# from PyQt5_res_path import get_res_path
 
 # d:/Gyro2023_Git/venv3.6/Scripts/Activate.bat
 # git add PyQt5_ApplicationClass.py PyQt5_CustomWidgets.py PyQt5_Thread.py PyQt5_Logger.py StyleSheets.css
@@ -26,15 +27,19 @@ from time import time
 # -----------------------------------------------------------------------------
 
 
-class AppWindow(QtWidgets.QWidget):
+# class AppWindow(QtWidgets.QWidget):
+class AppWindow(QtWidgets.QMainWindow):
     def __init__(self, parent=None):
 
-        QtWidgets.QWidget.__init__(self, parent)
+        # QtWidgets.QWidget.__init__(self, parent)
+        QtWidgets.QMainWindow.__init__(self, parent)
         # QtWidgets.QApplication.setAttribute(
             # QtCore.Qt.ApplicationAttribute.
             # AA_UseStyleSheetPropagationInWidgetStyles,
             # True)  # наследование свойств оформления потомков от родителей
-
+        self.setWindowTitle("GyroVibroTest")
+        # print(QtWidgets.QStyleFactory.keys())
+        QtWidgets.QApplication.setStyle('Fusion')  # 'Fusion' ... QtWidgets.QStyle
 # ------ Init vars ------------------------------------------------------------
         self.PLOT_TIME_INTERVAL_SEC = 10
         self.PAUSE_INTERVAL_MS = 750
@@ -85,7 +90,38 @@ class AppWindow(QtWidgets.QWidget):
             self.run_thread_for_file_prosessing
         )
 # ------ GUI ------------------------------------------------------------------
-        self.main_grid_layout = QtWidgets.QGridLayout(self)
+        # self.main_grid_layout = QtWidgets.QGridLayout(self)
+        # self.win_widget = WinWidget(self)
+        widget = QtWidgets.QWidget()
+        self.main_grid_layout = QtWidgets.QGridLayout(widget)
+        # layout.addWidget(self.win_widget)
+        self.setCentralWidget(widget)
+# ------ menu -----------------------------------------------------------------
+        # self.menu_bar = QtWidgets.QMenuBar(self)
+        # from PyQt5.QtWidgets import QMainWindow, QAction, qApp, QApplication
+        menu_bar = self.menuBar()
+        # self.menuBar.setGeometry(0,0, 500, 25)
+        # create a menu called 'File'
+        fileMenu = menu_bar.addMenu("&File")
+        fileMenu.addAction('New')
+        fileMenu.addAction('Open')
+        fileMenu.addAction('Save')
+        fileMenu.addAction('Save As')        
+        exitAction = QtWidgets.QAction("&Exit", self)
+        exitAction.setShortcut("Ctrl+Q")
+        exitAction.setStatusTip("Exit application")
+        exitAction.triggered.connect(self.close)
+        fileMenu.addAction(exitAction)
+        fileMenu2 = menu_bar.addMenu("&Mode")
+        fileMenu2.addAction('1')
+        fileMenu2.addAction('2')
+        # self.statusBar = QtWidgets.QMainWindow.statusBar()
+        # self.statusBar()
+        # self.statusBar = QtWidgets.QStatusBar()
+        # QtWidgets.QMainWindow(self)
+        # self.menu_bar = self.menu_bar()
+        # self.File = self.menu_bar.addMenu('&File')
+        # add actions to the menu 'File' 
 # ------ Com Settings ---------------------------------------------------------
         """
         Block with COM port settings and sampling frequency selection
@@ -304,7 +340,8 @@ class AppWindow(QtWidgets.QWidget):
                                         0, 2, 16, 1)
         self.main_grid_layout.addWidget(self.plot_groupbox,
                                         16, 2, 4, 2)
-        self.setLayout(self.main_grid_layout)
+        # self.setLayout(self.main_grid_layout)
+        # self.layout = self.main_grid_layout
 
 # ------ Style ----------------------------------------------------------------
         with open(self.get_res_path(STYLE_SHEETS_FILENAME), "r") as style_sheets:
@@ -312,7 +349,8 @@ class AppWindow(QtWidgets.QWidget):
         app_icon = QtGui.QIcon()
         for i in [16, 24, 32, 48]:
             app_icon.addFile(self.get_res_path(f'res\icon_{i}.png'), QtCore.QSize(i, i))
-        QtWidgets.QApplication.setWindowIcon(app_icon)
+        # QtWidgets.QApplication.setWindowIcon(app_icon)
+        self.setWindowIcon(app_icon)
 
 # ------ Set settings --------------------------------------------------------------------------
         self.load_previous_settings(self.settings)
@@ -344,6 +382,7 @@ class AppWindow(QtWidgets.QWidget):
         # from pandas import read_csv
         # time_data = np.array(read_csv("//fs/Projects/АФЧХ/6231/6231_165_7_2.txt", delimiter='\t',
                                     #   dtype=np.int32, header=None))
+        self.show()
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
 #
@@ -517,7 +556,6 @@ class AppWindow(QtWidgets.QWidget):
             if self.count >= self.num_rows:  # может, сделать конец цикла в середине паузы с помощью одиночного запуска таймера? (возможно, лучше для фурье)
                 if self.current_cylce < self.total_cycle_num:
                     self.new_cycle_event()
-                    # self.flag_sent = False # double pause
                     self.sent_stop_vibro_command()
                 else:
                     self.stop()
@@ -569,10 +607,6 @@ class AppWindow(QtWidgets.QWidget):
         self.logger.info(
             f"% = {self.progress_value}, " +
             f"total time = {self.progress_bar.maximum()}")
-        # if self.prosessing_thr.flag_start:
-        #     # self.save_image()
-        #     if self.progress_value < self.progress_bar.maximum():
-        #         self.timer_read_event()
 
         if self.Serial.isOpen():
             self.Serial.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
@@ -580,7 +614,7 @@ class AppWindow(QtWidgets.QWidget):
                              str(self.Serial.waitForBytesWritten(250)))
             self.Serial.close()
             self.logger.warning("End of measurements\n")
-            if self.progress_value:
+            if self.progress_value > 2:
                 check = int(self.package_num / self.progress_value)
                 if not (0.95 * self.fs < check < 1.05 * self.fs):
                     QtWidgets.QMessageBox.critical(
@@ -601,8 +635,8 @@ class AppWindow(QtWidgets.QWidget):
         start_i = (self.package_num - points_shown
                    if self.package_num > points_shown else 0)
         self.logger.info(f"thr_stop, count = {self.package_num}\n" +
-                         f"package_num = {self.package_num} "+
-                         f"start_i = {start_i} "+
+                         f"package_num = {self.package_num} " +
+                         f"start_i = {start_i} " +
                          f"self.prosessing_thr.k_amp = {self.prosessing_thr.k_amp}")
         self.custom_tab_plot_widget.plot_time_graph(
             self.prosessing_thr.time_data[start_i:self.package_num, 0] / self.fs,
@@ -797,15 +831,19 @@ class AppWindow(QtWidgets.QWidget):
     # def open_file(self):
     #     os.startfile(self.filename_and_path_widget.toPlainText())
 
-    def get_res_path(self, relative_path):
+    @staticmethod
+    def get_res_path(relative_path):
         """
-        Get absolute path to resource, works for PyInstaller
+        Get absolute path to resource, works with PyInstaller
         """
         base_path = getattr(
             sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
         return os.path.join(base_path, relative_path)
 
     def closeEvent(self, _):
+        # print(e)
+        # print(type(e))
+        # print(e.d)
         """
         Sending stop command to the vibrostand and saving user settings
         """
@@ -877,9 +915,7 @@ class AppWindow(QtWidgets.QWidget):
 if __name__ == "__main__":
 
     app = QtWidgets.QApplication(sys.argv)
-    app.setStyle('Fusion')  # 'Fusion' ... QtWidgets.QStyle
+    # app.setStyle('Fusion')  # 'Fusion' ... QtWidgets.QStyle
     window = AppWindow()
-    window.setWindowTitle("GyroVibroTest")
     # window.resize(850, 500)
-    window.show()
     sys.exit(app.exec())

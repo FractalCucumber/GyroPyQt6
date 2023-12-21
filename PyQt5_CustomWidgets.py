@@ -11,7 +11,8 @@ import numpy as np
 from openpyxl import load_workbook  # лучше использовать Pandas, наверняка работает быстрее
 import os
 import sys
-
+# pg.setConfigOption('background', '#f0f0f5')  # Установите фон в серый цвет
+# pg.setConfigOption('foreground', 'd')
 
 # QtWidgets.QDialog.create
 class CustomDialog(QtWidgets.QDialog):
@@ -20,7 +21,7 @@ class CustomDialog(QtWidgets.QDialog):
     def __init__(self):
         super().__init__()
         STYLE_SHEETS_FILENAME = 'res\StyleSheets2.css'
-        with open(self.get_res_path(STYLE_SHEETS_FILENAME), "r") as style_sheets:
+        with open(get_res_path(STYLE_SHEETS_FILENAME), "r") as style_sheets:
             self.setStyleSheet(style_sheets.read())
         self.setMaximumSize(500, 175)
         self.setWindowTitle("Окно изменения проектов")
@@ -48,7 +49,7 @@ class CustomDialog(QtWidgets.QDialog):
         self.layout.addWidget(self.path, 2, 1, 1, 1)
         self.path.textChanged.connect(self.check)
         open_folder_btn = QtWidgets.QPushButton()
-        btn_icon = QtGui.QIcon(self.get_res_path('res//open_folder.png'))
+        btn_icon = QtGui.QIcon(get_res_path('res//open_folder.png'))
         # btn_icon.addFile(self.get_res_path('res//open_folder.png'), QtCore.QSize(48, 48))
         open_folder_btn.setIcon(btn_icon)
         self.layout.addWidget(open_folder_btn, 2, 2, 1, 1)
@@ -77,13 +78,14 @@ class CustomDialog(QtWidgets.QDialog):
             "Excel Files (*.xls *.xlsx)")
         self.path.setText(str(self.filename))
 
-    def get_res_path(self, relative_path):
-        """
-        Get absolute path to resource, works for PyInstaller
-        """
-        base_path = getattr(
-            sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
-        return os.path.join(base_path, relative_path)
+# @staticmethod
+def get_res_path(relative_path):
+    """
+    Get absolute path to resource, works with PyInstaller
+    """
+    base_path = getattr(
+        sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_path, relative_path)
 
 class CustomViewBox(pg.ViewBox):
     def __init__(self, *args, **kwds):
@@ -119,12 +121,10 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.LABEL_STYLE = {'color': '#FFF', 'font-size': '16px'}
         self.COLOR_LIST = ['r', 'g', 'b']
         self.fs = fs
-        # self.
         self.dlg = CustomDialog()
         self.filenames_to_fft = []
         self.dict = {}
         # self.settings = QtCore.QSettings("settings")
-        # self.dlg.close_emit.connect(self.get_new_item)
 # ------ time plot ------------------------------------------------------------
 
         self.time_plot_item = pg.PlotItem(viewBox=CustomViewBox())
@@ -170,17 +170,12 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.logger = logging.getLogger(logger_name)
         self.spectrum_button.clicked.connect(self.switch_plot_x_axis)
 # -----------------------------------------------------------------------------
-        self.groupbox = QtWidgets.QGroupBox(' Сохранение в .xlsx',
-                                            maximumWidth=190, minimumWidth=150)
+        self.groupbox = QtWidgets.QGroupBox(
+            ' Сохранение в .xlsx', maximumWidth=190, minimumWidth=150)
         self.median_plot_groupbox_layout = QtWidgets.QGroupBox(
             'Содержимое файла', maximumWidth=315, minimumWidth=215)
         self.median_plot_groupbox_layout = QtWidgets.QGridLayout(spacing=10)
-        # self.median_plot_groupbox_layout.setRowStretch(9, 1)
         # self.median_plot_groupbox_layout.setRowStretch(4, 0)
-        # self.median_plot_groupbox_layout.setRowStretch(2, 0)
-        # self.median_plot_groupbox_layout.setRowStretch(3, 0)
-        # self.median_plot_groupbox_layout.setRowStretch(1, 0)
-        # self.median_plot_groupbox_layout.setRowStretch(0, 0)
         # self.median_plot_groupbox_layout.setSpacing(0)
         # self.median_plot_groupbox_layout.setContentsMargins(0, 0, 0, 0)
         self.groupbox.setLayout(self.median_plot_groupbox_layout)
@@ -190,8 +185,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.f_r_label = QtWidgets.QLineEdit()
         # self.layout.addWidget(self.Q_label)
         self.projects_combo_box = QtWidgets.QComboBox(editable=True)
-        # QToolButton # есть wordWrap
         self.projects_combo_box.lineEdit().setReadOnly(True)
+        # QToolButton # есть wordWrap
 
         # if self.dict:
         #     self.test_combo_box.addItems(self.dict.keys())
@@ -199,25 +194,30 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         #         self.test_combo_box.setItemData(
         #             i, self.dict.get(self.test_combo_box.itemText(i)),
         #             QtCore.Qt.ItemDataRole.ToolTipRole)
-        self.median_plot_groupbox_layout.addWidget(self.projects_combo_box, 0, 0, 1, 3)
-        # self.test_combo_box.currentTextChanged.connect(self.text_)
-        # self.test_combo_box.currentIndexChanged.connect(self.ind)
+        self.median_plot_groupbox_layout.addWidget(
+            self.projects_combo_box, 0, 0, 1, 3)
 
         self.amp_info_label = QtWidgets.QLabel("amp")
-        self.median_plot_groupbox_layout.addWidget(self.amp_info_label, 2, 0, 1, 1)
+        self.median_plot_groupbox_layout.addWidget(
+            self.amp_info_label, 2, 0, 1, 1)
         self.amp_info = QtWidgets.QLineEdit("0")
-        self.median_plot_groupbox_layout.addWidget(self.amp_info, 2, 1, 1, 2)
+        self.median_plot_groupbox_layout.addWidget(
+            self.amp_info, 2, 1, 1, 2)
 
         self.freq_info_label = QtWidgets.QLabel("f, Hz")
-        # self.freq_info_label.setma
-        self.median_plot_groupbox_layout.addWidget(self.freq_info_label, 3, 0, 1, 1)
+        self.median_plot_groupbox_layout.addWidget(
+            self.freq_info_label, 3, 0, 1, 1)
         self.freq_info = QtWidgets.QLineEdit("0")
-        self.median_plot_groupbox_layout.addWidget(self.freq_info, 3, 1, 1, 2)
+        self.median_plot_groupbox_layout.addWidget(
+            self.freq_info, 3, 1, 1, 2)
 
-        self.name_info_label = QtWidgets.QLabel("имя датчика:", maximumHeight=40)
-        self.median_plot_groupbox_layout.addWidget(self.name_info_label, 4, 0, 1, 3)
+        self.name_info_label = QtWidgets.QLabel("имя датчика:",
+                                                maximumHeight=40)
+        self.median_plot_groupbox_layout.addWidget(
+            self.name_info_label, 4, 0, 1, 3)
         self.name_info = QtWidgets.QLineEdit('folder')
-        self.median_plot_groupbox_layout.addWidget(self.name_info, 5, 0, 1, 3)
+        self.median_plot_groupbox_layout.addWidget(
+            self.name_info, 5, 0, 1, 3)
 
         self.ok_btn = QtWidgets.QPushButton("Запись в Excel")
         self.median_plot_groupbox_layout.addWidget(self.ok_btn, 6, 0, 1, 3)
@@ -227,13 +227,13 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         #     QtWidgets.QSizePolicy.Policy.Maximum)
         self.add_btn = QtWidgets.QPushButton(objectName='add')
         self.add_btn.setFixedSize(30, 30)
-        btn_icon = QtGui.QIcon(self.get_res_path('res//add.png'))
+        btn_icon = QtGui.QIcon(get_res_path('res//add.png'))
         self.add_btn.setIcon(btn_icon)
         self.median_plot_groupbox_layout.addWidget(self.add_btn, 1, 0, 1, 1)
         self.add_btn.clicked.connect(self.change_xlsx_list)
         self.del_btn = QtWidgets.QPushButton(objectName="del")
         self.del_btn.setFixedSize(30, 30)
-        btn_icon = QtGui.QIcon(self.get_res_path('res//delete2.png'))
+        btn_icon = QtGui.QIcon(get_res_path('res//delete2.png'))
         # btn_icon.addFile(, QtCore.QSize(48, 48))
         self.del_btn.setIcon(btn_icon)
         self.median_plot_groupbox_layout.addWidget(self.del_btn, 1, 1, 1, 1)
@@ -241,22 +241,17 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.change_btn = QtWidgets.QPushButton(objectName="change")
         self.change_btn.setFixedSize(30, 30)
         # self.setIconSize(QtCore.QSize(48, 48))
-        btn_icon = QtGui.QIcon(self.get_res_path('res//edit.png'))
+        btn_icon = QtGui.QIcon(get_res_path('res//edit.png'))
         # btn_icon.addFile(, QtCore.QSize(128, 128))
         self.change_btn.setIcon(btn_icon)
         self.median_plot_groupbox_layout.addWidget(self.change_btn, 1, 2, 1, 1)
         self.change_btn.clicked.connect(self.change_xlsx_list)
 
         self.get_filenames_btn = QtWidgets.QPushButton("АФЧХ для файла")
-        self.median_plot_groupbox_layout.addWidget(self.get_filenames_btn, 7, 0, 1, 3)
+        self.median_plot_groupbox_layout.addWidget(
+            self.get_filenames_btn, 7, 0, 1, 3)
         self.get_filenames_btn.clicked.connect(self.get_filenames)
 
-        self.infinite_line_x1 = pg.InfiniteLine(angle=90, movable=False)
-        self.infinite_line_x2 = pg.InfiniteLine(angle=90, movable=False)
-        self.infinite_line_y = pg.InfiniteLine(angle=0, movable=False)
-        self.cursorlabel = pg.TextItem()
-        self.cursorlabel.setPos(3, 0.8)
-        self.cursor = QtCore.Qt.CrossCursor # was
         self.plot_fft_median()
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
@@ -285,11 +280,10 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.amp_plot_list[-1].autoRange()
 
 # ------ FFT median plot ------------------------------------------------------------------
-    def set_fft_median_data(self, freq_data: np.ndarray, special_points: np.ndarray, folder: str):
+    def set_fft_median_data(self, freq_data: np.ndarray,
+                            special_points: np.ndarray, folder: str):
         self.logger.info(f"Final median plot, sensor: {folder}")
         self.freq_data = freq_data
-        self.x = freq_data[:, -4]
-        self.y = freq_data[:, -3]
         for i in range(self.GYRO_NUMBER):
             self.amp_curves[i].setData(freq_data[:, -4],
                                         freq_data[:, -3])
@@ -304,7 +298,6 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # self.freq_info.setText(special_points[2])
         self.name_info.setText(folder)
         self.amp_plot_list[0].autoRange()
-        # self.amp_plot_list[0].setRange(xRange=[0, 320], yRange=[0, 3])
         self.mouse_x = None
         self.mouse_y = None
 
@@ -326,14 +319,22 @@ class CustomTabWidget(QtWidgets.QTabWidget):
   
         # # amp =np.array([96, 97, 108, 112, 113, 114, 121, 127, 136, 163, 166, 191, 219, 240, 258, 284, 400, 371, 450, 699, 791, 1154, 631, 697, 722, 743, 834, 823, 918, 995, 1022, 1125, 1220, 1244, 1373, 1468, 1618, 1851, 1865, 2166, 2548, 2539, 3409, 3521, 3514, 4220, 3473, 2573, 3081, 3028, 3028, 3230, 3056, 3132, 3102, 3621, 3669, 4561])/100
         # self.plot_2d_scatter(self.time_plot, self.x, self.y)
-        # self.cursor = Qt.BlankCursor
-        self.amp_plot_list[0].setCursor(self.cursor)  # self.cursor ##########################
+        # self.cursor = QtCore.Qt.BlankCursor
+        self.amp_plot_cursor = QtCore.Qt.CrossCursor # was
+        self.amp_plot_list[0].setCursor(self.amp_plot_cursor)  # self.cursor ##########################
+        self.phase_plot_cursor = QtCore.Qt.CrossCursor # was
+        self.phase_plot_list[0].setCursor(self.phase_plot_cursor)  # self.cursor ##########################
 
         # Add lines
+        self.infinite_line_x1 = pg.InfiniteLine(angle=90, movable=False)
+        self.infinite_line_x2 = pg.InfiniteLine(angle=90, movable=False)
+        # self.infinite_line_y = pg.InfiniteLine(angle=0, movable=False)
         self.amp_plot_list[0].addItem(self.infinite_line_x1, ignoreBounds=True)
         self.phase_plot_list[0].addItem(self.infinite_line_x2, ignoreBounds=True)
-        self.amp_plot_list[0].addItem(self.infinite_line_y, ignoreBounds=True)
-    
+        # self.amp_plot_list[0].addItem(self.infinite_line_y, ignoreBounds=True)
+        self.cursorlabel = pg.TextItem()
+        self.cursorlabel.setPos(3, 0.8)
+
         self.amp_plot_list[0].addItem(self.cursorlabel) #################################
         self.proxy_amp = pg.SignalProxy(
             self.amp_plot_list[0].scene().sigMouseMoved, delay=0.1, ##############################
@@ -349,8 +350,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     def add_180_2d_scatter(self, plot, x, y, color=(66, 245, 72)):
         brush = pg.mkBrush(color)
         scatter = pg.ScatterPlotItem(size=5, brush=brush)
-        # scatter.addPoints(x, y)
-        scatter.setData(x, y)  # ??
+        scatter.addPoints(x, y)
+        # scatter.setData(x, y)  # ??
         plot.addItem(scatter)
 
 # ----- cursor ---------------------------------------------------------------------------------
@@ -361,18 +362,16 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             # mx = np.array(
                 # [abs(float(i) - float(mousePoint.x())) for i in self.x])
             # index = mx.argmin()
-            # print(mousePoint.x())
-            # print(float(mousePoint.x()))
-            # print(self.x)
+            # for i in range(self.GYRO_NUMBER):
+            #     if self.visibility_flags[i]:
+            #         # ищем совпадение для i-го гироскопа
+            #         break
             index = np.argmin(np.abs(self.freq_data[:, -4] - mousePoint.x()))
             # if index >= 0 and index < len(self.x):
             if index >= 0 and index < len(self.freq_data[:, -4]):
                 self.cursorlabel.setText(f"f {self.freq_data[index, -4]:.3f}\n" +
                                          f"A {self.freq_data[index, -3]:.2f}\n" +
                                          f"\u03C6 {self.freq_data[index, -2]:.1f}")
-                        # str((self.freq_data[index, -4],
-                        #      self.freq_data[index, -3],
-                        #      self.freq_data[index, -2])))
                 # self.infinite_line_x.setPos(self.x[index])
                 self.infinite_line_x1.setPos(self.freq_data[index, -4]) 
                 self.infinite_line_x2.setPos(self.freq_data[index, -4]) 
@@ -380,6 +379,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                 # self.mouse_y = self.infinite_line_y.setPos(self.y[index])
                 self.mouse_x = (self.freq_data[index, -4]) # freq_data[:, -4]
                 self.mouse_y = (self.freq_data[index, -3]) # freq_data[:, -3]
+                # self.scatter.addPoints(self.mouse_x, self.mouse_y)
                 # self.cursorlabel.setText(
                 #         str((self.x[index], self.y[index])))
                 # self.infinite_line_x.setPos(self.x[index])
@@ -388,32 +388,14 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                 # self.mouse_y = self.infinite_line_y.setPos(self.y[index])
                 # self.mouse_x = (self.x[index]) # freq_data[:, -4]
                 # self.mouse_y = (self.y[index]) # freq_data[:, -3]
-        # else:
-        #     if self.phase_plot_list[-1].plotItem.sceneBoundingRect().contains(pos):
-        #         mousePoint = self.phase_plot_list[-1].plotItem.vb.mapSceneToView(pos)
-        #         mx = np.array(
-        #             [abs(float(i) - float(mousePoint.x())) for i in self.x])
-        #         index = mx.argmin()
-        #         if index >= 0 and index < len(self.x):
-        #             self.cursorlabel.setText(
-        #                     str((self.x[index], self.y[index])))
-        #             self.infinite_line_x.setPos(self.x[index])
-        #             self.infinite_line_y.setPos(self.y[index]) 
-        #             self.mouse_x = self.infinite_line_x.setPos(self.x[index])
-        #             self.mouse_y = self.infinite_line_y.setPos(self.y[index])
-        #             self.mouse_x = (self.x[index])
-        #             self.mouse_y = (self.y[index])
             
     # def mousePressEvent(self, e):
     def mouseDoubleClickEvent(self, e):
         if (e.buttons() & QtCore.Qt.LeftButton & (
             self.amp_plot_list[0].underMouse() | self.phase_plot_list[0].underMouse()
             )) and self.freq_data.size: #| self.phase_plot_list[-1].underMouse()):
-            # print(f'pressed {self.mouse_x, self.mouse_y}')
-            # self.amp_info.setText(f'{self.mouse_y:.3f}')
             self.amp_info.setText(f'{self.mouse_y:.3f}')
             self.freq_info.setText(f'{self.mouse_x:.2f}')
-            # self.freq_info.setText(f'{self.mouse_x:.3f}')
             # self.cursorlabel.setPos(self.mouse_x + 1, self.mouse_y + 1)
             # if self.mouse_x in self.x and self.mouse_y in self.y:
 
@@ -522,15 +504,17 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             self.region.hide()
 
     def change_curve_visibility(self):
-        i = int(self.sender().objectName())
+        ind = int(self.sender().objectName())
         # self.flag_visibility[num] = self.check_box_list[num].checkState()
-        self.visibility_flags[i] = not self.visibility_flags[i]
-        self.time_curves[i].setVisible(self.visibility_flags[i])
-        if i == 0:
+        self.visibility_flags[ind] = not self.visibility_flags[ind]
+        self.time_curves[ind].setVisible(self.visibility_flags[ind])
+        if ind == 0:
             return
         for i in range(self.count() - 1):
-            self.phase_curves[i - 1 + i].setVisible(self.visibility_flags[i])
-            self.amp_curves[i - 1 + i].setVisible(self.visibility_flags[i])
+            self.phase_curves[i - 1 + ind].setVisible(
+                self.visibility_flags[ind])
+            self.amp_curves[i - 1 + ind].setVisible(
+                self.visibility_flags[ind])
 
     def append_fft_plot_tab(self):
         """
@@ -604,13 +588,6 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                     path + f'_phase_plot_{i + 1}.png')
         # self.logger.info("Saving complite")
 
-    def get_res_path(self, relative_path):
-        """
-        Get absolute path to resource, works for PyInstaller
-        """
-        base_path = getattr(
-            sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
-        return os.path.join(base_path, relative_path)
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 #
@@ -618,7 +595,6 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 #
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
-
 
 
 class CustomComboBox(QtWidgets.QComboBox):
@@ -629,8 +605,8 @@ class CustomComboBox(QtWidgets.QComboBox):
                  editable_flag=True,
                  uint_validator_enable=True,
                  parent=None):
-        self.settings_name = settings_name
         super(CustomComboBox, self).__init__(parent)
+        self.settings_name = settings_name
         self.setEditable(True)
         self.lineEdit().setReadOnly(not editable_flag)
         self.lineEdit().setAlignment(
@@ -671,6 +647,10 @@ class CustomComboBox(QtWidgets.QComboBox):
         # self.save_name = lambda: self.settings.setValue(
         #     "COM_current_name", self.currentText())
 
+    def save_all(self):
+        self.save_value()
+        self.save_index()
+
     def save_value(self):
         if self.count():
             self.settings.setValue(
@@ -686,39 +666,24 @@ class CustomComboBox(QtWidgets.QComboBox):
         if self.count():
             self.settings.setValue(
                 "name" + self.settings_name, self.currentText())
-            
-    #
-    # def text_(self, value):
-    #     # self.test_combo_box.currentIndexChanged.disconnect(self.ind)
-    #     print(self.test_combo_box.currentText())
-    #     print(value)
-    #     print("len = " + str(len(value)))
-    #     if not len(self.test_combo_box.currentText()) and self.test_combo_box.count() > 2:
-    #         if self.test_combo_box.currentIndex():
-    #             self.test_combo_box.setCurrentIndex(self.test_combo_box.currentIndex()-1)
-    #             self.test_combo_box.removeItem(self.test_combo_box.currentIndex()+1)
-    #         else:
-    #             self.test_combo_box.removeItem(self.test_combo_box.currentIndex())
-    #         # if self.test_combo_box.currentIndex() == self.test_combo_box.count() - 1:
-    #             # self.test_combo_box.lineEdit().setReadOnly(True)
-    #     else:
-    #         self.test_combo_box.setItemText(self.test_combo_box.currentIndex(), value)
-    #     # self.test_combo_box.currentIndexChanged.connect(self.ind)
 
-    # def ind(self):
-    #     print(self.test_combo_box.currentIndex())
-    #     print(self.test_combo_box.currentIndex() == self.test_combo_box.count() - 1)
-    #     if self.test_combo_box.currentIndex() == self.test_combo_box.count() - 1:
-    #         print("last")
-    #         self.test_combo_box.lineEdit().setReadOnly(True)
-    #         self.test_combo_box.setCurrentIndex(0)
-    #         self.test_combo_box.insertItem(0, "введите название проекта")
-    #         self.test_combo_box.setCurrentIndex(0)
-    #     else:
-    #         # self.test_combo_box.setEditable(True)
-    #         self.test_combo_box.lineEdit().setReadOnly(False)
-    #         pass
-    #     # self.test_combo_box.currentIndexChanged.disconnect(self.ind)
+# ----------------------------------------------------------------------------
+#
+# ----------------------------------------------------------------------------
+#
+# ----------------------------------------------------------------------------
+
+
+if __name__ == "__main__":
+    import PyQt5_ApplicationClass
+    app = QtWidgets.QApplication(sys.argv)
+    app.setStyle('Fusion')  # 'Fusion' ... QtWidgets.QStyle
+    window = PyQt5_ApplicationClass.AppWindow()
+    window.setWindowTitle("GyroVibroTest")
+    # window.resize(850, 500)
+    window.show()
+    sys.exit(app.exec())
+
 
 #    def plot_fft_median(self, freq_data: np.ndarray, special_points: np.ndarray, folder: str):
 #         self.logger.info("Final median plot")
