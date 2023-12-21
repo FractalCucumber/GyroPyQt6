@@ -267,7 +267,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 # ----------------------------------------------------------------------------------------------
 # ----- plotting --------------------------------------------------------------
 
-    def plot_time_graph(self,time_data: np.ndarray,
+    def plot_time_graph(self, time_data: np.ndarray,
                         enc_data: np.ndarray, gyro_data: np.ndarray):
         self.time_curves[0].setData(time_data, enc_data)
         for i in range(self.GYRO_NUMBER):

@@ -57,7 +57,6 @@ class MyThread(QtCore.QThread):
         self.k_amp = 1
         if self.flag_by_name:
             self.logger.info("flag_by_name")
-            self.flag_by_name = False
             file = os.path.basename(self.filenames_to_fft[0])
             last_str = list(filter(None, re.split("_|_|.txt", file)))
             if len(last_str) >= 3:
@@ -97,25 +96,30 @@ class MyThread(QtCore.QThread):
 
             if self.flag_recieve:
 ######################
-                self.logger.info("start matrix prosessing data frame")  
+                self.logger.info("start matrix prosessing data frame")
                 # i = self.rx.find(0x72) + 1
                 # bytes_arr = np.frombuffer(self.rx[i:], dtype=np.uint8)
                 bytes_arr = np.frombuffer(self.rx, dtype=np.uint8)
                 start = np.where((bytes_arr[:-13] == 0x72) & (bytes_arr[13:] == 0x27))[0] + 1
                 # start = np.where((bytes_arr[:-1] == 0x27) & (bytes_arr[1:] == 0x72))[0] + 2
                 # start = np.insert(start, 0, 0)
-                expand = len(start)
                 start = start[np.where(np.diff(start) == 14)[0]]
+                expand = len(start)
                 array_r = np.zeros((expand, 4, 4), dtype=np.uint8)
                 for i in range(4):
                     for j in range(3):
                         array_r[:, i, j] = bytes_arr[np.add(start, 3*i + j)]
-                self.time_data2.resize(self.package_num + expand, 5)
-                self.time_data2[self.package_num:, 0] = np.arange(self.package_num + 1, expand + self.package_num + 1)
-                self.time_data2[self.package_num:, 1:] = (np.einsum("ijk,jk->ij", array_r, powers) / 256)
-                # self.package_num += expand  
+                # self.time_data2.resize(self.package_num + expand, 5)
+                self.time_data2.resize(self.package_num -1 + expand, 5)
+                self.time_data2[self.package_num-1:, 0] = np.arange(self.package_num, expand + self.package_num)
+                # self.time_data2[self.package_num:, 0] = np.arange(self.package_num + 1, expand + self.package_num + 1)
+                # self.time_data2[self.package_num:, 1:] = (np.einsum("ijk,jk->ij", array_r, powers) / 256)
+                self.time_data2[self.package_num-1:, 1:] = (np.einsum("ijk,jk->ij", array_r, powers) / 256)
+                # self.package_num += expand
 ##############################
                 
+                self.logger.info("start")
+                self.logger.info(f"start prosessing data frame")
                 self.logger.info("start prosessing data frame")
                 i = self.rx.find(0x72)
                 ###self.logger.info(
@@ -142,13 +146,11 @@ class MyThread(QtCore.QThread):
                 self.make_fft_frame(encoder=self.time_data[:, 2],  # пусть эта функция срабатывает всегда, даже если данных нет, поскольку ее поведение зависит в первую очередь от протокола измерений
                                     gyro=self.time_data[:, 1])
                 
-        self.logger.info("save cycle !")
         if self.package_num:
-            self.logger.info("save cycle !!!!")
+            self.logger.info("save cycle !")
             # self.all_data = np.resize(self.all_data, (self.package_num, 5))
             self.time_data.resize(self.package_num, 5)
             for j in range(self.GYRO_NUMBER):
-                self.logger.info(f"save cycle !!!!!!!!!!!!")
                 self.package_num_list.append(self.package_num)
                 for i in range(len(self.package_num_list) - 1):
                     # name_part = ('' if self.GYRO_NUMBER == 1 else f"_{i + 1}")
@@ -161,7 +163,7 @@ class MyThread(QtCore.QThread):
                           sep='\t', mode='w', date_format='%d')  # лучше сохранять после каждого цикла
                     time_data_df2 = DataFrame(self.time_data2[self.package_num_list[i]:self.package_num_list[i + 1], :])
                     time_data_df2.to_csv(self.filename[0] + "___" + name_part + ########################
-                          "_matrix_check_" + self.filename[1], header=None, index=None,  ##############
+                          "_matrix_check_" + self.filename[1], header=None, index=None,
                           sep='\t', mode='w', date_format='%d')  ################################
                 # name_part = ('' if self.GYRO_NUMBER == 1 else f"_{i + 1}")
                 # # with open(self.filename[0] + name_part
@@ -172,15 +174,17 @@ class MyThread(QtCore.QThread):
                 #           + self.filename[1], header=None, index=None,
                 #           sep='\t', mode='w', date_format='%d')  # лучше сохранять после каждого цикла
         # if self.cycle_count > 1:
-        if len(self.amp_and_freq_for_plot) or self.flag_by_name or self.flag_all:   ### можно убрать другое сохранение, раз это уже есть
+        if (len(self.amp_and_freq_for_plot) or self.flag_by_name) and not self.flag_all:   ### можно убрать другое сохранение, раз это уже есть
             for i in range(self.GYRO_NUMBER):
                 # if self.cycle_count > 1:
                 # self.save_fft(i, self.name)
+                self.logger.info("save fft !")
                 self.save_fft(  # проверять, есть ли такое имя уже
                     i,
                     self.fft_filename)  # формировать имя
                     # self.filename[0] + f'%_{self.total_cycle_num}%.txt_FRQ_AMP_dPh_{self.fs}Hz.txt')
-        ###self.logger.info("Tread stop")
+            self.flag_by_name = False
+        self.logger.info("Tread stop")
                 # else:
                 #     # self.check_f_c()  
                 #     name_part = ('' if self.GYRO_NUMBER == 1 else f"_{i + 1}")
@@ -220,18 +224,20 @@ class MyThread(QtCore.QThread):
                     # name_list.append(mypath + '/' + file)
                     self.filenames_to_fft.append(mypath + '/' + file)
                     last_str = string
-            ###self.logger.info(f"list: {name_list}")
             ## mypath + '/' добавлять это, чтобы сохранять в той же папке
             self.fft_filename = self.folder + last_str[0] + '_' + last_str[1] + '_' +  last_str[2] + \
                 f'%_{len(self.filenames_to_fft)}%.txt_FRQ_AMP_dPh_{self.fs}Hz.txt'
             # self.name = self.folder + last_str[0] + '_' + last_str[1] + '_' +  last_str[2] + f'%_{len(name_list)}%.txt_FRQ_AMP_dPh_{self.fs}Hz.txt'
             # name = folder + name
             # self.name = name
+            self.logger.info(f"list: {self.filenames_to_fft}")
             self.fft_from_file_median(self.filenames_to_fft, self.fs) #, self.fft_filename)
+            self.logger.info("save")
+            self.save_fft(0, self.fft_filename)
     
     def save_fft(self, i, name):
         name_parts = re.split("\%", name)
-        # self.logger.info(name_parts[0] + name_parts[1] + name_parts[2])
+        self.logger.info(name_parts[0] + name_parts[1] + name_parts[2])
         self.fft_approximation(round_flag=False)
         amp_max_i = np.argmax(self.amp_and_freq[:, -3])
         self.get_special_points(
@@ -241,7 +247,7 @@ class MyThread(QtCore.QThread):
             re.split("_", os.path.basename(
                 name_parts[0] + name_parts[1] + name_parts[2]))[0])
             # list(filter(None, re.split("_", os.path.basename("D:\Gyro2023_Git\ddddd_3242_444"))))[0])
-        # self.check_f_c()  
+        # self.check_f_c()
         # name_part = ('' if self.GYRO_NUMBER == 1 else f"_{i + 1}")
         ###self.logger.info("save fft file")
 
@@ -249,7 +255,7 @@ class MyThread(QtCore.QThread):
                    self.amp_and_freq[:, :-4], delimiter='\t', fmt='%.3f')
         np.savetxt(name_parts[0] + name_parts[2], 
                    self.amp_and_freq[:, -4:], delimiter='\t', fmt='%.3f') # , decimal=','
-        self.warning_signal.emit(f"Save file {name_parts[0] + name_parts[2]}")
+        self.warning_signal.emit(f"Save file {name_parts[0] + name_parts[2]}\n")
         # np.savetxt(self.filename[0] + '_FFT_cycles' + name_part +
         #         self.filename[1], self.amp_and_freq[:, :-4],
         #         delimiter='\t', fmt='%.3f')
@@ -294,8 +300,13 @@ class MyThread(QtCore.QThread):
         ###self.logger.info(f"amp_and_freq_for_plot size = {self.amp_and_freq_for_plot.size}")
         if self.flag_measurement_start:
             self.package_num_list.append(self.package_num)
-
+        # self.logger.info(self.total_cycle_num)
+        # self.logger.info(f"cycle_count {self.cycle_count}")
+        # self.logger.info(self.amp_and_freq.shape)
+        # self.logger.info(self.amp_and_freq_for_plot.shape)
         if self.amp_and_freq.shape[0] == self.amp_and_freq_for_plot.shape[0]:
+            # print(self.amp_and_freq.size)
+            # print(self.amp_and_freq_for_plot.size)
             self.amp_and_freq[:, 4*(self.cycle_count - 1):4*self.cycle_count] = np.copy(self.amp_and_freq_for_plot)
             ###self.logger.info(f"amp_and_freq after resize2 = {self.amp_and_freq.size}")
             self.cycle_count += 1
@@ -313,7 +324,7 @@ class MyThread(QtCore.QThread):
         if self.amp_and_freq.shape[0] == self.amp_and_freq_for_plot.shape[0]:
             self.amp_and_freq[:, 4*(self.cycle_count - 1):4*(self.cycle_count)] = np.copy(self.amp_and_freq_for_plot)
         # нужна проверка на то, что все частоты +- совпадают
-        self.amp_and_freq[:, -4:] = np.nan
+        # self.amp_and_freq[:, -4:] = np.nan
         # ###self.logger.info(f"\namp_and_freq = {self.amp_and_freq}")
 
         for i in range(len(self.amp_and_freq[:, 1])):  # цикл по всем частотам
@@ -450,14 +461,19 @@ class MyThread(QtCore.QThread):
 
     def fft_from_file_median(self, file_list, fs):
         self.total_cycle_num = len(file_list)
+        self.logger.info(f"total_cycle_num={self.total_cycle_num}")
+        self.cycle_count = 1
         self.fs = fs
         for file_for_fft in file_list:
             with open(file_for_fft) as f:
                 if len(f.readline().split("\t")) != 5:
+                    self.logger.info(f"{f.readline()}")
                     self.warning_signal.emit(f"You choose wrong file!")
                     continue
             self.k_amp = 1
             ###self.logger.info(file)
+            self.logger.info(f"total_cycle_num={self.total_cycle_num} " +
+                             f"cycle_count={self.cycle_count}")
             self.fft_for_file(file_for_fft)
             if self.cycle_count == 1:
                 self.amp_and_freq = np.resize(
@@ -465,8 +481,12 @@ class MyThread(QtCore.QThread):
                     (int(self.amp_and_freq_for_plot.size / 4),
                     4 * (self.total_cycle_num + 1)))
                 self.amp_and_freq *= np.nan
-            if self.total_cycle_num != self.cycle_count:
+            self.logger.info(f"total_cycle_num={self.total_cycle_num} " +
+                             f"cycle_count={self.cycle_count}")
+            if self.cycle_count != self.total_cycle_num:
                 self.new_cycle()
+            self.logger.info(f"total_cycle_num={self.total_cycle_num} " +
+                             f"cycle_count={self.cycle_count}")
         # print("????")
         # self.save_fft(0, name)  ## в конце run сохранение есть
         # self.fft_approximation()
@@ -489,13 +509,13 @@ class MyThread(QtCore.QThread):
         # g_filter = self.custom_g_filter(len=59, k=0.0065) * 1.4
         # g_filter = self.custom_g_filter(len=47, k=0.0075) * 1.45
         # g_filter = self.custom_g_filter(len=255, k=0.00001) * 1.45
-        const_filter = (np.ones(281) / 281 * 1.5).astype(np.float32)
+        const_filter = (np.ones(301) / 301 * 1.5).astype(np.float32)
         g_filter = (self.custom_g_filter(len=25, k=0.0075) * 1).astype(np.float32)
         # print(g_filter)
         # print(self.custom_g_filter(len=25, k=0.0075))
         # threshold = 6000  # работает # = 6200   # работает
         self.logger.info(f"start download")
-        # print(filename)
+        self.logger.info(filename)
         # пример чтения части столбцов (возможно, лучше делать так)
         # print(np.arange(1, 5))
         time_data = np.array(read_csv(filename, delimiter='\t',
@@ -518,7 +538,8 @@ class MyThread(QtCore.QThread):
             self.bool_arr, g_filter, 'same') # 
         # arr = np.convolve(arr, self.custom_filter(75, 0.005)*1.55, 'same') # работает
         self.logger.info("3")
-        start = np.where((self.bool_arr[:-1] <= 0.5) & (self.bool_arr[1:] > 0.5))[0]
+        start = np.where(
+            (self.bool_arr[:-1] <= 0.5) & (self.bool_arr[1:] > 0.5))[0]
         # start = np.where((arr[:-1] == 0) & (arr[1:] == 1))[0]
         # real_start = np.where(np.diff(start) > min_frame_len)[0]
         start_arr = np.where(np.diff(start) > min_frame_len)[0]
@@ -528,7 +549,8 @@ class MyThread(QtCore.QThread):
         start_arr = np.insert(start[start_arr + 1], 0, start[0])
         # start_arr = np.insert(start_arr, len(start_arr), st)
 
-        end = np.where((self.bool_arr[:-1] >= 0.5) & (self.bool_arr[1:] < 0.5))[0]
+        end = np.where(
+            (self.bool_arr[:-1] >= 0.5) & (self.bool_arr[1:] < 0.5))[0]
         self.logger.info(f"\n111start= {start}\n end = {end}")
 
         # self.bool_arr = np.greater(abs(time_data[:, 2-1]), threshold).astype(np.float32)  # self сделал, чтобы сохранять в конце
@@ -615,21 +637,24 @@ class MyThread(QtCore.QThread):
         # self.logger.info(f"\nd start= {np.diff(start)}\nd  end = {np.diff(end)}")
         end_arr = np.insert(end[end_arr], len(end[end_arr]), end[-1])
         if len(start_arr) != len(end_arr):
-            self.warning_signal.emit(f"Problems with frame selection! ({os.path.basename(filename)})")  # !!!!!!!!!!!!!!!!!!!!!!!!!
+            self.warning_signal.emit(
+                f"Problems with frame selection! ({os.path.basename(filename)})")  # !!!!!!!!!!!!!!!!!!!!!!!!!
             np.savetxt('error_' + os.path.basename(filename),
                        self.bool_arr, delimiter='\t', fmt='%.3f')
         # self.logger.info(f"\n\nstart arr= {start_arr}\n end  arr = {end_arr}")
-        self.logger.info(f"4, len start = {len(start)}, len start after = {len(start_arr)}")
-        self.logger.info(f"4, len end = {len(end)}, len end after = {len(end_arr)}")
+        self.logger.info(
+            f"4, len start = {len(start)}, len start after = {len(start_arr)}")
+        self.logger.info(
+            f"4, len end = {len(end)}, len end after = {len(end_arr)}")
         flag_first = True
         for i in range(min(len(end_arr), len(start_arr))):
             if i > 0:
                 if start_arr[i] < end_arr[i - 1]:
                     ###self.logger.info(f"!!! start[{i}]={start_arr[i]}, end[{i}]={end_arr[i]}")
                     start_arr[i] = end_arr[i - 1]
-            self.logger.info(f"old bourders = {start_arr[i], end_arr[i]}")
+            # self.logger.info(f"old bourders = {start_arr[i], end_arr[i]}")
             bourder = self.get_new_bourder([start_arr[i], end_arr[i]], self.fs)
-            self.logger.info(f"\tnew bourders = {bourder}")
+            # self.logger.info(f"\tnew bourders = {bourder}")
             self.amp_and_freq_for_plot.resize(i + 1, 4, refcheck=False)
             if all(bourder):
                 [freq, amp, d_phase, tau] = self.fft_data(
@@ -639,7 +664,8 @@ class MyThread(QtCore.QThread):
                 self.amp_and_freq_for_plot[i, :] = [freq, amp, d_phase, tau]
             else:
                 if flag_first:
-                    self.warning_signal.emit(f"Too small data frame! ({os.path.basename(filename)})")
+                    self.warning_signal.emit(
+                        f"Too small data frame! ({os.path.basename(filename)})")
                     flag_first = False
                     np.savetxt('error_' + os.path.basename(filename),
                        self.bool_arr, delimiter='\t', fmt='%.3f')
@@ -652,7 +678,8 @@ class MyThread(QtCore.QThread):
         self.logger.info(f"median noise {os.path.basename(filename)}, " +
                          f"{np.nanmedian(abs(np.diff(self.amp_and_freq_for_plot[:, 1])))}")
         # print(np.nanmean(np.diff(self.amp_and_freq_for_plot[:, 1])))
-        self.logger.info(np.nanmean(abs(np.diff(self.amp_and_freq_for_plot[:, 1]))))
+        self.logger.info(
+            np.nanmean(abs(np.diff(self.amp_and_freq_for_plot[:, 1]))))
 
     @staticmethod
     def custom_g_filter(len, k):

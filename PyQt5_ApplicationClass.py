@@ -80,7 +80,7 @@ class AppWindow(QtWidgets.QWidget):
         self.custom_tab_plot_widget = PyQt5_CustomWidgets.CustomTabWidget(
             GYRO_NUMBER=1, logger_name=LOGGER_NAME)  # !
         self.custom_tab_plot_widget.warning_signal.connect(
-            lambda text: self.logger.warning(text)) 
+            lambda text: self.logger.warning(text))
         self.custom_tab_plot_widget.get_filename_signal.connect(
             self.run_thread_for_file_prosessing
         )
@@ -369,8 +369,7 @@ class AppWindow(QtWidgets.QWidget):
             # Copy variables to another classes and start thread
             self.custom_tab_plot_widget.fs = self.fs
             self.prosessing_thr.fs = self.fs
-            # лучше, чтобы файл сохранялся в ту же папку, из которой его выбрали
-            # self.prosessing_thr.folder = self.folder_name  # chech_filename create
+            self.prosessing_thr.folder = self.folder_name
             self.prosessing_thr.flag_by_name = True
             # self.prosessing_thr.flag_all = True
             self.prosessing_thr.filenames_to_fft = self.custom_tab_plot_widget.filenames_to_fft
@@ -596,17 +595,19 @@ class AppWindow(QtWidgets.QWidget):
     @QtCore.pyqtSlot(int)
     def plot_time_graph(self, s):
         self.package_num = s
-        self.logger.info(f"thr_stop, count = {self.count}\n" +
-                         f"package_num = {self.package_num}")
         self.package_num_label.setText(str(self.package_num))
 
         points_shown = self.PLOT_TIME_INTERVAL_SEC * self.fs
-        start_i = (self.package_num - points_shown 
+        start_i = (self.package_num - points_shown
                    if self.package_num > points_shown else 0)
+        self.logger.info(f"thr_stop, count = {self.package_num}\n" +
+                         f"package_num = {self.package_num} "+
+                         f"start_i = {start_i} "+
+                         f"self.prosessing_thr.k_amp = {self.prosessing_thr.k_amp}")
         self.custom_tab_plot_widget.plot_time_graph(
             self.prosessing_thr.time_data[start_i:self.package_num, 0] / self.fs,
             self.prosessing_thr.time_data[start_i:self.package_num, 2] / 1000,
-            self.prosessing_thr.time_data[start_i:self.package_num, 1] 
+            self.prosessing_thr.time_data[start_i:self.package_num, 1]
             / self.prosessing_thr.k_amp / 1000)
 
     @QtCore.pyqtSlot(bool)
@@ -682,6 +683,9 @@ class AppWindow(QtWidgets.QWidget):
         else:
             filename = self.folder_name + self.file_name_line_edit.text()
 
+        self.prosessing_thr.fft_filename = filename + \
+            f'%_{self.total_cycle_num}%.txt_FRQ_AMP_dPh_{self.fs}Hz.txt'
+
         extension = '.txt'
         if self.create_folder.isChecked():
             folder = re.split("_", self.file_name_line_edit.text())[0]
@@ -689,10 +693,6 @@ class AppWindow(QtWidgets.QWidget):
                 os.mkdir(folder)
             filename = self.folder_name + folder + '/' + self.file_name_line_edit.text()
             self.saving_result_folder_label.setText(self.folder_name + folder + '/')
-
-        self.prosessing_thr.folder = self.folder_name + folder + '/'
-        self.prosessing_thr.fft_filename = filename + \
-            f'%_{self.total_cycle_num}%.txt_FRQ_AMP_dPh_{self.fs}Hz.txt'
 
         new_name_list: list[str] = []
         if self.GYRO_NUMBER == 1:
