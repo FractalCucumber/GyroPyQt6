@@ -1,6 +1,7 @@
 import os
 import sys
 import numpy as np
+from pyqt5 import QtGui
 
 def get_res_path(relative_path):
     """
@@ -9,6 +10,10 @@ def get_res_path(relative_path):
     base_path = getattr(
         sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
+
+# lambda name: QtGui.QIcon(get_res_path(f'res/{name}.png'))
+def get_icon_by_name(name):
+    return QtGui.QIcon(get_res_path(f'res/{name}.png'))
 
 def check_name_simple(name):
     basename = os.path.splitext(name)[0]

@@ -19,7 +19,7 @@ from time import time
 # pg.setConfigOption('foreground', 'd')
 
 # d:/Gyro2023_Git/venv3.6/Scripts/Activate.bat
-# git add PyQt5_ApplicationClass.py PyQt5_CustomWidgets.py PyQt5_Thread.py PyQt5_Logger.py StyleSheets.css
+# git add PyQt_ApplicationClass.py PyQt_CustomWidgets.py PyQt_Thread.py PyQt_Logger.py PyQt_Functions.py
 # pyinstaller PyQt5_ApplicationOnefolder.spec
 # pyinstaller PyQt5_Application.spec 
 # pyinstaller --onefile --noconsole PyQt5_Application.py
@@ -35,10 +35,10 @@ class AppWindow(QtWidgets.QMainWindow):
     def __init__(self, parent=None):
 
         QtWidgets.QMainWindow.__init__(self, parent)
-        # QtWidgets.QApplication.setAttribute(
-            # QtCore.Qt.ApplicationAttribute.
-            # AA_UseStyleSheetPropagationInWidgetStyles,
-            # True)  # наследование свойств оформления потомков от родителей
+        QtWidgets.QApplication.setAttribute(
+            QtCore.Qt.ApplicationAttribute.
+            AA_UseStyleSheetPropagationInWidgetStyles,
+            True)  # наследование свойств оформления потомков от родителей
         self.setWindowTitle("GyroVibroTest")
         # print(QtWidgets.QStyleFactory.keys())
         QtWidgets.QApplication.setStyle('Fusion')  # 'Fusion' ... QtWidgets.QStyle
@@ -47,7 +47,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self.PAUSE_INTERVAL_MS = 750
         self.READ_INTERVAL_MS = 100 * 2  #  125 * 2
         self.folder_name = os.getcwd() + '/'  # тоже 3 штуки сделать
-        self.GYRO_NUMBER = 3
+        self.GYRO_NUMBER = 3#1
         self.folder_name_list = [os.getcwd() + '/' for _ in range(self.GYRO_NUMBER)]
         self.filename_new = ['' for _ in range(self.GYRO_NUMBER)] 
         self.filename_new_for_fft = ['' for _ in range(self.GYRO_NUMBER)] 
@@ -97,42 +97,34 @@ class AppWindow(QtWidgets.QMainWindow):
         )
 # ------ GUI ------------------------------------------------------------------
         # self.main_grid_layout = QtWidgets.QGridLayout(self)
-        # self.win_widget = WinWidget(self)
         # widget = QtWidgets.QWidget(objectName="size16px")
         widget = QtWidgets.QWidget()
-        self.main_grid_layout = QtWidgets.QGridLayout(widget)
-        # layout.addWidget(self.win_widget)
+        self.main_grid_layout = QtWidgets.QGridLayout(widget, spacing=5)
         self.setCentralWidget(widget)
 # ------ menu -----------------------------------------------------------------
-        # self.menu_bar = QtWidgets.QMenuBar(self)
-        # from PyQt5.QtWidgets import QMainWindow, QAction, qApp, QApplication
         menu_bar = self.menuBar()
-        # self.menuBar.setGeometry(0,0, 500, 25)
         menu_1 = menu_bar.addMenu("&Options")
         # menu_1.addAction('New')
         # menu_1.addAction('Open')
         # menu_1.addAction('Save')
-        settings_autosave_action = QtWidgets.QAction(
+        self.settings_autosave_action = QtWidgets.QAction(
             "&Settings autosave", self, checkable=True)
         # settings_autosave_action.setIcon(QtGui.QIcon(self.get_res_path('res//ok.png')))
         # save_settings_action.triggered.connect(self.save_all_settings)        
-        settings_autosave_action.triggered.connect(lambda: print("Settings autosave"))        
-        menu_1.addAction(settings_autosave_action)
-        save_settings_action = QtWidgets.QAction("&Save current settings", self)
-        save_settings_action.triggered.connect(self.save_all_settings)        
-        menu_1.addAction(save_settings_action)   
+        self.settings_autosave_action.triggered.connect(lambda: self.logger.warning("Settings autosave message"))        
+        menu_1.addAction(self.settings_autosave_action)
+        self.save_settings_action = QtWidgets.QAction("&Save current settings", self)
+        self.save_settings_action.triggered.connect(self.save_all_settings)        
+        menu_1.addAction(self.save_settings_action)   
         plots_to_png_action = QtWidgets.QAction("&Plots to .png", self)
         plots_to_png_action.setShortcut("Ctrl+P")
         plots_to_png_action.triggered.connect(self.save_image)        
         menu_1.addAction(plots_to_png_action)        
         exit_action = QtWidgets.QAction("&Exit", self)
-        exit_action.setShortcut("Ctrl+Q")
+        # exit_action.setShortcut("Ctrl+Q")
         # exit_action.setStatusTip("Exit application")  # ???
         exit_action.triggered.connect(self.close)
         menu_1.addAction(exit_action)
-        menu_2 = menu_bar.addMenu("&Mode")
-        menu_2.addAction('1')
-        menu_2.addAction('2')
         # self.statusBar()
 # ------ Com Settings ---------------------------------------------------------
         """
@@ -241,9 +233,18 @@ class AppWindow(QtWidgets.QMainWindow):
         self.file_name_line_edit_list: list[QtWidgets.QLineEdit] = []
         self.choose_path_button_list: list[QtWidgets.QPushButton] = []
 
+        self.saving_measurements_groupbox = QtWidgets.QGroupBox(
+            '',
+            maximumWidth=300,
+            objectName='')
+        saving_measurements_groupbox_layout = QtWidgets.QGridLayout()
+        self.saving_measurements_groupbox.setLayout(
+            saving_measurements_groupbox_layout)
+        
         for i in range(self.GYRO_NUMBER):
             self.append_gyro_widgets()
-
+            saving_measurements_groupbox_layout.addWidget(self.saving_measurements_groupbox_list[i],
+                                            i, 0, 1, 1)
 # ------ Output logs and data from file ---------------------------------------
 
         self.text_output_groupbox = QtWidgets.QGroupBox(
@@ -276,35 +277,9 @@ class AppWindow(QtWidgets.QMainWindow):
             'Стоп', enabled=False, objectName="stop_button")  # STOP
 
 # ------ Others ------------------------------------------------------------
-        # self.plot_groupbox = QtWidgets.QGroupBox('График', minimumWidth=395)
         self.plot_groupbox = QtWidgets.QGroupBox(minimumWidth=395)
         self.plot_groupbox_layout = QtWidgets.QGridLayout()
         self.plot_groupbox.setLayout(self.plot_groupbox_layout)
-
-        self.progress_bar = QtWidgets.QProgressBar(
-            format='%v/%m сек', maximum=1, value=self.progress_value)  # sec
-        self.plot_groupbox_layout.addWidget(self.progress_bar,
-                                            1, 0, 1, 13)
-
-        self.package_number_label = QtWidgets.QLabel('Пакеты:')  # Package number
-        self.plot_groupbox_layout.addWidget(self.package_number_label,
-                                            1, 13, 1, 4)
-        self.package_num_label = QtWidgets.QLabel('0')
-        self.plot_groupbox_layout.addWidget(self.package_num_label,
-                                            1, 17, 1, 1)
-
-        self.save_image_button = QtWidgets.QPushButton('Графики в .png')  # Save\nimage
-        self.plot_groupbox_layout.addWidget(
-            self.save_image_button, 2, 0, 1, 6)
-        self.save_settings_button = QtWidgets.QPushButton(
-            'Сохранить\nнастройки')  # Save settings
-        self.plot_groupbox_layout.addWidget(
-            self.save_settings_button, 2, 6, 1, 6)
-        # QToolButton # есть wordWrap
-        self.autosave_checkbox = QtWidgets.QCheckBox(
-            'Автосохранение\n     настроек')  # Autosave
-        self.plot_groupbox_layout.addWidget(
-            self.autosave_checkbox, 2, 12, 1, 6)
 
         self.check_box_list: list[QtWidgets.QCheckBox] = []
         self.check_box_list.append(
@@ -319,7 +294,19 @@ class AppWindow(QtWidgets.QMainWindow):
         for i in range(self.GYRO_NUMBER + 1):
             self.plot_groupbox_layout.addWidget(self.check_box_list[i],
                                             0, 5 * i, 1, 4)
-                                            # 0, 5 * i, 1, 5 * (i + 1))
+
+        self.progress_bar = QtWidgets.QProgressBar(
+            format='%v/%m сек', maximum=1, value=self.progress_value)  # sec
+        self.plot_groupbox_layout.addWidget(self.progress_bar,
+                                            1, 0, 1, 13)
+
+        self.package_number_label = QtWidgets.QLabel('Пакеты:')  # Package number
+        self.plot_groupbox_layout.addWidget(self.package_number_label,
+                                            1, 13, 1, 4)
+        self.package_num_label = QtWidgets.QLabel('0')
+        self.plot_groupbox_layout.addWidget(self.package_num_label,
+                                            1, 17, 1, 1)
+        # QToolButton # есть wordWrap
 
 # ------ Set main grid --------------------------------------------------------
         self.main_grid_layout.addWidget(self.com_param_groupbox,
@@ -328,19 +315,18 @@ class AppWindow(QtWidgets.QMainWindow):
                                         1, 0, 1, 1)
         self.main_grid_layout.addWidget(self.cycle_number_groupbox,
                                         1, 1, 1, 1)
-        self.main_grid_layout.addWidget(self.saving_measurements_groupbox_list[0],
-                                        2, 0, 5, 2)
-        self.main_grid_layout.addWidget(self.saving_measurements_groupbox_list[1],
-                                        7, 0, 5, 2)
-        self.main_grid_layout.addWidget(self.saving_measurements_groupbox_list[2],
-                                        12, 0, 5, 2)
-    
+        # for i in range(self.GYRO_NUMBER):
+        #     self.main_grid_layout.addWidget(self.saving_measurements_groupbox_list[i],
+        #                                     6 + i*5, 0, 5, 2)
+        self.main_grid_layout.addWidget(self.saving_measurements_groupbox,
+                                            8, 0, 12, 2)
+
         self.main_grid_layout.addWidget(self.measurements_groupbox,
-                                        6, 2, 4, 1)
+                                        2, 0, 6, 2)
         self.main_grid_layout.addWidget(self.text_output_groupbox,
-                                        0, 2, 6, 1)
+                                        0, 2, 9, 1)
         self.main_grid_layout.addWidget(self.logs_groupbox,
-                                        10, 2, 8, 1)
+                                        9, 2, 9, 1)
         self.main_grid_layout.addWidget(self.start_button,
                                         18, 2, 1, 1)
         self.main_grid_layout.addWidget(self.stop_button,
@@ -371,8 +357,8 @@ class AppWindow(QtWidgets.QMainWindow):
         self.choose_file.clicked.connect(self.choose_and_load_file)
         self.cycle_num_widget.valueChanged.connect(self.cycle_num_value_change)
         self.cycle_num_widget.valueChanged.connect(self.progress_bar_set_max)
-        self.save_image_button.clicked.connect(self.save_image)
-        self.save_settings_button.clicked.connect(self.save_all_settings)
+        # self.save_image_button.clicked.connect(self.save_image)
+        # self.save_settings_button.clicked.connect(self.save_all_settings)
         # self.choose_path_button.clicked.connect(
         #     self.choose_result_saving_path)
         self.filename_and_path_widget.textChanged.connect(
@@ -403,7 +389,8 @@ class AppWindow(QtWidgets.QMainWindow):
         ind = len(self.saving_measurements_groupbox_list)
         self.saving_measurements_groupbox_list.append(QtWidgets.QGroupBox(
             f'Сохранение измерений gyro{ind + 1}',
-            maximumWidth=300))
+            maximumWidth=300,
+            objectName='gyro_save_groupbox'))
         saving_measurements_groupbox_layout = QtWidgets.QGridLayout()
         self.saving_measurements_groupbox_list[-1].setLayout(
             saving_measurements_groupbox_layout)
@@ -423,21 +410,23 @@ class AppWindow(QtWidgets.QMainWindow):
             self.saving_result_folder_label_list[-1], 0, 1, 3, 2)
 
         saving_measurements_groupbox_layout.addWidget(
-            QtWidgets.QLabel('Имя:'), 3, 0, 2, 1)
+            QtWidgets.QLabel('Имя:'), 3, 0, 1, 1)
         self.file_name_line_edit_list.append(QtWidgets.QLineEdit(f'test{ind + 1}'))
         saving_measurements_groupbox_layout.addWidget(
-            self.file_name_line_edit_list[-1], 3, 1, 2, 2)
+            self.file_name_line_edit_list[-1], 3, 1, 1, 2)
         self.choose_path_button_list.append(QtWidgets.QPushButton(
             # 'Выбрать папку\nсохранения',
             icon=QtGui.QIcon(
                 self.get_res_path(
                     f'res/open_folder_{self.ICON_LIST[ind]}.png'))))
         saving_measurements_groupbox_layout.addWidget(
-            self.choose_path_button_list[-1], 5, 0, 1, 2)
+            # self.choose_path_button_list[-1], 0, 3, 1, 1)
+            self.choose_path_button_list[-1], 4, 0, 1, 2)
         self.create_folder_checkbox_list.append(
-            QtWidgets.QCheckBox('Cоздавать папку'))
+            QtWidgets.QCheckBox('папка'))
         saving_measurements_groupbox_layout.addWidget(
-            self.create_folder_checkbox_list[-1], 5, 2, 1, 1)  #
+            # self.create_folder_checkbox_list[-1], 3, 3, 1, 1)  #
+            self.create_folder_checkbox_list[-1], 4, 2, 1, 1)  #
 
 ###############################################################################
 #
@@ -454,8 +443,8 @@ class AppWindow(QtWidgets.QMainWindow):
         self.current_cylce = 1
         self.package_num = 0
         self.flag_sent = False
-        if not self.check_filename():
-            return
+        # if not self.check_filename():
+            # return
         if not self.total_time:
             self.cycle_num_value_change()
             if not self.choose_and_load_file():
@@ -470,7 +459,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self.custom_tab_plot_widget.clear_plots()
         self.custom_tab_plot_widget.append_fft_plot_tab() 
         from pandas import read_csv
-        filename = 'all_prev/6884_139_6.2_4.txt'
+        filename = '6884_139_6.2_5.txt'
         self.time_data_test = np.array(read_csv(filename, delimiter='\t',
                                       dtype=np.int32, header=None,  #,
                                       keep_default_na=False,
@@ -558,7 +547,7 @@ class AppWindow(QtWidgets.QMainWindow):
         # self.prosessing_thr.fs = 1000
         if len(self.custom_tab_plot_widget.filenames_to_fft):
             self.custom_tab_plot_widget.clear_plots()
-            self.check_filename()
+            # self.check_filename()
             self.fs = int(self.fs_combo_box.currentText())
             # Copy variables to another classes and start thread
             self.custom_tab_plot_widget.fs = self.fs
@@ -722,19 +711,10 @@ class AppWindow(QtWidgets.QMainWindow):
                          length=2, byteorder='little', signed=False)
         A = int.to_bytes(self.table_widget.get_A(),
                          length=2, byteorder='little', signed=False)
-        # F = int.to_bytes(int(self.table_widget.item(self.count, 0).data(
-        #     QtCore.Qt.ItemDataRole.EditRole)),
-        #                  length=2, byteorder='little', signed=False)
-        # A = int.to_bytes(int(self.table_widget.item(self.count, 1).data(
-        #     QtCore.Qt.ItemDataRole.EditRole)),
-        #                  length=2, byteorder='little', signed=False)
         self.Serial.write(
             bytes([77, 0, F[0], F[1], A[0], A[1], 0, 0]))
         
         self.timer_sent_com.setInterval(self.table_widget.get_T())
-        # self.timer_sent_com.setInterval(
-            # int(self.table_widget.item(
-                # self.count, 2).data(QtCore.Qt.ItemDataRole.EditRole)) * 1000)
         self.count += 1
         self.logger.info("- Command was sent -")
 
@@ -788,20 +768,27 @@ class AppWindow(QtWidgets.QMainWindow):
         self.logger.info(f"thr_stop, count = {self.count}\n" +
                          f"package_num = {self.package_num} ")
         self.custom_tab_plot_widget.plot_time_graph(
-            self.prosessing_thr.time_data[start_i:self.package_num, 0] / self.fs,
-            self.prosessing_thr.time_data[start_i:self.package_num, 2] / 1000,
-            self.prosessing_thr.time_data[start_i:self.package_num, 1]
-            / self.prosessing_thr.k_amp / 1000)
+            self.prosessing_thr.time_data[start_i:, 0] / self.fs,
+            self.prosessing_thr.time_data[start_i:, 2] / 1000,
+            [self.prosessing_thr.time_data[start_i:, 1 + 4*i] / self.prosessing_thr.k_amp[i] / 1000
+            for i in range(self.GYRO_NUMBER)])
+
+        # self.custom_tab_plot_widget.plot_time_graph(
+        #     self.prosessing_thr.time_data[start_i:, 0] / self.fs,
+        #     self.prosessing_thr.time_data[start_i:, 2] / 1000,
+        #     self.prosessing_thr.time_data[start_i:, 1]
+        #     / self.prosessing_thr.k_amp / 1000)
 
     @QtCore.pyqtSlot(bool)
     def plot_fft(self, _):
         """Adds points to frequency graphs"""
         self.custom_tab_plot_widget.set_fft_data(
-            self.prosessing_thr.amp_and_freq_for_plot,
+            self.prosessing_thr.amp_and_freq_current_cycle,
             self.prosessing_thr.bourder, self.fs)
         self.logger.info("plot_fft")
 
-    @QtCore.pyqtSlot(str)
+    # @QtCore.pyqtSlot(str)
+    @QtCore.pyqtSlot(list)
     def plot_fft_final(self, name):
         self.logger.info("Final median plot")
         self.custom_tab_plot_widget.set_fft_median_data(
@@ -811,7 +798,6 @@ class AppWindow(QtWidgets.QMainWindow):
     @QtCore.pyqtSlot()
     def save_image(self):  # ???
         self.logger.info("Save image")
-        # if self.check_filename():
         # if self.check_filename():
         self.custom_tab_plot_widget.save_plot_image(
             self.prosessing_thr.filename_new[0])
@@ -840,7 +826,7 @@ class AppWindow(QtWidgets.QMainWindow):
         """Enable or disable widgets"""
         self.cycle_num_widget.setDisabled(flag_running)
         self.edit_file_button.setDisabled(flag_running)
-        self.save_image_button.setDisabled(flag_running)
+        # self.save_image_button.setDisabled(flag_running)
         self.start_button.setDisabled(flag_running)
         self.stop_button.setDisabled(not flag_running)
         self.choose_file.setDisabled(flag_running)
@@ -870,7 +856,9 @@ class AppWindow(QtWidgets.QMainWindow):
             self.folder_name_list[i] + folder + self.file_name_line_edit_list[i].text()
         # self.filename_new_for_fft[i] = self.filename_new[i] + f'%_{self.total_cycle_num}%.txt_FRQ_AMP_dPh_{self.fs}Hz.txt'
         self.prosessing_thr.filename_new_for_fft[i] = \
-            self.filename_new[i] + f'%_{self.total_cycle_num}%.txt_FRQ_AMP_dPh_{self.fs}Hz.txt'
+            self.prosessing_thr.filename_new[i] + f'%_{self.total_cycle_num}%.txt_FRQ_AMP_dPh_{self.fs}Hz.txt'
+        self.logger.info(f"name {self.prosessing_thr.filename_new[i]}")
+        self.logger.info(f"name {self.prosessing_thr.filename_new_for_fft[i]}")
         # self.saving_result_folder_label_list[i].setText(self.folder_name + folder)
         # self.saving_result_folder_label_list[i].setText(self.folder_name)
         # return filename
@@ -937,7 +925,7 @@ class AppWindow(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot()
     def choose_result_saving_path(self):
-        for i in range(3):
+        for i in range(len(self.choose_path_button_list)):
             if self.sender() == self.choose_path_button_list[i]:
                 break
         else:
@@ -1025,8 +1013,8 @@ class AppWindow(QtWidgets.QMainWindow):
         """
         self.stop()
         self.settings.setValue("autosave",
-                                self.autosave_checkbox.checkState())
-        if self.autosave_checkbox.checkState():
+                               int(self.settings_autosave_action.isChecked()))
+        if self.settings_autosave_action.isChecked():
             self.save_all_settings()
         self.logger.warning("Saving the settings and exit")
 
@@ -1052,12 +1040,16 @@ class AppWindow(QtWidgets.QMainWindow):
                                 for checkbox in self.create_folder_checkbox_list])
 
     def load_previous_settings(self, settings: QtCore.QSettings):
+        if self.settings.contains("autosave"):
+            self.settings_autosave_action.setChecked(
+                int(self.settings.value("autosave")))
+
         if settings.contains("cycle_num"):
             self.cycle_num_widget.setValue(
                 settings.value("cycle_num"))
-        if settings.contains("autosave"):
-            self.autosave_checkbox.setChecked(
-                settings.value("autosave"))
+        # if settings.contains("autosave"):
+            # self.autosave_checkbox.setChecked(
+                # settings.value("autosave"))
         if settings.contains("filename"):
             name = settings.value("filename")
             if os.path.exists(name):
@@ -1073,16 +1065,14 @@ class AppWindow(QtWidgets.QMainWindow):
         #             settings.value("current_folder"))
         #         self.folder_name = settings.value("current_folder")
         if settings.contains("create_folder_flag"):
-            # print(settings.value("create_folder_flag"))
-            # print(settings.value("create_folder_flag")[1])
-            for i in range(self.GYRO_NUMBER):
+            for i in range(len(settings.value("create_folder_flag"))):
                 self.create_folder_checkbox_list[i].setChecked(
                     int(settings.value("create_folder_flag")[i]))
             
         if settings.contains("current_folders"):
             i = 0
             # for folder in settings.value("current_folders"):
-            for i in range(self.GYRO_NUMBER):
+            for i in range(len(settings.value("current_folders"))):
                 if os.path.isdir(settings.value("current_folders")[i]):
                     # self.saving_result_folder_label.setText(
                     self.saving_result_folder_label_list[i].setText(  #########################################################
@@ -1111,7 +1101,7 @@ class AppWindow(QtWidgets.QMainWindow):
 # -----------------------------------------------------------------------------
 
 test = True
-test = False
+# test = False
 if __name__ == "__main__":
 
     app = QtWidgets.QApplication(sys.argv)

@@ -19,7 +19,7 @@ class QTextEditLogger():
         # file_handler = logging.FileHandler('./log')
         if file_log:
             logging.basicConfig(
-                filename='GyroTestPyqt.log',
+                filename='GyroTestPyQt.log',
                 filemode='w',
                 format=('#%(levelname)-s,\t%(pathname)s:%(lineno)d,\t%(asctime)s, %(message)s'),
                 # format=('#%(levelname)-s,\t%(pathname)s,\tline %(lineno)d,\t[%(asctime)s]: %(message)s'),
