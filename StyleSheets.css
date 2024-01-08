@@ -1,21 +1,46 @@
 
-/* 
+/*
     Main Window 
 */
 
 QWidget{
-    background-color: #262626;
-    color: #FFFFFF;
-    font-size: 18px;
+    background-color: #151515;
+    color: #FFFFF1;
+    font-size: 15px;
     text-align: center;
     /* qproperty-alignment: AlignCenter; align everything */
+    /* color: silver; */
+    /* background-color: #302F2F; */
+    /* selection-background-color:#3d8ec9; */
+    /* selection-color: black; */
+    background-clip: border;
+    border-image: none;
+    outline: 0;
 }
+/* QWidget#size16px{
+    font-size: 16px;
+}
+QWidget#size14px{
+    font-size: 14px;
+} */
+/* QWidget#white{
+    font-size: 16px;
+} */
 /* 
     Grid
 */
+QSpinBox {
+    border-width: 2px;
+    /* border-radius: 10px; */
+    border-color: rgb(0, 0, 0);
+    padding: 3px;
+    background-color: rgb(8, 3, 27);
+}
 
 QGroupBox {
+    /* margin-top: 2ex; */
     /* text-align: center; */
+    /* padding: 15px; */
 }
 QGroupBox {
     /* background-color: rgb(20, 0, 0); */
@@ -23,9 +48,20 @@ QGroupBox {
     /* text-align: center; */
     /* border: 20px solid rgb(158, 12, 12); */
 }
-/* 
-    QProgressBar
-*/
+
+QGroupBox{
+    border: 0.5px solid rgb(44, 44, 44);
+    /* border-radius:5px; */
+    margin-top:3.1ex;/*The deviation of the position of the text in the box */
+    /* font-family: italics; */
+    /* font:bold 16px; */
+}
+
+QGroupBox::title{
+    subcontrol-origin:margin;
+    subcontrol-position:top left;
+    padding:0 3px;
+}
 
 QProgressBar{
     border: 2px solid grey;
@@ -37,20 +73,18 @@ QProgressBar::chunk {
     /* width: 20px; */
     /* margin: 1px; */
 }
-/* 
-    QComboBox
-*/
 
 QComboBox {
-    background-color: red;
+    /* background-color: rgb(93, 10, 10); */
+    background-color: rgb(8, 3, 27);
 }
 QComboBox:!editable {
-    text-align: center;
-    background-color: gray;
+    /* text-align: center; */
+    /* background-color: gray; */
 }
-QComboBox::item {
+/* QComboBox::item {
     text-align: center;
-}
+} */
 /* 
     Buttons
 */
@@ -59,20 +93,24 @@ QPushButton {
     border-style: outset;
     border-width: 1px;
     border-radius: 10px;
-    border-color: white;
+    border-color: rgb(197, 197, 197);
     padding: 3px;
+    background-color: rgb(49, 49, 49);
 }
 QPushButton:pressed, QPushButton:pressed#start_button, QPushButton:pressed#stop_button {
-    background-color: rgb(0, 0, 0);
+    background-color: rgb(14, 11, 11);
 }
 QPushButton:disabled {
     border-color: rgb(90, 88, 88);
+    border-width: 0px;
 }
 QPushButton#start_button {
     background-color: rgb(0, 120, 0);
+    font-size: 18px;
 }
 QPushButton#stop_button {
     background-color: rgb(150, 0, 0);
+    font-size: 18px;
 }
 
 /* QPushButton#textbox1 {
@@ -88,12 +126,24 @@ QPushButton#stop_button {
 QLabel {
     qproperty-alignment: AlignCenter; 
 } 
-/* QCheckBox {
+QLabel#with_bourder {
+    border: 1px solid rgb(181, 181, 181);
+    border-radius: 10px;
+} 
+QCheckBox::indicator:unchecked {
+    background-color: rgb(0, 0, 0);
     border-width: 1px;
     border-style: solid;
     border-color: white;
-    padding: 9px
-} */
+    /* padding: 9px */
+}
+/* QCheckBox::indicator:checked { */
+    /* background-color: rgb(255, 255, 255); */
+    /* border-width: 1px; */
+    /* border-style: solid; */
+    /* border-color: rgb(0, 0, 0); */
+    /* padding: 9px */
+/* } */
 /* QCheckBox::indicator {
     border: 1px solid grey;
 } */
@@ -105,14 +155,58 @@ QLabel {
     max-width: 72px
     padding: 3px
 } */
+QLineEdit:read-only {
+    background-color: rgb(0, 0, 0);
+    border-width: 1px;
+}
 QLineEdit {
-    border: 1px solid grey;
+    border-style: outset;
+    border-width: 2px;
+    border-radius: 10px;
+    border-color: white;
+    padding: 3px;
+    background-color: rgb(32, 20, 20);
+    /* border: 1px solid rgb(204, 203, 203); */
     qproperty-alignment: AlignCenter;
     /* border-radius: 5px; */
 }
-QLineEdit:!read-only {
-    background-color: grey;
+QTextEdit#with_bourder {
+    border: 1px solid rgb(181, 181, 181);
+    border-radius: 10px;
+} 
+/* QTextEdit#logger {
+    font-size: 14px;
+}  */
+
+QMenu {
+    background-color: #151515;
+    border: 1px solid rgb(92, 92, 92);
+} 
+
+QMenu::item {
+    /* sets background of menu item. set this to something non-transparent
+        if you want menu color and menu item color to be different */
+    /* border: 0.5px solid rgb(92, 92, 92); */
+    background-color: transparent;
 }
 
-
-
+QMenu::item:selected { /* when user selects item using mouse or keyboard */
+    background-color: #2a2a2a;
+}
+/* QMenu::item:off { /* when user selects item using mouse or keyboard * /
+    background-color: #b52828;
+} */
+QMenu::item:disabled { /* when user selects item using mouse or keyboard */
+    /* background-color: #3f3a37; */
+    /* background-color: #3f3a37; */
+    color: #848484;
+}
+QMenu:separator { /* when user selects item using mouse or keyboard */
+    background-color: #575757;
+}
+/* QMenu::item:checked { /* when user selects item using mouse or keyboard * /
+    background-color: #252220;
+}
+QMenu::item:selected:checked { /* when user selects item using mouse or keyboard * /
+    background-color: #655c56;
+} */
