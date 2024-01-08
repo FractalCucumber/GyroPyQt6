@@ -513,9 +513,9 @@ class AppWindow(QtWidgets.QMainWindow):
                 f"Can't open {self.combo_box_name.currentText()}")
             return
 
-        # Check filenames
-        for i in range(self.GYRO_NUMBER):
-            self.make_filename(i)
+        # # Check filenames
+        # for i in range(self.GYRO_NUMBER):  # !
+        #     self.make_filename(i)  # !
 
         self.custom_tab_plot_widget.clear_plots()
         self.custom_tab_plot_widget.append_fft_plot_tab()
@@ -655,6 +655,11 @@ class AppWindow(QtWidgets.QMainWindow):
                         None, "Warning",
                         f"You set fs = {self.fs} Hz," +
                         f"but in fact it's close to {check} Hz")
+                            # Check filenames
+            for i in range(self.GYRO_NUMBER):
+                self.make_filename(i)
+            # print(self.processing_thr.data_recieved_event.is_set())
+            # print(self.processing_thr.flag_measurement_start)
         self.processing_thr.flag_measurement_start = False
         self.processing_thr.data_recieved_event.set()
 
@@ -709,6 +714,8 @@ class AppWindow(QtWidgets.QMainWindow):
         for i in range(self.GYRO_NUMBER):
             if (len(self.processing_thr.filename_new[i])
                 and self.check_box_list[i].isChecked()):
+                if self.processing_thr.flag_measurement_start:  # !
+                    self.make_filename(i)  # !
                 self.custom_tab_plot_widget.save_plot_image(
                     self.processing_thr.filename_new[i])
         self.logger.info("Saving complite")
@@ -737,8 +744,10 @@ class AppWindow(QtWidgets.QMainWindow):
         self.start_button.setDisabled(flag_running)
         self.stop_button.setDisabled(not flag_running)
         self.choose_file.setDisabled(flag_running)
-        for groupbox in self.saving_measurements_groupbox_list:
-            groupbox.setDisabled(flag_running)
+        # for groupbox in self.saving_measurements_groupbox_list:
+            # groupbox.setDisabled(flag_running)
+        # saving_measurements_groupbox_list можно редактировать,
+        # т.к. путь отправляется в поток перед окончанием цикла
 
     def get_avaliable_com(self):
         """Append avaliable com ports to combo box widget"""
@@ -751,9 +760,7 @@ class AppWindow(QtWidgets.QMainWindow):
 
     def make_filename(self, i: int):
         if not len(self.file_name_line_edit_list[i].text()):
-            # return ''
             self.processing_thr.filename_new[i] = ''
-            # self.processing_thr.filename_new_for_fft[i] = ''
             return
         if self.create_folder_checkbox_list[i].isChecked():
             folder = re.split("_", self.file_name_line_edit_list[i].text())[0]
@@ -766,11 +773,7 @@ class AppWindow(QtWidgets.QMainWindow):
             folder = ''
         self.processing_thr.filename_new[i] = \
             self.folder_name_list[i] + folder + self.file_name_line_edit_list[i].text()
-        # self.processing_thr.filename_new_for_fft[i] = \
-            # self.processing_thr.filename_new[i] + f'%_{self.total_cycle_num}%_FRQ_AMP_dPh_{self.fs}Hz.txt'
-        # можно не делать имя для fft, проще собрать его уже в потоке
         self.logger.info(f"name {self.processing_thr.filename_new[i]}")
-        # self.logger.info(f"name {self.processing_thr.filename_new_for_fft[i]}")
 
     # def directory_changed(self, path):
     #     self.logger.info(f'Directory Changed: {path}')
@@ -928,8 +931,8 @@ class AppWindowTest(AppWindow):
         AppWindow.__init__(self, parent)
 
     def measurement_start(self):
-        for i in range(self.GYRO_NUMBER):
-            self.make_filename(i)
+        # for i in range(self.GYRO_NUMBER):
+            # self.make_filename(i)
         self.progress_bar.setValue(0)
         self.progress_value = 0
         self.count = 0
@@ -1028,6 +1031,34 @@ class AppWindowTest(AppWindow):
         self.table_widget.selectRow(self.count)
         self.timer_sent_com.setInterval(self.table_widget.get_current_T())
         self.count += 1
+
+    @QtCore.pyqtSlot()
+    def stop(self):
+        self.set_avaliable_butttons(False)
+        if self.timer_sent_com.isActive():
+            self.timer_sent_com.stop()
+        if self.timer_recieve.isActive():
+            self.timer_recieve.stop()
+        self.logger.info(
+            f"time = {self.progress_value}, " +
+            f"total time = {self.progress_bar.maximum()}")
+
+        if self.processing_thr.isRunning():
+            self.logger.warning("End of measurements\n")
+            if self.progress_value > 5:
+                check = int(self.package_num / self.progress_value)
+                if not (0.95 * self.fs < check < 1.05 * self.fs):
+                    QtWidgets.QMessageBox.critical(
+                        None, "Warning",
+                        f"You set fs = {self.fs} Hz," +
+                        f"but in fact it's close to {check} Hz")
+                            # Check filenames
+            for i in range(self.GYRO_NUMBER):
+                self.make_filename(i)
+            # print(self.processing_thr.data_recieved_event.is_set())
+            # print(self.processing_thr.flag_measurement_start)
+        self.processing_thr.flag_measurement_start = False
+        self.processing_thr.data_recieved_event.set()
 
 
 # -----------------------------------------------------------------------------
