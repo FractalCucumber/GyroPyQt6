@@ -39,10 +39,7 @@ QSpinBox {
 
 QGroupBox {
     /* margin-top: 2ex; */
-    /* text-align: center; */
     /* padding: 15px; */
-}
-QGroupBox {
     /* background-color: rgb(20, 0, 0); */
     /* border-color: aqua;0 */
     /* text-align: center; */
@@ -53,8 +50,12 @@ QGroupBox{
     border: 0.5px solid rgb(44, 44, 44);
     /* border-radius:5px; */
     margin-top:3.1ex;/*The deviation of the position of the text in the box */
+    /* padding-left: 0px; */
     /* font-family: italics; */
     /* font:bold 16px; */
+    /* style: GroupBoxStyle { */
+        /* padding.left: 0 */
+    /* } */
 }
 
 QGroupBox::title{
@@ -62,6 +63,9 @@ QGroupBox::title{
     subcontrol-position:top left;
     padding:0 3px;
 }
+/* 
+    QProgressBar
+*/
 
 QProgressBar{
     border: 2px solid grey;
@@ -73,6 +77,9 @@ QProgressBar::chunk {
     /* width: 20px; */
     /* margin: 1px; */
 }
+/* 
+    QComboBox
+*/
 
 QComboBox {
     /* background-color: rgb(93, 10, 10); */
@@ -161,15 +168,26 @@ QLineEdit:read-only {
 }
 QLineEdit {
     border-style: outset;
-    border-width: 2px;
-    border-radius: 10px;
+    border-width: 1px;
+    border-radius: 8px;
     border-color: white;
-    padding: 3px;
+    padding: 1px;
     background-color: rgb(32, 20, 20);
     /* border: 1px solid rgb(204, 203, 203); */
     qproperty-alignment: AlignCenter;
     /* border-radius: 5px; */
 }
+/* QLineEdit {
+    border-style: outset;
+    border-width: 2px;
+    border-radius: 10px;
+    border-color: white;
+    padding: 3px;
+    background-color: rgb(32, 20, 20);
+    /* border: 1px solid rgb(204, 203, 203); * /
+    qproperty-alignment: AlignCenter;
+    / * border-radius: 5px; * /
+} */
 QTextEdit#with_bourder {
     border: 1px solid rgb(181, 181, 181);
     border-radius: 10px;
@@ -204,9 +222,50 @@ QMenu::item:disabled { /* when user selects item using mouse or keyboard */
 QMenu:separator { /* when user selects item using mouse or keyboard */
     background-color: #575757;
 }
-/* QMenu::item:checked { /* when user selects item using mouse or keyboard * /
-    background-color: #252220;
+
+
+QGroupBox#small{
+    border: 0.5px solid rgb(44, 44, 44);
+    /* border-radius:5px; */
+    font-size: 12px;
+    margin-top:3.1ex;/*The deviation of the position of the text in the box */
+    /* font-family: italics; */
+    /* font:bold 16px; */
 }
-QMenu::item:selected:checked { /* when user selects item using mouse or keyboard * /
-    background-color: #655c56;
-} */
+
+QGroupBox#small QLineEdit, QLabel {
+    font-size: 12px;
+    /* border-style: outset; */
+    /* border-width: 1px; */
+    /* border-radius: 8px; */
+    /* border-color: white; */
+    /* padding: 1px; */
+    /* background-color: rgb(32, 20, 20); */
+    /* border: 1px solid rgb(204, 203, 203); */
+    /* qproperty-alignment: AlignCenter; */
+    /* border-radius: 5px; */
+}
+
+QGroupBox#gyro_save_groupbox{
+    /* border: 0.5px solid rgb(44, 44, 44); */
+    /* border-radius:5px; */
+    font-size: 12px;
+    /* margin-top:3.1ex;The deviation of the position of the text in the box */
+    /* font-family: italics; */
+    /* font:bold 16px; */
+}
+QGroupBox#gyro_save_groupbox QLineEdit, QLabel, QCheckBox {
+    font-size: 12px;
+}
+QGroupBox#gyro_save_groupbox QTextEdit#with_bourder {
+    font-size: 12px;
+}
+/* QGroupBox#small QLabel {
+    font-size: 12px;
+    /* qproperty-alignment: AlignCenter;  */
+/* }  */
+/* QGroupBox#small QLabel#with_bourder { */
+    /* font-size: 12px; */
+    /* border: 1px solid rgb(181, 181, 181); */
+    /* border-radius: 10px; */
+/* }  */

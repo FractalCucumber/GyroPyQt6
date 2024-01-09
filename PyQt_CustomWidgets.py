@@ -2,7 +2,6 @@ import logging
 import re
 import sys
 import numpy as np
-# from datetime import datetime
 from PyQt5 import QtWidgets, QtCore, QtGui
 import pyqtgraph.exporters
 import pyqtgraph as pg
@@ -11,8 +10,7 @@ from openpyxl import load_workbook  # лучше использовать Pandas
 # from PyQt_Functions import get_icon_by_name, get_res_path
 import PyQt_ProjectsComboBox
 from PyQt_Functions import check_name_simple
-# pg.setConfigOption('background', '#f0f0f5')  # Установите фон в серый цвет
-# pg.setConfigOption('foreground', 'd')
+import os
 
 
 class CustomViewBox(pg.ViewBox):
@@ -38,13 +36,11 @@ class CustomViewBox(pg.ViewBox):
 class CustomTabWidget(QtWidgets.QTabWidget):
     warning_signal = QtCore.pyqtSignal(str)
     get_filename_signal = QtCore.pyqtSignal(bool)
-    # filenames_list_emit = QtCore.pyqtSignal(bool)
 
     def __init__(self, GYRO_NUMBER, fs=1000, logger_name='', parent=None):
         # QtWidgets.QTabWidget.__init__(self)
         super(CustomTabWidget, self).__init__(parent)
         self.GYRO_NUMBER = GYRO_NUMBER
-        # self.visibility_flags = [True for _ in range(self.GYRO_NUMBER + 1)]
         self.visibility_flags = [True] * (self.GYRO_NUMBER + 1)
         self.LABEL_STYLE = {'color': '#FFF', 'font-size': '16px'}
         self.COLOR_LIST = ['r', 'g', '#006bf7']
@@ -84,12 +80,12 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # self.time_curves[0].setData(self.x, self.y)
 # ------ Tab widget -----------------------------------------------------------
         self.page = QtWidgets.QWidget(self)
-        self.layout = QtWidgets.QVBoxLayout()
-        self.layout.addWidget(self.time_plot)
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(self.time_plot)
         self.spectrum_button = QtWidgets.QPushButton("От времени")  # Time plot
-        self.layout.addWidget(self.spectrum_button)
+        layout.addWidget(self.spectrum_button)
         self.spectrum_button.clicked.connect(self.switch_plot_x_axis)
-        self.page.setLayout(self.layout)
+        self.page.setLayout(layout)
         self.addTab(self.page, "\u03C9(t)")  # &Time plot От времени
         self.tab_widget_page_list: list[QtWidgets.QWidget] = []
         self.phase_curves: list[pg.PlotCurveItem] = []
@@ -164,16 +160,41 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     #     for i in range(self.GYRO_NUMBER):
     #         self.time_curves[i + 1].setData(time_data, gyro_data)
 
-    def set_fft_data(self, freq_data: np.ndarray, frame: list, fs: int):
+    def set_fft_data(self, freq_data: np.ndarray, frame: list):
         """Adds points to frequency graphs"""
-        self.logger.info("plot_fft")
+        # self.logger.info(f"plot_fft, len {len(self.amp_curves)}")
+        # self.logger.info(f"plot_fft, len amp_plot_list {len(self.amp_plot_list)}")
+        # self.logger.info(f"self.amp_plot_list {self.amp_plot_list}")
+        # self.logger.info(f"self.amp_curves {self.amp_curves}")
+        # self.logger.info(f"self.amp_curves {self.amp_plot_list}")
+        # self.logger.info(
+            # f"self.amp_plot_list[-1].getPlotItem().curves {self.amp_plot_list[-1].getPlotItem().curves[-1]}")
+        # до этого момента менются данные
+        # for i in range(len(self.amp_curves)):
+        #     print(f"{self.amp_curves[i]}")
+        #     print(f"{i} {self.amp_curves[i].getData()}")
         for i in range(self.GYRO_NUMBER):
-            self.amp_curves[-1 - i].setData(freq_data[:, 0, i],
-                                        freq_data[:, 1, i])
-            self.phase_curves[-1 - i].setData(freq_data[:, 0, i],
-                                        freq_data[:, 2, i])
-        self.region.setRegion([frame[0]/fs, frame[1]/fs])
+            # self.logger.info(f"getPlotItem().curves[i] {freq_data[:, 0, i]}")
+            # self.amp_plot_list[-1].getPlotItem().curves[i].setData(freq_data[:, 0, i],
+                                        # freq_data[:, 1, i])
+            # self.phase_plot_list[-1].getPlotItem().curves[i].setData(freq_data[:, 0, i],
+                                        # freq_data[:, 2, i])
+            # ind = -1 - i
+            ind = self.GYRO_NUMBER * (self.count() - 2) + i
+            # self.logger.info(f"ind {ind}")
+            # self.logger.info(f"self.amp_curves {self.amp_curves[ind]}")
+            # self.logger.info(f"self.phase_curves {self.phase_curves[ind]}")
+            
+            self.amp_curves[ind].setData(np.copy(freq_data[:, 0, i]),
+                                         np.copy(freq_data[:, 1, i]))
+            self.phase_curves[ind].setData(np.copy(freq_data[:, 0, i]),
+                                           np.copy(freq_data[:, 2, i]))
+        # for i in range(len(self.amp_curves)):
+        #     print(f"after {self.amp_curves[i]}")
+        #     print(f"{i} after {self.amp_curves[i].getData()}")
+        self.region.setRegion([frame[0]/self.fs, frame[1]/self.fs])
         self.amp_plot_list[-1].autoRange()
+        # self.phase_plot_list[-1].autoRange()
 
 # ------ FFT median plot ------------------------------------------------------------------
     def set_fft_median_data(self, freq_data: np.ndarray,
@@ -184,7 +205,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # for i in range(self.GYRO_NUMBER):
         for i in range(len(self.groupbox_list)):
             self.groupbox_list[i].setVisible(False)
-        for i in range(freq_data.shape[2]):
+        # for i in range(freq_data.shape[2]):  # !!!
+        for i in range(len(folder)):
             self.groupbox_list[i].setVisible(True)
             temp[:, :, i] = np.insert(
                 freq_data[:, :, i],
@@ -204,6 +226,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # self.freq_data = freq_data
         self.freq_data = temp
         self.amp_plot_list[0].autoRange()
+        self.phase_plot_list[0].autoRange()
         self.mouse_x = None
         self.mouse_y = None
 
@@ -253,6 +276,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
  
     @QtCore.pyqtSlot()
     def write_xlsx(self):
+        return
         self.currnt_xlsx_path = \
             self.projects_combo_box.projects_dict[
                 self.projects_combo_box.currentText()]
@@ -298,13 +322,20 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     def clear_plots(self):
         self.freq_data = np.ndarray((1, 4, 1))  # лучше пустой массив создавать
         self.freq_data.fill(-1)
+        self.region.setRegion([0, 0])
+        self.logger.info(f"len amp prev {len(self.amp_curves)}")
+        self.logger.info(f"len phase_curves prev {len(self.phase_curves)}")
         for i in range(self.count() - 2):
-            self.removeTab(2)
-            self.amp_curves.pop()
-            self.phase_plot_list.pop()
+            for _ in range(self.GYRO_NUMBER):
+                self.amp_curves.pop()
+                self.phase_curves.pop()
             self.amp_plot_list.pop()
+            self.phase_plot_list.pop()
+            self.removeTab(2)
             self.tab_widget_page_list.pop()
         #         phase_plot_list
+        self.logger.info(f"len amp {len(self.amp_curves)}")
+        self.logger.info(f"len phase_curves {len(self.phase_curves)}")
         self.time_curves[0].setData([])
         for i in range(self.GYRO_NUMBER):
             self.time_curves[i + 1].setData([])
@@ -350,6 +381,9 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 
     @QtCore.pyqtSlot(str)
     def save_plot_image(self, path: str):
+        if not os.path.isdir(os.path.dirname(path)):
+            self.warning_signal.emit(f"Folder {os.path.dirname(path)} doesn't exist!")
+            return
         pyqtgraph.exporters.ImageExporter(
             self.time_plot_item).export(
                 check_name_simple(path + '_time_plot.png'))
@@ -410,58 +444,60 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         """
         index = self.count() - 1
         self.tab_widget_page_list.append(QtWidgets.QWidget(self))
-        self.layout = QtWidgets.QVBoxLayout(spacing=0)
+        layout = QtWidgets.QVBoxLayout(spacing=0)
         self.append_amp_plot()
-        self.layout.addWidget(self.amp_plot_list[index])
+        # layout.addWidget(self.amp_plot_list[index])
+        layout.addWidget(self.amp_plot_list[-1])
         self.append_phase_plot()
-        self.layout.addWidget(self.phase_plot_list[index])
-        self.tab_widget_page_list[-1].setLayout(self.layout)
+        # layout.addWidget(self.phase_plot_list[index])
+        layout.addWidget(self.phase_plot_list[-1])
+        self.tab_widget_page_list[-1].setLayout(layout)
         self.addTab(
             self.tab_widget_page_list[-1], f"ЧХ &{index}")  # FC        
 
     def append_amp_plot(self):
-        self.amp_plot_item = pg.PlotItem(viewBox=CustomViewBox(),
+        amp_plot_item = pg.PlotItem(viewBox=CustomViewBox(),
                                          name=f'amp_plot{self.count()}')
-        self.amp_plot_item.setXLink(f'phase_plot{self.count()}')
-        self.amp_plot_item.setTitle('АФЧХ', size=f'{self.pt - 1}pt')  # Amp Graph
-        self.amp_plot_item.showGrid(x=True, y=True)
-        self.amp_plot_item.addLegend(offset=(-1, 1), labelTextSize=f'{self.pt - 1}pt',
+        amp_plot_item.setXLink(f'phase_plot{self.count()}')
+        amp_plot_item.setTitle('АФЧХ', size=f'{self.pt - 1}pt')  # Amp Graph
+        amp_plot_item.showGrid(x=True, y=True)
+        amp_plot_item.addLegend(offset=(-1, 1), labelTextSize=f'{self.pt - 1}pt',
                                      labelTextColor=pg.mkColor('w'))
-        self.amp_plot_item.setLabel('left', 'Amplitude',
+        amp_plot_item.setLabel('left', 'Amplitude',
                                     units="", **self.LABEL_STYLE)
-        # self.amp_plot_item.setLabel('bottom', 'Frequency',
+        # amp_plot_item.setLabel('bottom', 'Frequency',
         #                             units='Hz', **self.LABEL_STYLE)
         # self.SYMBOL_SIZE = 6
         for i in range(self.GYRO_NUMBER):
-            self.amp_curves.append(self.amp_plot_item.plot(
+            self.amp_curves.append(amp_plot_item.plot(
                 pen=self.COLOR_LIST[i], name=f"gyro {i + 1}", symbol="o",
                 symbolSize=6, symbolBrush=self.COLOR_LIST[i]))
-        self.amp_plot_list.append(pg.PlotWidget(plotItem=self.amp_plot_item))
+        self.amp_plot_list.append(pg.PlotWidget(plotItem=amp_plot_item))
         self.amp_plot_list[-1].getAxis('left').setWidth(60)
         self.amp_plot_list[-1].setLimits(
-            xMin=-5, xMax=int(self.fs * 0.53), yMin=-0.08, yMax=100)
+            xMin=-4, xMax=int(self.fs * 0.53), yMin=-0.08, yMax=100)
 
     def append_phase_plot(self):
-        self.phase_plot_item = pg.PlotItem(viewBox=CustomViewBox(),
+        phase_plot_item = pg.PlotItem(viewBox=CustomViewBox(),
                                            name=f'phase_plot{self.count()}')
-        self.phase_plot_item.setXLink(f'amp_plot{self.count()}')
-        # self.phase_plot_item.setTitle('ФЧХ', size='12pt')  # Phase Graph
-        self.phase_plot_item.showGrid(x=True, y=True)
-        self.phase_plot_item.addLegend(offset=(-1, 1), labelTextSize=f'{self.pt - 1}pt',
+        phase_plot_item.setXLink(f'amp_plot{self.count()}')
+        phase_plot_item.setTitle('ФЧХ', size='12pt')  # Phase Graph
+        phase_plot_item.showGrid(x=True, y=True)
+        phase_plot_item.addLegend(offset=(-1, 1), labelTextSize=f'{self.pt - 1}pt',
                                        labelTextColor=pg.mkColor('w'))
-        self.phase_plot_item.setLabel('left', 'Phase',
+        phase_plot_item.setLabel('left', 'Phase',
                                       units='degrees', **self.LABEL_STYLE)  # rad
-        self.phase_plot_item.setLabel('bottom', 'Frequency',
+        phase_plot_item.setLabel('bottom', 'Frequency',
                                       units='Hz', **self.LABEL_STYLE) # \u00b0
         for i in range(self.GYRO_NUMBER):
-            self.phase_curves.append(self.phase_plot_item.plot(
+            self.phase_curves.append(phase_plot_item.plot(
                 pen=self.COLOR_LIST[i], name=f"gyro {i + 1}", symbol="o",
                 symbolSize=6, symbolBrush=self.COLOR_LIST[i]))
         self.phase_plot_list.append(
-            pg.PlotWidget(plotItem=self.phase_plot_item))
+            pg.PlotWidget(plotItem=phase_plot_item))
         self.phase_plot_list[-1].getAxis('left').setWidth(60)
         self.phase_plot_list[-1].setLimits(
-            xMin=-5, xMax=int(self.fs * 0.53), yMin=-375, yMax=20)
+            xMin=-4, xMax=int(self.fs * 0.53), yMin=-375, yMax=20)
 
     def append_gyro_groupbox(self):
         ind = len(self.groupbox_list)
@@ -528,22 +564,20 @@ class CustomComboBox(QtWidgets.QComboBox):
 
         # self.settings = QtCore.QSettings(settings_name)
         self.settings = settings
-        if self.settings.contains("items" + self.settings_name):
+        if self.settings.contains("item_" + self.settings_name):
+            for i in range(self.count()):
+                self.removeItem(i)
             self.addItems(
-                self.settings.value("items" + self.settings_name))
+                self.settings.value("item_" + self.settings_name))
         else:
             if not len(default_items_list[0]):
                 return
-            
             self.addItems(default_items_list)
-        if self.settings.contains("curr_index" + self.settings_name):
-            self.setCurrentIndex(
-                self.settings.value("curr_index" + self.settings_name))
-        if self.settings.contains("name" + self.settings_name):
-            for i in range(self.count()):
-                if self.itemText(i) == self.settings.value("name" + self.settings_name):
-                    self.setCurrentIndex(i)
-                    break
+        if self.settings.contains("curr_index_" + self.settings_name):
+            if self.count() >= self.settings.value("curr_index_" + self.settings_name):
+                self.setCurrentIndex(
+                    self.settings.value("curr_index_" + self.settings_name))
+
         # self.save_value = lambda: self.settings.setValue(
         #     "items",
         #     [self.itemText(i) for i in range(self.count())])
@@ -551,6 +585,12 @@ class CustomComboBox(QtWidgets.QComboBox):
         #     "curr_index", self.currentIndex())
         # self.save_name = lambda: self.settings.setValue(
         #     "COM_current_name", self.currentText())
+    def get_ind(self):
+        if self.settings.contains("name" + self.settings_name):
+            for i in range(self.count()):
+                if self.itemText(i) == self.settings.value("name" + self.settings_name):
+                    self.setCurrentIndex(i)
+                    break
 
     def save_all(self):
         self.save_value()
@@ -559,13 +599,13 @@ class CustomComboBox(QtWidgets.QComboBox):
     def save_value(self):
         if self.count():
             self.settings.setValue(
-                "items" + self.settings_name,
+                "item_" + self.settings_name,
                 [self.itemText(i) for i in range(self.count())])
 
     def save_index(self):
         if self.count():
             self.settings.setValue(
-                "curr_index" + self.settings_name,
+                "curr_index_" + self.settings_name,
                 self.currentIndex())
 
     def save_current_text(self):

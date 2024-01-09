@@ -33,9 +33,14 @@ a.datas += [('res/icon.ico', 'res/icon.ico', 'DATA'),]
 a.datas += [('res/add.png', 'res/add.png', 'DATA'),]
 a.datas += [('res/edit.png', 'res/edit.png', 'DATA'),]
 a.datas += [('res/open_folder.png', 'res/open_folder.png', 'DATA'),]
+a.datas += [('res/open_folder_blue.png', 'res/open_folder_blue.png', 'DATA'),]
+a.datas += [('res/open_folder_red.png', 'res/open_folder_red.png', 'DATA'),]
+a.datas += [('res/open_folder_green.png', 'res/open_folder_green.png', 'DATA'),]
 a.datas += [('res/red.png', 'res/red.png', 'DATA'),]
 a.datas += [('res/green.png', 'res/green.png', 'DATA'),]
 a.datas += [('res/blue.png', 'res/blue.png', 'DATA')]
+a.datas += [('res/G.png', 'res/G.png', 'DATA')]
+
 
 exe = EXE(
     pyz,
@@ -66,5 +71,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='GyroVibroTest',
+    name='GyroVibroTest new',
 )

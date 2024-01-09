@@ -20,6 +20,10 @@ get_icon_by_name = lambda name: QtGui.QIcon(get_res_path(f'res/{name}.png'))
 
 def check_name_simple(name: str):
     basename, extension = os.path.splitext(name)
+    # print('dir ' + os.path.dirname(name))
+    # print('exist ' + os.path.isdir(os.path.dirname(name)))
+    # if not os.path.isdir(os.path.dirname(name)):
+        # return ""
     i = 0
     while os.path.exists(name):
         i += 1
