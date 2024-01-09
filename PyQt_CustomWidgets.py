@@ -153,56 +153,30 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         for i in range(self.GYRO_NUMBER):
             self.time_curves[i + 1].setData(time, gyro_data[i])
 
-    # @overload
-    # def plot_time_graph(self, time_data: np.ndarray,
-    #                     enc_data: np.ndarray, gyro_data: np.ndarray):
-    #     self.time_curves[0].setData(time_data, enc_data)
-    #     for i in range(self.GYRO_NUMBER):
-    #         self.time_curves[i + 1].setData(time_data, gyro_data)
-
     def set_fft_data(self, freq_data: np.ndarray, frame: list):
         """Adds points to frequency graphs"""
-        # self.logger.info(f"plot_fft, len {len(self.amp_curves)}")
-        # self.logger.info(f"plot_fft, len amp_plot_list {len(self.amp_plot_list)}")
-        # self.logger.info(f"self.amp_plot_list {self.amp_plot_list}")
-        # self.logger.info(f"self.amp_curves {self.amp_curves}")
-        # self.logger.info(f"self.amp_curves {self.amp_plot_list}")
-        # self.logger.info(
-            # f"self.amp_plot_list[-1].getPlotItem().curves {self.amp_plot_list[-1].getPlotItem().curves[-1]}")
-        # до этого момента менются данные
-        # for i in range(len(self.amp_curves)):
-        #     print(f"{self.amp_curves[i]}")
-        #     print(f"{i} {self.amp_curves[i].getData()}")
         for i in range(self.GYRO_NUMBER):
-            # self.logger.info(f"getPlotItem().curves[i] {freq_data[:, 0, i]}")
             # self.amp_plot_list[-1].getPlotItem().curves[i].setData(freq_data[:, 0, i],
                                         # freq_data[:, 1, i])
             # self.phase_plot_list[-1].getPlotItem().curves[i].setData(freq_data[:, 0, i],
                                         # freq_data[:, 2, i])
-            # ind = -1 - i
-            ind = self.GYRO_NUMBER * (self.count() - 2) + i
-            # self.logger.info(f"ind {ind}")
-            # self.logger.info(f"self.amp_curves {self.amp_curves[ind]}")
-            # self.logger.info(f"self.phase_curves {self.phase_curves[ind]}")
-            
-            self.amp_curves[ind].setData(np.copy(freq_data[:, 0, i]),
+            # ind = self.GYRO_NUMBER * (self.count() - 2) + i
+            self.amp_curves[-1 - i].setData(np.copy(freq_data[:, 0, i]),
                                          np.copy(freq_data[:, 1, i]))
-            self.phase_curves[ind].setData(np.copy(freq_data[:, 0, i]),
+            self.phase_curves[-1 - i].setData(np.copy(freq_data[:, 0, i]),
                                            np.copy(freq_data[:, 2, i]))
-        # for i in range(len(self.amp_curves)):
-        #     print(f"after {self.amp_curves[i]}")
-        #     print(f"{i} after {self.amp_curves[i].getData()}")
         self.region.setRegion([frame[0]/self.fs, frame[1]/self.fs])
         self.amp_plot_list[-1].autoRange()
-        # self.phase_plot_list[-1].autoRange()
+        self.phase_plot_list[-1].autoRange()
 
 # ------ FFT median plot ------------------------------------------------------------------
     def set_fft_median_data(self, freq_data: np.ndarray,
                             special_points: np.ndarray, folder: list):
         self.logger.info(f"Final median plot, sensor: {folder}")
+        if np.isnan(freq_data).all():
+            return
         temp = np.empty(
             (freq_data.shape[0] + 1, freq_data.shape[1], freq_data.shape[2]))
-        # for i in range(self.GYRO_NUMBER):
         for i in range(len(self.groupbox_list)):
             self.groupbox_list[i].setVisible(False)
         # for i in range(freq_data.shape[2]):  # !!!
@@ -223,7 +197,6 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                 f"{freq_data[np.argmax(freq_data[:, -3, i]), -4, i]:.2f}")
                 # str(round(freq_data[np.argmax(freq_data[:, -3, i]), -4, i], 2)))
             self.sensor_name_line_edit_list[i].setText(folder[i])
-        # self.freq_data = freq_data
         self.freq_data = temp
         self.amp_plot_list[0].autoRange()
         self.phase_plot_list[0].autoRange()
@@ -233,17 +206,30 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 # ----- cursor ---------------------------------------------------------------------------------
     def update_crosshair(self, e):
         pos = e[0]
+        # print(self.amp_plot_list[0].plotItem.sceneBoundingRect())
+        # print(self.amp_plot_list[0].plotItem.vb.mapSceneToView(pos))
+        # print(self.amp_plot_list[0].plotItem.vb.mapViewToScene())
+        # print(self.amp_plot_list[0].plotItem.vb.viewRect())
         if (self.amp_plot_list[0].plotItem.sceneBoundingRect().contains(pos)
-            and self.freq_data[0, 0, 0] != -1):
+            and self.freq_data.size):
+            # and self.freq_data[0, 0, 0] != -1):
             mouse_point = self.amp_plot_list[0].plotItem.vb.mapSceneToView(pos)
             # self.selected_curve
             index = np.nanargmin(
                 np.abs(self.freq_data[:, -4, self.selected_curve] - mouse_point.x()))
             if 0 <= index < len(self.freq_data[:, -4, self.selected_curve]):  # index >= 0 and 
-                self.cursor_label.setText(
-                    f"f {self.freq_data[index, -4, self.selected_curve]:.2f}\n" +
-                    f"A {self.freq_data[index, -3, self.selected_curve]:.2f}\n" +
+                # self.cursor_label.setText(
+                #     f"f {self.freq_data[index, -4, self.selected_curve]:.2f}\n" +
+                #     f"A {self.freq_data[index, -3, self.selected_curve]:.2f}\n" +
+                #     f"\u03C6 {self.freq_data[index, -2, self.selected_curve]:.1f}")
+                self.label.setText(
+                    f"f {self.freq_data[index, -4, self.selected_curve]:.2f}  " +
+                    f"A {self.freq_data[index, -3, self.selected_curve]:.2f}  " +
                     f"\u03C6 {self.freq_data[index, -2, self.selected_curve]:.1f}")
+                # self.cursor_label.setText(
+                #     f"f {self.freq_data[index, -4, self.selected_curve]:.2f} " +
+                #     f"A {self.freq_data[index, -3, self.selected_curve]:.2f} " +
+                #     f"\u03C6 {self.freq_data[index, -2, self.selected_curve]:.1f}")
                 # map(pg.InfiniteLine.setPos, self.infinite_x_line_list, [self.freq_data[index, -4, self.selected_curve] * 2])
                 for i in range(2):
                     self.infinite_x_line_list[i].setPos(
@@ -255,13 +241,23 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         if (e.buttons() & QtCore.Qt.LeftButton & (
             self.amp_plot_list[0].underMouse() |
             self.phase_plot_list[0].underMouse()
-            )) and self.freq_data[0, 0, 0] != -1:
+            )) and self.freq_data.size:
+            # )) and self.freq_data[0, 0, 0] != -1:
             # )) and self.freq_data.size:
-            self.amp_info_line_edit_list[self.selected_curve].setText(
-                f'{self.mouse_y:.3f}')
-            self.freq_info_line_edit_list[self.selected_curve].setText(
-                f'{self.mouse_x:.2f}')
-            self.cursor_label.setPos(self.mouse_x + 3, self.mouse_y + 0.3)
+            pass
+            # self.amp_info_line_edit_list[self.selected_curve].setText(
+            #     f'{self.mouse_y:.3f}')
+            # self.freq_info_line_edit_list[self.selected_curve].setText(
+            #     f'{self.mouse_x:.2f}')
+            # self.cursor_label.setPos(self.mouse_x + 3, self.mouse_y + 0.3)
+
+            # print(self.amp_plot_list[0].plotItem.vb.viewRect())
+            # print(self.amp_plot_list[0].plotItem.vb.viewRect().width())
+            # print(self.amp_plot_list[0].plotItem.vb.viewRect().x())
+            # print(self.amp_plot_list[0].plotItem.vb.viewRect().y())
+            # self.cursor_label.setPos(
+            #     self.amp_plot_list[0].plotItem.vb.viewRect().x() + 0.02 * self.amp_plot_list[0].plotItem.vb.viewRect().width(),
+            #     self.amp_plot_list[0].plotItem.vb.viewRect().y() + 0.98 * self.amp_plot_list[0].plotItem.vb.viewRect().height())
 # ----- Excel and file selecting ----------------------------------------------
 
     @QtCore.pyqtSlot()
@@ -301,18 +297,15 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     @QtCore.pyqtSlot()
     def groupbox_clicked(self):
         # for i in range(len(self.groupbox_list)):
+        if not self.freq_data.size:
+            return
         for i in range(self.freq_data.shape[2]):
             if self.sender() == self.groupbox_list[i]:
-                flag = False
                 break
         else:
-            flag = True
-
+            return
         for j in range(len(self.groupbox_list)):
             self.groupbox_list[j].setChecked(False)
-        if self.freq_data[0, 0, 0] == -1 or flag:
-            return
-
         self.selected_curve = i
         self.groupbox_list[i].setChecked(True)
         if self.groupbox_list[i].isChecked():
@@ -320,8 +313,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                 self.infinite_x_line_list[j].setPen(pg.mkPen(self.COLOR_LIST[i]))
 
     def clear_plots(self):
-        self.freq_data = np.ndarray((1, 4, 1))  # лучше пустой массив создавать
-        self.freq_data.fill(-1)
+        self.freq_data = np.array([])  # лучше пустой массив создавать
         self.region.setRegion([0, 0])
         self.logger.info(f"len amp prev {len(self.amp_curves)}")
         self.logger.info(f"len phase_curves prev {len(self.phase_curves)}")
@@ -396,16 +388,17 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                     check_name_simple(path + f'_phase_plot_{i + 1}.png'))
 
     def plot_fft_median(self):
-        self.freq_data = np.ndarray((1, 4, 1))  # лучше пустой массив создавать
-        self.freq_data.fill(-1)
+        self.freq_data = np.array([])  # лучше пустой массив создавать
         self.last_tab_layout = QtWidgets.QGridLayout(spacing=0)
-        self.last_tab_layout.addWidget(self.groupbox, 0, 1, 2, 1) 
+        self.last_tab_layout.addWidget(self.groupbox, 0, 1, 3, 1) 
 
         self.tab_widget_page_list.append(QtWidgets.QWidget(self))
         self.append_amp_plot()
-        self.last_tab_layout.addWidget(self.amp_plot_list[0], 0, 0, 1, 1)
+        self.last_tab_layout.addWidget(self.amp_plot_list[0], 1, 0, 1, 1)
+        self.label = QtWidgets.QLabel()
+        self.last_tab_layout.addWidget(self.label, 0, 0, 1, 1)
         self.append_phase_plot()
-        self.last_tab_layout.addWidget(self.phase_plot_list[0], 1, 0, 1, 1)
+        self.last_tab_layout.addWidget(self.phase_plot_list[0], 2, 0, 1, 1)
         self.tab_widget_page_list[0].setLayout(self.last_tab_layout)
         self.addTab(
             self.tab_widget_page_list[0], "&АФЧХ (средний)")  # FC average
@@ -426,15 +419,16 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                 pos=-180, angle=0, movable=False,
                 pen=pg.mkPen((205, 205, 205), dash=[10, 2], width=0.75)),
                 ignoreBounds=True)  # -180 degrees
-        self.cursor_label = pg.TextItem()
-        self.cursor_label.setPos(3, 0.8)
+        # self.cursor_label = pg.TextItem()
+        # self.cursor_label.setPos(3, 0.8)
+        # self.cursor_label.setPos(10, 0)
 
-        self.amp_plot_list[0].addItem(self.cursor_label) #################################
+        # self.amp_plot_list[0].addItem(self.cursor_label) #################################
         self.proxy_amp = pg.SignalProxy(
-            self.amp_plot_list[0].scene().sigMouseMoved, delay=0.1, ##############################
+            self.amp_plot_list[0].scene().sigMouseMoved, delay=0.05,
             rateLimit=12, slot=self.update_crosshair)
         self.proxy_phase = pg.SignalProxy(
-            self.phase_plot_list[0].scene().sigMouseMoved, delay=0.1, ##############################
+            self.phase_plot_list[0].scene().sigMouseMoved, delay=0.05,
             rateLimit=12, slot=self.update_crosshair)
         self.amp_plot_list[0].autoRange()
 
@@ -457,9 +451,9 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 
     def append_amp_plot(self):
         amp_plot_item = pg.PlotItem(viewBox=CustomViewBox(),
-                                         name=f'amp_plot{self.count()}')
+                                    name=f'amp_plot{self.count()}')
         amp_plot_item.setXLink(f'phase_plot{self.count()}')
-        amp_plot_item.setTitle('АФЧХ', size=f'{self.pt - 1}pt')  # Amp Graph
+        # amp_plot_item.setTitle('АЧХ', size=f'{self.pt - 1}pt')  # Amp Graph
         amp_plot_item.showGrid(x=True, y=True)
         amp_plot_item.addLegend(offset=(-1, 1), labelTextSize=f'{self.pt - 1}pt',
                                      labelTextColor=pg.mkColor('w'))
@@ -481,14 +475,14 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         phase_plot_item = pg.PlotItem(viewBox=CustomViewBox(),
                                            name=f'phase_plot{self.count()}')
         phase_plot_item.setXLink(f'amp_plot{self.count()}')
-        phase_plot_item.setTitle('ФЧХ', size='12pt')  # Phase Graph
+        # phase_plot_item.setTitle('ФЧХ', size='12pt')  # Phase Graph
         phase_plot_item.showGrid(x=True, y=True)
         phase_plot_item.addLegend(offset=(-1, 1), labelTextSize=f'{self.pt - 1}pt',
-                                       labelTextColor=pg.mkColor('w'))
+                                  labelTextColor=pg.mkColor('w'))
         phase_plot_item.setLabel('left', 'Phase',
-                                      units='degrees', **self.LABEL_STYLE)  # rad
+                                 units='degrees', **self.LABEL_STYLE)  # rad
         phase_plot_item.setLabel('bottom', 'Frequency',
-                                      units='Hz', **self.LABEL_STYLE) # \u00b0
+                                 units='Hz', **self.LABEL_STYLE) # \u00b0
         for i in range(self.GYRO_NUMBER):
             self.phase_curves.append(phase_plot_item.plot(
                 pen=self.COLOR_LIST[i], name=f"gyro {i + 1}", symbol="o",
@@ -502,7 +496,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     def append_gyro_groupbox(self):
         ind = len(self.groupbox_list)
         self.groupbox_list.append(QtWidgets.QGroupBox(
-            f'gyro {ind + 1}', maximumWidth=190, minimumWidth=150, maximumHeight=290,
+            f'gyro {ind + 1}', maximumWidth=190, minimumWidth=150, maximumHeight=250,
             checkable=True, objectName='small'))
         self.groupbox_layout = QtWidgets.QGridLayout(spacing=2)
         self.groupbox_list[-1].clicked.connect(self.groupbox_clicked)

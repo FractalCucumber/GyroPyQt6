@@ -132,7 +132,7 @@ class AppWindow(QtWidgets.QMainWindow):
         plots_to_png_action.setShortcut("Ctrl+P")
         plots_to_png_action.triggered.connect(self.save_image)        
         options_menu.addAction(plots_to_png_action)
-        save_action = QtWidgets.QAction("&Save data", self)
+        save_action = QtWidgets.QAction("&Save last data", self)
         # exit_action.setShortcut("Ctrl+Q")
         # exit_action.setStatusTip("Exit application")  # ???
         save_action.triggered.connect(self.save_results)
@@ -179,9 +179,8 @@ class AppWindow(QtWidgets.QMainWindow):
         self.com_param_groupbox_layout.addWidget(self.com_boderate_combo_box,
                                                  0, 1, 1, 1)
 # ------  fs  -----------------------------------------------------
-
         self.fs_groupbox = QtWidgets.QGroupBox(
-            'FS, Гц', maximumWidth=155)
+            'Fs, Гц', maximumWidth=155)
         self.fs_groupbox_layout = QtWidgets.QGridLayout()
         self.fs_groupbox.setLayout(self.fs_groupbox_layout)
         self.fs_combo_box = PyQt_CustomWidgets.CustomComboBox(
@@ -191,7 +190,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self.fs = int(self.fs_combo_box.currentText())
         self.fs_groupbox_layout.addWidget(self.fs_combo_box,
                                                  0, 0, 1, 1)
-# ------  cycle num  -----------------------------------------------------
+# ------  cycle num  ----------------------------------------------------------
         self.cycle_number_groupbox = QtWidgets.QGroupBox(
             'Циклы:', maximumWidth=155)
         self.cycle_number_groupbox_layout = QtWidgets.QGridLayout()
@@ -301,7 +300,7 @@ class AppWindow(QtWidgets.QMainWindow):
                     icon=get_icon_by_name(self.ICON_COLOR_LIST[i])))
         for i in range(self.GYRO_NUMBER + 1):
             self.plot_groupbox_layout.addWidget(self.check_box_list[i],
-                                            0, 5 * i, 1, 4)
+                                                0, 5 * i, 1, 4)
 
         self.progress_bar = QtWidgets.QProgressBar(
             format='%v/%m сек', maximum=1, value=self.progress_value)  # sec
@@ -366,11 +365,8 @@ class AppWindow(QtWidgets.QMainWindow):
         for i in range(self.GYRO_NUMBER + 1):
             self.check_box_list[i].stateChanged.connect(
                 self.custom_tab_plot_widget.change_curve_visibility)
-        
+
         self.show()
-        # print(self.custom_tab_plot_widget.amp_plot_list[0].getPlotItem().curves[0].objectName())
-        # print(self.custom_tab_plot_widget.amp_curves[0].objectName())
-        # print(self.custom_tab_plot_widget.amp_plot_list[0].objectName())
         # print(self.palette().window().color().name())
         # print(sys.getsizeof((self.GYRO_NUMBER)))
 # ----------------------------------------------------------------------------------------------
@@ -469,7 +465,8 @@ class AppWindow(QtWidgets.QMainWindow):
             return
         # Check filenames
         for i in range(self.GYRO_NUMBER):  # !
-            self.make_filename(i)  # !
+            if self.processing_thr.package_num:
+                self.make_filename(i)  # !  # без создания имени не получится
             self.processing_thr.start()
 
     @QtCore.pyqtSlot(bool)
@@ -491,7 +488,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self.processing_thr.start()
         if False:
             path = 'sencors_nums.txt'
-            self.processing_thr.flag_all = True
+            self.processing_thr.do_not_save = True
 
     @QtCore.pyqtSlot()
     def measurement_start(self):
@@ -721,7 +718,7 @@ class AppWindow(QtWidgets.QMainWindow):
 
     # @QtCore.pyqtSlot(str)
     @QtCore.pyqtSlot(list)
-    def plot_fft_final(self, name):
+    def plot_fft_final(self, name: list):
         self.logger.info(f"Final median plot {name}")
         self.custom_tab_plot_widget.set_fft_median_data(
             self.processing_thr.all_fft_data[:, -4:],
@@ -773,11 +770,6 @@ class AppWindow(QtWidgets.QMainWindow):
                for ports in QSerialPortInfo.availablePorts()]
         # port_name_list = ['com2', 'com11', 'com3']
         if len(port_name_list):
-            # print(port_name_list.sort(key=self.natural_keys))
-            # self.logger.info(len(port_name_list))
-            # self.logger.info(list.sort(port_name_list))
-            # self.logger.info(sorted(port_name_list, key=self.natural_keys))
-            # self.com_port_name_combobox.addItems(port_name_list.sort())
             for _ in range(self.com_port_name_combobox.count()):
                 self.com_port_name_combobox.removeItem()
             self.com_port_name_combobox.addItems(
@@ -789,6 +781,7 @@ class AppWindow(QtWidgets.QMainWindow):
         def atoi(text):
             return int(text) if text.isdigit() else text
         return [atoi(c) for c in re.split(r'(\d+)', text)]
+
 # ------ file name and data from file -----------------------------------------
 
     def make_filename(self, i: int):
@@ -823,7 +816,6 @@ class AppWindow(QtWidgets.QMainWindow):
         else:
             return
         self.folder_name_list[i] = self.saving_result_folder_label_list[i].toPlainText()   
-        # print(i)
 
     @QtCore.pyqtSlot()
     def choose_result_saving_path(self):
@@ -998,14 +990,20 @@ class AppWindowTest(AppWindow):
         self.logger.warning("Start")
         self.custom_tab_plot_widget.clear_plots()
         self.custom_tab_plot_widget.append_fft_plot_tab() 
-        from pandas import read_csv
-        filename = 'прежнее/6884_139_6.2_4.txt'
+        from pandas import read_csv, DataFrame
+        # filename = 'прежнее/6884_139_6.2_4.txt'
+        filename = '6884_139_6.2_4.txt'
         self.time_data_test = np.array(
             read_csv(filename, delimiter='\t', 
                      dtype=np.int32, header=None,  #,
                      keep_default_na=False, na_filter=False,
                      index_col=False, usecols=[1, 2, 3, 4], 
                      skiprows=2000))
+        # self.logger.info("1")
+        # DataFrame(self.time_data_test).to_csv(
+        #     "ddddddd.txt", header=None, index=None,
+        #     sep='\t', mode='w', date_format='%d', decimal=',')
+        # self.logger.info("2")
         # from PyQt_Functions import get_fft_data  # ! показательно !
         # print(get_fft_data(self.time_data_test[4_400:9_400, 0], self.time_data_test[4_400:9_400, 1], 1000))
         # print(get_fft_data(self.time_data_test[6_400:8_400, 0], self.time_data_test[6_400:8_400, 1], 1000))
@@ -1029,7 +1027,7 @@ class AppWindowTest(AppWindow):
         self.custom_tab_plot_widget.fs = self.fs
         self.processing_thr.fs = self.fs
         self.processing_thr.flag_measurement_start = True
-        self.processing_thr.total_time = self.table_widget.total_time * 3 # !!!
+        self.processing_thr.total_time = self.table_widget.total_time * 5 # !!!
         self.processing_thr.num_measurement_rows = self.table_widget.rowCount()
         self.processing_thr.total_cycle_num = self.total_cycle_num
         self.processing_thr.start()
@@ -1101,8 +1099,6 @@ class AppWindowTest(AppWindow):
                             # Check filenames
             for i in range(self.GYRO_NUMBER):
                 self.make_filename(i)
-            # print(self.processing_thr.data_recieved_event.is_set())
-            # print(self.processing_thr.flag_measurement_start)
         self.processing_thr.flag_measurement_start = False
         self.processing_thr.data_recieved_event.set()
 
