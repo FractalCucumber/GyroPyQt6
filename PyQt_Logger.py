@@ -12,21 +12,25 @@ class QTextEditLogger():
         log = logging.getLogger('main')
         log.setLevel(logging.INFO)
 
-        # file_formatter = logging.Formatter(
-        #     ('#%(levelname)-s, %(pathname)s, line %(lineno)d, [%(asctime)s]:'
-        #     '%(message)s'), datefmt='%Y-%m-%d %H:%M:%S'
-        # )
+
         # file_handler = logging.FileHandler('./log')
         if file_log:
-            logging.basicConfig(
-                filename='GyroTestPyQt.log',
-                filemode='w',
-                format=('#%(levelname)-s,\t%(pathname)s:%(lineno)d,\t%(asctime)s, %(message)s'),
-                # format=('#%(levelname)-s,\t%(pathname)s,\tline %(lineno)d,\t[%(asctime)s]: %(message)s'),
-                level=logging.INFO)
-        # file_handler = logging.FileHandler('pyqt6_log.log')
-        # file_handler.setLevel(logging.INFO)
-        # file_handler.setFormatter(file_formatter)
+        #     # with open('GyroTestPyQt.log', encoding="utf-8") as f:
+            # logging.basicConfig(  # не выводит сообщния на русском
+            #     filename='GyroTestPyQt.log',
+            #     # filename=f,
+            #     filemode='w',
+            #     format=('#%(levelname)-s,\t%(pathname)s:%(lineno)d,\t%(asctime)s, %(message)s'),
+            #     # format=('#%(levelname)-s,\t%(pathname)s,\tline %(lineno)d,\t[%(asctime)s]: %(message)s'),
+            #     level=logging.INFO,
+            # )  #  encoding="utf-8" work since python 3.9
+            file_formatter = logging.Formatter(  # выводит сообщния на русском
+                ('#%(levelname)-s,\t%(pathname)s:%(lineno)d,\t%(asctime)s, %(message)s')
+            )
+            file_handler = logging.FileHandler('GyroTestPyQt.log', mode='w', encoding="utf-8")
+            file_handler.setLevel(logging.INFO)
+            file_handler.setFormatter(file_formatter)
+            log.addHandler(file_handler)
 
         # console_formatter = logging.Formatter(('#%(levelname)-s, %(pathname)s, '
                                             # 'line %(lineno)d: %(message)s'))
@@ -47,6 +51,5 @@ class QTextEditLogger():
 
         log_window_handler.setFormatter(log_window_formatter)
 
-        # log.addHandler(file_handler)
         # log.addHandler(console_handler)
         log.addHandler(log_window_handler)

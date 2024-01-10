@@ -51,12 +51,14 @@ class CustomDialog(QtWidgets.QDialog):
     # def closeEvent(self, a0):
 
     def get_path(self):
-        filename, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self,
-            "Выберите файл",
-            ".", "Excel Files (*.xls *.xlsx)")
-        if filename:
-            self.path.setText(str(filename))
+        folder = QtWidgets.QFileDialog.getExistingDirectory(
+            self, "Выбрать папку", ".")
+        # getOpenFileName(
+        #     self,
+        #     "Выберите файл",
+        #     ".", "Excel Files (*.xls *.xlsx *.xlsm)")
+        if folder:
+            self.path.setText(str(folder))
 
 
 class ProjectsComboBox(QtWidgets.QComboBox):

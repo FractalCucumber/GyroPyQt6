@@ -95,7 +95,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 
 # -----------------------------------------------------------------------------
         self.groupbox = QtWidgets.QGroupBox(
-            '', maximumWidth=190, minimumWidth=150)
+            '', maximumWidth=190, minimumWidth=140)
         self.median_plot_groupbox_layout = QtWidgets.QGridLayout(spacing=6)
         # self.median_plot_groupbox_layout.setRowStretch(4, 0)
         # self.median_plot_groupbox_layout.setSpacing(0)
@@ -173,7 +173,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     def set_fft_median_data(self, freq_data: np.ndarray,
                             special_points: np.ndarray, folder: list):
         self.logger.info(f"Final median plot, sensor: {folder}")
-        if np.isnan(freq_data).all():
+        if np.isnan(freq_data[:, -4, :]).all():
             return
         temp = np.empty(
             (freq_data.shape[0] + 1, freq_data.shape[1], freq_data.shape[2]))
@@ -222,10 +222,10 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                 #     f"f {self.freq_data[index, -4, self.selected_curve]:.2f}\n" +
                 #     f"A {self.freq_data[index, -3, self.selected_curve]:.2f}\n" +
                 #     f"\u03C6 {self.freq_data[index, -2, self.selected_curve]:.1f}")
-                self.label.setText(
-                    f"f {self.freq_data[index, -4, self.selected_curve]:.2f}  " +
-                    f"A {self.freq_data[index, -3, self.selected_curve]:.2f}  " +
-                    f"\u03C6 {self.freq_data[index, -2, self.selected_curve]:.1f}")
+                self.point_label.setText(
+                    f"\t\t\t\t\tf {self.freq_data[index, -4, self.selected_curve]:.2f}" +
+                    f"\tA {self.freq_data[index, -3, self.selected_curve]:.2f}" +
+                    f"\t\u03C6 {self.freq_data[index, -2, self.selected_curve]:.1f}")
                 # self.cursor_label.setText(
                 #     f"f {self.freq_data[index, -4, self.selected_curve]:.2f} " +
                 #     f"A {self.freq_data[index, -3, self.selected_curve]:.2f} " +
@@ -272,25 +272,35 @@ class CustomTabWidget(QtWidgets.QTabWidget):
  
     @QtCore.pyqtSlot()
     def write_xlsx(self):
-        return
-        self.currnt_xlsx_path = \
+        self.warning_signal.emit("Start saving")
+        self.logger.info(f"Get Excel")
+        currnt_xlsx_path = \
             self.projects_combo_box.projects_dict[
-                self.projects_combo_box.currentText()]
-        self.currnt_xlsx_path = "test.xlsx"  ########################################
+                self.projects_combo_box.currentText()] + \
+                    '/' + self.sensor_name_line_edit_list[self.selected_curve].text() + '.xlsm'
+        # currnt_xlsx_path = "test.xlsx"  ########################################
+        # if not os.path.exists(currnt_xlsx_path):
+        #     self.warning_signal.emit("File not found!")
+        #     return
+        self.logger.info(currnt_xlsx_path)
         try:
-            wb = load_workbook(self.currnt_xlsx_path)
+            wb = load_workbook(currnt_xlsx_path,
+                               read_only=False, keep_vba=True)
         except FileNotFoundError:
             self.warning_signal.emit("File not found!")
             return
-        ws = wb['Лист1']  # or wb.active
-        ws['F3'] = self.sensor_name_line_edit_list[self.selected_curve].text()
-        ws['F4'] = self.freq_info_line_edit_list[self.selected_curve].text()
-        ws['F5'] = self.amp_info_line_edit_list[self.selected_curve].text()
+        ws = wb['Настройка КП']  # or wb.active
+        self.logger.info(f"Save in Excel 2")
+        ws['I11'] = float(self.freq_info_line_edit_list[self.selected_curve].text())
+        ws['K11'] = float(self.amp_info_line_edit_list[self.selected_curve].text())
         # ws.column_dimensions['F'].width = 51
         try:
-            wb.save(self.currnt_xlsx_path)
+            wb.save(currnt_xlsx_path)
         except IOError:
             self.warning_signal.emit("File was open! Close and try again")
+            return
+        self.logger.info(f"Successfully save in {currnt_xlsx_path}")
+        self.warning_signal.emit(f"Successfully save in {currnt_xlsx_path}")
 
 # ----- plot change -----------------------------------------------------------
 
@@ -315,8 +325,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     def clear_plots(self):
         self.freq_data = np.array([])  # лучше пустой массив создавать
         self.region.setRegion([0, 0])
-        self.logger.info(f"len amp prev {len(self.amp_curves)}")
-        self.logger.info(f"len phase_curves prev {len(self.phase_curves)}")
+        # self.logger.info(f"len amp prev {len(self.amp_curves)}")
+        # self.logger.info(f"len phase_curves prev {len(self.phase_curves)}")
         for i in range(self.count() - 2):
             for _ in range(self.GYRO_NUMBER):
                 self.amp_curves.pop()
@@ -326,8 +336,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             self.removeTab(2)
             self.tab_widget_page_list.pop()
         #         phase_plot_list
-        self.logger.info(f"len amp {len(self.amp_curves)}")
-        self.logger.info(f"len phase_curves {len(self.phase_curves)}")
+        # self.logger.info(f"len amp {len(self.amp_curves)}")
+        # self.logger.info(f"len phase_curves {len(self.phase_curves)}")
         self.time_curves[0].setData([])
         for i in range(self.GYRO_NUMBER):
             self.time_curves[i + 1].setData([])
@@ -392,11 +402,11 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.last_tab_layout = QtWidgets.QGridLayout(spacing=0)
         self.last_tab_layout.addWidget(self.groupbox, 0, 1, 3, 1) 
 
-        self.tab_widget_page_list.append(QtWidgets.QWidget(self))
+        self.tab_widget_page_list.append(QtWidgets.QWidget(self, minimumWidth=180))
         self.append_amp_plot()
-        self.last_tab_layout.addWidget(self.amp_plot_list[0], 1, 0, 1, 1)
-        self.label = QtWidgets.QLabel()
-        self.last_tab_layout.addWidget(self.label, 0, 0, 1, 1)
+        self.last_tab_layout.addWidget(self.amp_plot_list[0], 0, 0, 1, 1)
+        self.point_label = QtWidgets.QLabel()
+        self.last_tab_layout.addWidget(self.point_label, 1, 0, 1, 1)
         self.append_phase_plot()
         self.last_tab_layout.addWidget(self.phase_plot_list[0], 2, 0, 1, 1)
         self.tab_widget_page_list[0].setLayout(self.last_tab_layout)
@@ -405,8 +415,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
   
         # # amp =np.array([96, 97, 108, 112, 113, 114, 121, 127, 136, 163, 166, 191, 219, 240, 258, 284, 400, 371, 450, 699, 791, 1154, 631, 697, 722, 743, 834, 823, 918, 995, 1022, 1125, 1220, 1244, 1373, 1468, 1618, 1851, 1865, 2166, 2548, 2539, 3409, 3521, 3514, 4220, 3473, 2573, 3081, 3028, 3028, 3230, 3056, 3132, 3102, 3621, 3669, 4561])/100
         # self.cursor = QtCore.Qt.BlankCursor
-        self.amp_plot_cursor = QtCore.Qt.CrossCursor # was
-        self.amp_plot_list[0].setCursor(self.amp_plot_cursor)  # self.cursor ##########################
+        self.amp_plot_cursor = QtCore.Qt.CrossCursor
+        self.amp_plot_list[0].setCursor(self.amp_plot_cursor)
         self.phase_plot_cursor = QtCore.Qt.CrossCursor # was
         self.phase_plot_list[0].setCursor(self.phase_plot_cursor)  # self.cursor ##########################
 
@@ -496,7 +506,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     def append_gyro_groupbox(self):
         ind = len(self.groupbox_list)
         self.groupbox_list.append(QtWidgets.QGroupBox(
-            f'gyro {ind + 1}', maximumWidth=190, minimumWidth=150, maximumHeight=250,
+            f'gyro {ind + 1}', maximumWidth=190, minimumWidth=140, maximumHeight=250,
             checkable=True, objectName='small'))
         self.groupbox_layout = QtWidgets.QGridLayout(spacing=2)
         self.groupbox_list[-1].clicked.connect(self.groupbox_clicked)
@@ -568,9 +578,10 @@ class CustomComboBox(QtWidgets.QComboBox):
                 return
             self.addItems(default_items_list)
         if self.settings.contains("curr_index_" + self.settings_name):
-            if self.count() >= self.settings.value("curr_index_" + self.settings_name):
+            # print(self.settings.value("curr_index_" + self.settings_name))
+            if self.count() >= int(self.settings.value("curr_index_" + self.settings_name)):
                 self.setCurrentIndex(
-                    self.settings.value("curr_index_" + self.settings_name))
+                    int(self.settings.value("curr_index_" + self.settings_name)))
 
         # self.save_value = lambda: self.settings.setValue(
         #     "items",

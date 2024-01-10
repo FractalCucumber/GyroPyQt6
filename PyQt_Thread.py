@@ -52,17 +52,17 @@ class SecondThread(QtCore.QThread):
         self.package_num = 0
         self.package_num_list: list = [0]
 
-        self.filename_new = [''] * self.GYRO_NUMBER
-        # self.filename_new = ['' for _ in range(self.GYRO_NUMBER)]
+        self.save_file_name = [''] * self.GYRO_NUMBER
         self.POWERS = np.matrix(
-            [(256 ** np.arange(4)[::-1])] * 4)
-            # [(256 ** np.arange(4)[::-1]) for _ in range(4)])
+            [(256 ** np.arange(4)[::-1])] * 4)  # !!
+            # [(256 ** np.arange(4)[::-1])] * 4)
         # self.time_data.resize(int(183 * 1000 * 1.5 * 10),
         #                           1 + 4*self.GYRO_NUMBER, refcheck=False)
         # import sys
         # print(sys.getsizeof(self.time_data))
         # print((self.time_data.dtype))
         # print((self.time_data.shape))
+        self.package_len = 18
 # -------------------------------------------------------------------------------------------------
 
     @QtCore.pyqtSlot()
@@ -71,19 +71,19 @@ class SecondThread(QtCore.QThread):
         temp = self.GYRO_NUMBER
 
         if self.do_not_save:
+            self.logger.info("do_not_save")
             self.package_num = 0
             self.GYRO_NUMBER = 1
             self.k_amp.resize(self.GYRO_NUMBER)
             self.k_amp.fill(1)
-            self.logger.info("flag_all")
             self.get_fft_from_folders(folder=os.getcwd())
 
         if self.flag_by_name:
+            self.logger.info("flag_by_name")
             self.package_num = 0
             self.GYRO_NUMBER = 1
             self.k_amp.resize(self.GYRO_NUMBER)
             self.k_amp.fill(1)
-            self.logger.info("flag_by_name")
             file = os.path.basename(self.selected_files_to_fft[0])
             last_str = list(filter(None, re.split("_|_|.txt", file)))
             name_part = (f'{last_str[0]}_{last_str[1]}_{last_str[2]}'
@@ -91,7 +91,7 @@ class SecondThread(QtCore.QThread):
             folder = os.path.split(self.selected_files_to_fft[0])[0] + '/'  # меняем folder для сохранения в ту же папку!!!!
             # self.fft_filename = self.folder + name_part + \
             # self.fft_filename = folder + name_part + \
-            self.filename_new[0] = folder + name_part  # а потом в методе save сделать название для fft
+            self.save_file_name[0] = folder + name_part  # а потом в методе save сделать название для fft
             self.fft_from_file_median(self.selected_files_to_fft)  #, self.fft_filename)
             # self.do_not_save = True  # !!!!!!
 
@@ -125,7 +125,11 @@ class SecondThread(QtCore.QThread):
                                   1 + 4*self.GYRO_NUMBER, refcheck=False)
             while self.flag_measurement_start:
                 # QWaitCondition
-                self.data_recieved_event.wait()
+                self.data_recieved_event.wait(5)  # Timeout 5 sec!
+                if not self.data_recieved_event.is_set():
+                    self.logger.info("Timeout")
+                    self.flag_measurement_start = False
+                    # print(1111)
                 if self.flag_measurement_start:
                     self.get_ints_from_bytes()
                     self.package_num_signal.emit(self.package_num)
@@ -139,10 +143,10 @@ class SecondThread(QtCore.QThread):
         self.logger.info("Start saving")
         if self.package_num:
             self.save_time_cycles()
-        self.logger.info(self.fft_data_current_cycle.size)
-        if (self.fft_data_current_cycle.size
-            or self.flag_by_name) and not self.do_not_save:
-            self.save_fft()  # формировать имя
+        # self.logger.info(self.fft_data_current_cycle.size)
+        if not self.do_not_save:
+            if (not self.flag_by_name and self.package_num) or self.flag_by_name:
+                self.save_fft()  # формировать имя
         self.GYRO_NUMBER = temp
         self.flag_by_name = False
         self.do_not_save = False
@@ -151,9 +155,36 @@ class SecondThread(QtCore.QThread):
 # -------------------------------------------------------------------------------------------------
 #
 # -------------------------------------------------------------------------------------------------
-
     def get_ints_from_bytes(self):
-        self.logger.info("start matrix processing data frame")
+        self.logger.info("\n\nstart matrix processing data frame")
+        # bytes_arr = np.frombuffer(self.rx, dtype=np.uint8)
+        # self.logger.info(self.rx)
+        # # self.logger.info(bytes_arr[:21])
+        # self.logger.info(f"len {len(self.rx)}")
+        # start = np.where(
+        #     (bytes_arr[:-(self.package_len+1)] == 0x72) & (bytes_arr[(self.package_len+1):] == 0x27))[0] + 1
+        # self.logger.info(f"srart {start}")
+        # if not start.size:
+        #     return
+        # start = np.insert(start, start.size, start[-1] + self.package_len + 2)
+        # start = start[np.where(np.diff(start) == self.package_len + 2)[0]]
+        # # self.logger.info(start)
+        # expand = start.size
+        # array_r = np.zeros((expand, int(self.package_len/3), 4), dtype=np.uint8)
+        # for i in range(int(self.package_len/3)):  # число чисел в посылке
+        #     for j in range(3):
+        #         array_r[:, i, j] = bytes_arr[np.add(start, 3*i + j)]
+        # self.time_data[
+        #     self.package_num:self.package_num + expand, 0
+        #     ] = np.arange(self.package_num, expand + self.package_num)
+        # arr = np.einsum("ijk,jk->ij", array_r, self.POWERS, optimize=True) / 256
+        # for k in range(self.GYRO_NUMBER):  # !!!
+        #     self.time_data[
+        #         # self.package_num:self.package_num + expand, (1 + 2*k)+2*k:(3 + 2*k)+2*k
+        #         self.package_num:self.package_num + expand, 4*k + 1:4*k + 3
+        #         ] = (arr[:, 2*k:2*k + 2])
+        # self.package_num += expand
+# --------------------------------------------------------------------------------------------
         bytes_arr = np.frombuffer(self.rx, dtype=np.uint8)
         start = np.where(
             (bytes_arr[:-13] == 0x72) & (bytes_arr[13:] == 0x27))[0] + 1
@@ -180,48 +211,51 @@ class SecondThread(QtCore.QThread):
 
     def save_time_cycles(self):
         self.logger.info("save time cycles!")
-        for j in range(self.GYRO_NUMBER):
-            if not len(self.filename_new[j]):
+        for j_gyro in range(self.GYRO_NUMBER):
+            if not len(self.save_file_name[j_gyro]):
                 self.logger.info("skip")
                 continue  # ???  # continue
-            if not os.path.isdir(os.path.dirname(self.filename_new[j])):
-                self.logger.info(f"Folder {os.path.dirname(self.filename_new[i])} doesn't exist!")
-                self.warning_signal.emit(f"Folder {os.path.dirname(self.filename_new[i])} doesn't exist!")
+            if not os.path.isdir(os.path.dirname(self.save_file_name[j_gyro])):
+                self.logger.info(f"Folder {os.path.dirname(self.save_file_name[i])} doesn't exist!")
+                self.warning_signal.emit(f"Folder {os.path.dirname(self.save_file_name[i])} doesn't exist!")
                 continue
             for i in range(len(self.package_num_list) - 1):
                 filename = check_name_simple(
-                    f"{self.filename_new[j] }_{i + 1}.txt")
+                    f"{self.save_file_name[j_gyro] }_{i + 1}.txt")
                 self.logger.info(f"save cycle {filename}")
                 time_data_df = DataFrame(
                     self.time_data[
                         self.package_num_list[i]:self.package_num_list[i + 1], :])
-                time_data_df.to_csv(filename, columns=[0, 1 + 4*i, 2 + 4*i,
-                                                       3 + 4*i, 4 + 4*i],
+                time_data_df.to_csv(filename, columns=[0, 1 + 4*j_gyro, 2 + 4*j_gyro,
+                                                       3 + 4*j_gyro, 4 + 4*j_gyro],
                                     header=None, index=None,
                                     sep='\t', mode='w', date_format='%d')
 # -------------------------------------------------------------------------------------------------
 
     def save_fft(self):
-        self.logger.info(f"names {self.filename_new}")
+        self.fft_approximation(round_flag=False)
+        if not np.isnan(self.all_fft_data[:, -4, :]).all():
+            self.logger.info("FFT data contains only NaN")
+            return
+        self.logger.info(f"names {self.save_file_name}")
         filename_list_cycles = []
         sensor_numbers_list = []
-        self.fft_approximation(round_flag=False)
         self.get_special_points()
         self.logger.info(
             f"total_cycle_num {self.total_cycle_num}, cycle_count {self.cycle_count}")
         for i in range(self.all_fft_data.shape[2]):
-            if not len(self.filename_new[i]):
+            if not len(self.save_file_name[i]):
                 self.logger.info("skip")
                 continue
-            if not os.path.isdir(os.path.dirname(self.filename_new[i])):
-                self.logger.info(f"Folder {os.path.dirname(self.filename_new[i])} doesn't exist!")
-                self.warning_signal.emit(f"Folder {os.path.dirname(self.filename_new[i])} doesn't exist!")
+            if not os.path.isdir(os.path.dirname(self.save_file_name[i])):
+                self.logger.info(f"Folder {os.path.dirname(self.save_file_name[i])} doesn't exist!")
+                self.warning_signal.emit(f"Folder {os.path.dirname(self.save_file_name[i])} doesn't exist!")
                 continue
             if self.package_num:
                 self.cycle_count = len(self.package_num_list) - 1  # если отдельно сохранять
-            filename_new_for_fft = self.filename_new[i] + \
+            filename_for_fft = self.save_file_name[i] + \
                 f'%_{self.cycle_count}%_FRQ_AMP_dPh_{self.fs}Hz.txt'
-            name_parts = re.split("\%", filename_new_for_fft)
+            name_parts = re.split("\%", filename_for_fft)
             filename_cycles = check_name_simple(
                 name_parts[0] + name_parts[1] + name_parts[2])
 
@@ -247,46 +281,16 @@ class SecondThread(QtCore.QThread):
     def new_cycle(self):  # добавить сброс числа пакетов, изменение имени файла и т.д.
         if self.flag_measurement_start:
             self.package_num_list.append(self.package_num)
-        # self.k_amp.fill(1)
         # self.logger.info(self.total_cycle_num)
         if self.all_fft_data.shape[0] == self.fft_data_current_cycle.shape[0]:
-            self.all_fft_data[:, 4*(self.cycle_count - 1):
-                              4*self.cycle_count, :] = np.copy(
-                                  self.fft_data_current_cycle)
+            self.all_fft_data[
+                :, 4*(self.cycle_count - 1):4*self.cycle_count, :
+                ] = np.copy(self.fft_data_current_cycle)
             self.cycle_count += 1
         else:
             self.logger.info('wrong shape!')
         self.fft_data_current_cycle.fill(np.nan)
         # self.amp_and_freq[:, 4*self.cycle_count:(4*self.cycle_count + 4)] = self.amp_and_freq[:, 0:4]
-# -------------------------------------------------------------------------------------------------
-
-    def get_fft_from_folders(self, folder):
-        path = 'sensors_nums — копия.txt'
-        sensor_list = read_csv(
-            path, dtype=np.str, delimiter='\n', header=None)
-        for sensor_number in sensor_list[0]:
-            check = list(filter(None, re.split("\.|\n", sensor_number)))
-            if len(check[-1]) < 3:
-                sensor_num = check[-2] + "." + check[-1]
-            elif len(check[-1]) == 4:
-                sensor_num = check[-1]
-            sensor_folder = '//fs/Projects/АФЧХ/' + sensor_num
-            self.logger.info(f"\npath: {sensor_folder}")
-            only_files = [f for f in os.listdir(sensor_folder)
-                         if os.path.isfile(os.path.join(sensor_folder, f))]
-            self.selected_files_to_fft = []
-            for file in only_files:
-                split_filename = list(filter(None, re.split("_|_|.txt", file)))
-                if len(split_filename) == 4 and split_filename[1] != 'fresh':
-                    self.selected_files_to_fft.append(sensor_folder + '/' + file)
-                    last_filename = split_filename
-            # sensor_folder + '/' добавлять это, чтобы сохранять в той же папке
-            self.filename_new[0] = folder + \
-                last_filename[0] + '_' + last_filename[1] + '_' +  last_filename[2]
-            self.logger.info(f"files in folder: {self.selected_files_to_fft}")
-            self.fft_from_file_median(self.selected_files_to_fft) #, self.fft_filename)
-            self.logger.info("save fft")
-            self.save_fft()
 # -------------------------------------------------------------------------------------------------
 
     def fft_approximation(self, round_flag=True):
@@ -384,7 +388,6 @@ class SecondThread(QtCore.QThread):
                     self.logger.info(f"{f.readline()}")
                     self.warning_signal.emit(f"You choose wrong file!")
                     continue
-            # self.k_amp[0] = 1
             self.fft_for_file(file_for_fft)
             if self.cycle_count == 1:
                 self.all_fft_data.resize(
@@ -511,7 +514,36 @@ class SecondThread(QtCore.QThread):
         x1, y1 = point1
         x2, y2 = point2
         result = y1 + ((y2 - y1) / (x2 - x1)) * (value - x1)
-        return result # x
+        return result  # x
+# -------------------------------------------------------------------------------------------------
+
+    def get_fft_from_folders(self, folder):
+        path = 'sensors_nums — копия.txt'
+        sensor_list = read_csv(
+            path, dtype=np.str, delimiter='\n', header=None)
+        for sensor_number in sensor_list[0]:
+            check = list(filter(None, re.split("\.|\n", sensor_number)))
+            if len(check[-1]) < 3:
+                sensor_num = check[-2] + "." + check[-1]
+            elif len(check[-1]) == 4:
+                sensor_num = check[-1]
+            sensor_folder = '//fs/Projects/АФЧХ/' + sensor_num
+            self.logger.info(f"\npath: {sensor_folder}")
+            only_files = [f for f in os.listdir(sensor_folder)
+                         if os.path.isfile(os.path.join(sensor_folder, f))]
+            self.selected_files_to_fft = []
+            for file in only_files:
+                split_filename = list(filter(None, re.split("_|_|.txt", file)))
+                if len(split_filename) == 4 and split_filename[1] != 'fresh':
+                    self.selected_files_to_fft.append(sensor_folder + '/' + file)
+                    last_filename = split_filename
+            # sensor_folder + '/' добавлять это, чтобы сохранять в той же папке
+            self.save_file_name[0] = folder + \
+                last_filename[0] + '_' + last_filename[1] + '_' +  last_filename[2]
+            self.logger.info(f"files in folder: {self.selected_files_to_fft}")
+            self.fft_from_file_median(self.selected_files_to_fft) #, self.fft_filename)
+            self.logger.info("save fft")
+            self.save_fft()
 
 # ----------------------------------------------------------------------------
 #

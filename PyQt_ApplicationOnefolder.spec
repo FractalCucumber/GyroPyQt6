@@ -40,6 +40,7 @@ a.datas += [('res/red.png', 'res/red.png', 'DATA'),]
 a.datas += [('res/green.png', 'res/green.png', 'DATA'),]
 a.datas += [('res/blue.png', 'res/blue.png', 'DATA')]
 a.datas += [('res/G.png', 'res/G.png', 'DATA')]
+a.datas += [('config.ini', 'PyQt_ConfigDeafault.ini', 'DATA')]
 
 
 exe = EXE(
