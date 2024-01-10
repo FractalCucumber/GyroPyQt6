@@ -125,7 +125,7 @@ class SecondThread(QtCore.QThread):
                     # пусть эта функция срабатывает всегда, даже если данных нет, 
                     # поскольку ее поведение зависит в первую очередь от протокола измерений
                     self.make_3_fft_frame(encoder=self.time_data[:, 2],
-                                        gyro_list=self.time_data[:, 1::4])
+                                          gyro_list=self.time_data[:, 1::4])
                 self.data_recieved_event.clear()
             self.package_num_list.append(self.package_num)
         self.logger.info("Start saving")
@@ -412,13 +412,11 @@ class SecondThread(QtCore.QThread):
                 (rows_count, 4 * (self.total_cycle_num + 1), self.GYRO_NUMBER),
                 refcheck=False)
             self.all_fft_data.fill(np.nan)
-            self.cycle_count += 1
         elif rows_count != self.all_fft_data.shape[0]:
             self.logger.info('wrong shape!')
             self.warning_signal.emit("Error in processing!")
             return
-        else:
-            self.cycle_count += 1
+        self.cycle_count += 1
         # ind = np.where(start_arr[1:rows_count] < end_arr[:rows_count-1])
         # print(rows_count) # print(ind) # print(start)
         # if ind[0]:
