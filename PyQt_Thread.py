@@ -19,8 +19,6 @@ class SecondThread(QtCore.QThread):
         # QtCore.QThread.__init__(self)
 
         self.data_recieved_event = Event()
-        # self.flag_recieve: bool = False
-
         super(SecondThread, self).__init__()
         self.logger = logging.getLogger(logger_name)
         self.GYRO_NUMBER = gyro_number
@@ -28,17 +26,16 @@ class SecondThread(QtCore.QThread):
         self.filename: list[str] = ["", ""]
         self.flag_measurement_start: bool = False
         self.rx: bytes = b''
-        self.fft_data_current_cycle: np.ndarray = np.array([], dtype=np.float32)  # ???
         self.all_fft_data: np.ndarray = np.array([], dtype=np.float32)  # ???
         self.time_data: np.ndarray = np.array([], dtype=np.int32)
         # self.time_data = np.ndarray((1, 1 + 4*self.GYRO_NUMBER), dtype=np.int32)
         self.special_points: np.ndarray = np.empty((5, self.GYRO_NUMBER))
 
         self.bourder: np.ndarray = np.array([0, 0], dtype=np.uint32)
-        self.k_amp = (np.ones(self.GYRO_NUMBER)).astype(np.float32)
+        self.k_amp = np.ones(self.GYRO_NUMBER, dtype=np.float32)
         self.fs = 0
         # self.WAIT_TIME_SEC = 1
-        self.WAIT_TIME_SEC = 0.6
+        self.WAIT_TIME_SEC = 0.75
         self.flag_sent: bool = False
         self.num_measurement_rows = 0
         self.total_cycle_num = 0  # !!!
@@ -67,37 +64,36 @@ class SecondThread(QtCore.QThread):
 
     @QtCore.pyqtSlot()
     def run(self):
-        self.cycle_count = 1
         temp = self.GYRO_NUMBER
 
-        if self.do_not_save:
-            self.logger.info("do_not_save")
+        if self.do_not_save or self.flag_by_name:
+            self.cycle_count = 1
             self.package_num = 0
             self.GYRO_NUMBER = 1
             self.k_amp.resize(self.GYRO_NUMBER)
             self.k_amp.fill(1)
+
+        if self.do_not_save:
+            self.logger.info("do_not_save")
             self.get_fft_from_folders(folder=os.getcwd())
 
         if self.flag_by_name:
             self.logger.info("flag_by_name")
-            self.package_num = 0
-            self.GYRO_NUMBER = 1
-            self.k_amp.resize(self.GYRO_NUMBER)
-            self.k_amp.fill(1)
             file = os.path.basename(self.selected_files_to_fft[0])
             last_str = list(filter(None, re.split("_|_|.txt", file)))
             name_part = (f'{last_str[0]}_{last_str[1]}_{last_str[2]}'
                          if len(last_str) >= 3 else file)
-            folder = os.path.split(self.selected_files_to_fft[0])[0] + '/'  # меняем folder для сохранения в ту же папку!!!!
-            # self.fft_filename = self.folder + name_part + \
-            # self.fft_filename = folder + name_part + \
-            self.save_file_name[0] = folder + name_part  # а потом в методе save сделать название для fft
-            self.fft_from_file_median(self.selected_files_to_fft)  #, self.fft_filename)
-            # self.do_not_save = True  # !!!!!!
+            # folder = os.path.split(self.selected_files_to_fft[0])[0] + '/'
+            folder = os.path.dirname(self.selected_files_to_fft[0]) + '/'  # меняем folder для сохранения в ту же папку
+            # self.save_file_name[0] = self.folder + name_part 
+            self.save_file_name[0] = folder + name_part
+            self.fft_from_file_median(self.selected_files_to_fft)
+            # self.do_not_save = True  # !
 
         if self.flag_measurement_start:
-            self.package_num = 0
             self.logger.info("flag_measurement_start")
+            self.cycle_count = 1
+            self.package_num = 0
             self.k_amp.resize(self.GYRO_NUMBER)
             self.k_amp.fill(1)
             self.total_num_time_rows = 0  #
@@ -109,15 +105,9 @@ class SecondThread(QtCore.QThread):
 
             self.package_num_list = [0]
             self.bourder.fill(0)
-            self.fft_data_current_cycle.resize(
-                (self.num_measurement_rows, 4, self.GYRO_NUMBER),
-                refcheck=False)
-            self.fft_data_current_cycle.fill(np.nan)
             self.all_fft_data.resize(
-                (self.num_measurement_rows,
-                 4 * (self.total_cycle_num + 1),
-                 self.GYRO_NUMBER),
-                refcheck=False)
+                (self.num_measurement_rows, 4 * (self.total_cycle_num + 1),
+                 self.GYRO_NUMBER), refcheck=False)
             self.all_fft_data.fill(np.nan)
 
             # либо заранее с запасом выделять память, либо с отдельными цилками работать
@@ -129,21 +119,18 @@ class SecondThread(QtCore.QThread):
                 if not self.data_recieved_event.is_set():
                     self.logger.info("Timeout")
                     self.flag_measurement_start = False
-                    # print(1111)
                 if self.flag_measurement_start:
                     self.get_ints_from_bytes()
                     self.package_num_signal.emit(self.package_num)
-                    # пусть эта функция срабатывает всегда, даже если данных нет, поскольку ее поведение зависит в первую очередь от протокола измерений
+                    # пусть эта функция срабатывает всегда, даже если данных нет, 
+                    # поскольку ее поведение зависит в первую очередь от протокола измерений
                     self.make_3_fft_frame(encoder=self.time_data[:, 2],
                                         gyro_list=self.time_data[:, 1::4])
                 self.data_recieved_event.clear()
             self.package_num_list.append(self.package_num)
-        # self.time_data.resize(self.package_num,
-                            #   1 + 4*self.GYRO_NUMBER, refcheck=False)
         self.logger.info("Start saving")
         if self.package_num:
             self.save_time_cycles()
-        # self.logger.info(self.fft_data_current_cycle.size)
         if not self.do_not_save:
             if (not self.flag_by_name and self.package_num) or self.flag_by_name:
                 self.save_fft()  # формировать имя
@@ -188,6 +175,9 @@ class SecondThread(QtCore.QThread):
         bytes_arr = np.frombuffer(self.rx, dtype=np.uint8)
         start = np.where(
             (bytes_arr[:-13] == 0x72) & (bytes_arr[13:] == 0x27))[0] + 1
+        if not start.size:
+            self.logger.info("Incorrect data in rx!")
+            return
         start = np.insert(start, start.size, start[-1] + 14)
         start = start[np.where(np.diff(start) == 14)[0]]
         expand = start.size
@@ -198,7 +188,7 @@ class SecondThread(QtCore.QThread):
         # self.time_data.resize(
             # self.package_num + expand, 1 + 4*self.GYRO_NUMBER, refcheck=False)
         self.time_data[self.package_num:self.package_num + expand, 0] = np.arange(
-            self.package_num, expand + self.package_num)
+            self.package_num, self.package_num + expand)
         # self.logger.info(self.GYRO_NUMBER)
 
         for k in range(self.GYRO_NUMBER):  # !!!
@@ -234,7 +224,7 @@ class SecondThread(QtCore.QThread):
 
     def save_fft(self):
         self.fft_approximation(round_flag=False)
-        if not np.isnan(self.all_fft_data[:, -4, :]).all():
+        if np.isnan(self.all_fft_data[:, -4, :]).all():
             self.logger.info("FFT data contains only NaN")
             return
         self.logger.info(f"names {self.save_file_name}")
@@ -253,18 +243,18 @@ class SecondThread(QtCore.QThread):
                 continue
             if self.package_num:
                 self.cycle_count = len(self.package_num_list) - 1  # если отдельно сохранять
-            filename_for_fft = self.save_file_name[i] + \
-                f'%_{self.cycle_count}%_FRQ_AMP_dPh_{self.fs}Hz.txt'
-            name_parts = re.split("\%", filename_for_fft)
-            filename_cycles = check_name_simple(
-                name_parts[0] + name_parts[1] + name_parts[2])
+            filename_cycles = self.save_file_name[i] + \
+                f'_{self.cycle_count}_FRQ_AMP_dPh_{self.fs}Hz.txt'
+            filename_cycles = check_name_simple(filename_cycles)
 
             self.logger.info(f"save fft file {filename_cycles}")
                     #    self.amp_and_freq[:, :4*self.cycle_count], delimiter='\t', fmt='%.3f')  # возможно, так будет обрезать лишнее
             DataFrame(self.all_fft_data[:, :-4, i]).to_csv(
                 filename_cycles, header=None, index=None,
                 sep='\t', mode='w', float_format='%.3f', decimal=',')
-            filename_median = check_name_simple(name_parts[0] + name_parts[2])
+            filename_median = self.save_file_name[i] + \
+                f'_FRQ_AMP_dPh_{self.fs}Hz.txt'
+            filename_median = check_name_simple(filename_median)
             DataFrame(self.all_fft_data[:, -4:, i]).to_csv(
                 filename_median, header=None, index=None,
                 sep='\t', mode='w', float_format='%.3f', decimal=',')
@@ -278,28 +268,14 @@ class SecondThread(QtCore.QThread):
                 "Save files:\n" + ',\n'.join(filename_list_cycles) + '\n')
 # -------------------------------------------------------------------------------------------------
 
-    def new_cycle(self):  # добавить сброс числа пакетов, изменение имени файла и т.д.
-        if self.flag_measurement_start:
-            self.package_num_list.append(self.package_num)
-        # self.logger.info(self.total_cycle_num)
-        if self.all_fft_data.shape[0] == self.fft_data_current_cycle.shape[0]:
-            self.all_fft_data[
-                :, 4*(self.cycle_count - 1):4*self.cycle_count, :
-                ] = np.copy(self.fft_data_current_cycle)
-            self.cycle_count += 1
-        else:
-            self.logger.info('wrong shape!')
-        self.fft_data_current_cycle.fill(np.nan)
-        # self.amp_and_freq[:, 4*self.cycle_count:(4*self.cycle_count + 4)] = self.amp_and_freq[:, 0:4]
+    def new_measurement_cycle(self):  # добавить сброс числа пакетов, изменение имени файла и т.д.
+        # убрать fft data current cycle, так будет проще
+        self.package_num_list.append(self.package_num)
+        self.cycle_count += 1
 # -------------------------------------------------------------------------------------------------
 
     def fft_approximation(self, round_flag=True):
         for i in range(self.all_fft_data.shape[2]):
-            if self.all_fft_data.shape[0] == self.fft_data_current_cycle.shape[0]:
-                self.all_fft_data[:, 4*(self.cycle_count - 1):4*(self.cycle_count), i] = np.copy(
-                    self.fft_data_current_cycle[:, :, i])
-            else:
-                self.logger.info('Different shape!')
             # нужна проверка на то, что все частоты +- совпадают, проще при создании массива проверять
             for k in range(self.all_fft_data.shape[0]):
                 for j in range(4):
@@ -331,8 +307,9 @@ class SecondThread(QtCore.QThread):
                         encoder=encoder[self.bourder[0]:self.bourder[1]] * self.k_amp[i],
                         fs=self.fs)
                     [freq, amp, d_phase, tau] = self.fft_normalisation(freq, amp, d_phase, i)
-                    self.fft_data_current_cycle[(
-                        self.count_fft_frame - 1), :, i] = [freq, amp, d_phase, tau]
+                    self.all_fft_data[(
+                        self.count_fft_frame - 1), (self.cycle_count-1)*4:self.cycle_count*4, i
+                        ] = [freq, amp, d_phase, tau]
                 self.fft_data_signal.emit(True)
             else:
                 self.warning_signal.emit("Too small data frame!")
@@ -372,31 +349,14 @@ class SecondThread(QtCore.QThread):
         for file_for_fft in file_list:
             with open(file_for_fft) as f:
                 if len(f.readline().split("\t")) == 4:
-                    # сразу вывести график афчх средний
-                    # можно сделать так, чтобы до трех разных датчиков можно было выбирать
-                    self.all_fft_data = np.array(read_csv(f, delimiter='\t',
-                                        dtype=np.float32, header=None,  #,
-                                        index_col=False))
-                    self.all_fft_data.resize(
-                        self.all_fft_data.shape[0], self.all_fft_data.shape[1], 1)
-                    self.get_special_points()
-                    filename_list_median = [re.split("_", os.path.basename(file_for_fft))[0]]
-                    self.median_data_ready_signal.emit(filename_list_median)
-                    self.do_not_save = True
+                    self.get_exising_fft_file(file_for_fft)
                     break
                 if len(f.readline().split("\t")) != 5:
                     self.logger.info(f"{f.readline()}")
                     self.warning_signal.emit(f"You choose wrong file!")
                     continue
             self.fft_for_file(file_for_fft)
-            if self.cycle_count == 1:
-                self.all_fft_data.resize(
-                    (self.fft_data_current_cycle.shape[0],
-                    4 * (self.total_cycle_num + 1), self.GYRO_NUMBER),
-                    refcheck=False)
-                self.all_fft_data.fill(np.nan)
-            if self.cycle_count != self.total_cycle_num:
-                self.new_cycle()
+        self.cycle_count -= 1
 # -------------------------------------------------------------------------------------------------
 
     def fft_for_file(self, filename: str, threshold: int = 5500):
@@ -446,17 +406,26 @@ class SecondThread(QtCore.QThread):
             f"3, len start = {start.size}, len start after = {start_arr.size}" +
             f"4, len end = {end.size}, len end after = {end_arr.size}")
         
-        flag_first = True
         rows_count = min(end_arr.size, start_arr.size)
-        self.fft_data_current_cycle.resize(
-            (rows_count, 4, self.GYRO_NUMBER), refcheck=False)
-        self.fft_data_current_cycle.fill(np.nan)
+        if self.cycle_count == 1:
+            self.all_fft_data.resize(
+                (rows_count, 4 * (self.total_cycle_num + 1), self.GYRO_NUMBER),
+                refcheck=False)
+            self.all_fft_data.fill(np.nan)
+            self.cycle_count += 1
+        elif rows_count != self.all_fft_data.shape[0]:
+            self.logger.info('wrong shape!')
+            self.warning_signal.emit("Error in processing!")
+            return
+        else:
+            self.cycle_count += 1
         # ind = np.where(start_arr[1:rows_count] < end_arr[:rows_count-1])
         # print(rows_count) # print(ind) # print(start)
         # if ind[0]:
         #     print(1111111)
         #     start[ind + 1] = end_arr[ind]
         # print(start)
+        flag_first = True
         for i in range(rows_count):
             if i and start_arr[i] < end_arr[i - 1]:  # можно векторно проверять
                 self.logger.info(f"!!! start[{i}]={start_arr[i]}, end[{i}]={end_arr[i]}")
@@ -470,7 +439,9 @@ class SecondThread(QtCore.QThread):
                     encoder=time_data[bourder[0]:bourder[1], 2-1] * self.k_amp[0],
                     fs=self.fs)
                 [freq, amp, d_phase, tau] = self.fft_normalisation(freq, amp, d_phase)
-                self.fft_data_current_cycle[i, :, 0] = [freq, amp, d_phase, tau]
+                self.all_fft_data[
+                    i, (self.cycle_count-1)*4:self.cycle_count*4, 0
+                    ] = [freq, amp, d_phase, tau]
             else:
                 if flag_first:
                     flag_first = False
@@ -481,10 +452,11 @@ class SecondThread(QtCore.QThread):
                 else:
                     self.warning_signal.emit("Again...")
                 self.logger.info(f"{[start_arr[i], end_arr[i]]}")
-        self.logger.info(f"median noise {os.path.basename(filename)}, " +
-                         f"{np.nanmedian(np.abs(np.diff(self.fft_data_current_cycle[:, 1, 0])))}")
         self.logger.info(
-            np.nanmean(np.abs(np.diff(self.fft_data_current_cycle[:, 1, 0]))))
+            f"median noise {os.path.basename(filename)}, " +
+            f"{np.nanmedian(np.abs(np.diff(self.all_fft_data[:, 1 + (self.cycle_count - 1) * 4, 0])))}")
+        self.logger.info(np.nanmean(np.abs(
+            np.diff(self.all_fft_data[:, 1 + (self.cycle_count - 1) * 4, 0]))))
 # -------------------------------------------------------------------------------------------------
 
     def fft_normalisation(self, freq, amp, d_phase, i=0):
@@ -544,7 +516,28 @@ class SecondThread(QtCore.QThread):
             self.fft_from_file_median(self.selected_files_to_fft) #, self.fft_filename)
             self.logger.info("save fft")
             self.save_fft()
+# -------------------------------------------------------------------------------------------------
 
+    def get_exising_fft_file(self, file_for_fft):
+        self.logger.info("plot existing fft")
+        # сразу вывести график афчх средний
+        # можно сделать так, чтобы до трех разных датчиков можно было выбирать
+        try:
+            self.all_fft_data = np.array(
+                read_csv(file_for_fft, delimiter='\t',
+                         dtype=np.float32, header=None,  #,
+                         index_col=False, decimal=","))
+        except ValueError:  # на случай, если в файле в качестве разделителей точки
+            self.all_fft_data = np.array(
+                read_csv(file_for_fft, delimiter='\t',
+                         dtype=np.float32, header=None,  #,
+                         index_col=False, decimal="."))
+        self.all_fft_data.resize(
+            self.all_fft_data.shape[0], self.all_fft_data.shape[1], 1)
+        self.get_special_points()
+        filename_list_median = [re.split("_", os.path.basename(file_for_fft))[0]]
+        self.median_data_ready_signal.emit(filename_list_median)
+        self.do_not_save = True
 # ----------------------------------------------------------------------------
 #
 # ----------------------------------------------------------------------------

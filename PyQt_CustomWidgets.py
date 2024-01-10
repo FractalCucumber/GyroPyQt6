@@ -175,6 +175,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.logger.info(f"Final median plot, sensor: {folder}")
         if np.isnan(freq_data[:, -4, :]).all():
             return
+        for i in range(2):
+            self.infinite_x_line_list[i].setVisible(True)
         temp = np.empty(
             (freq_data.shape[0] + 1, freq_data.shape[1], freq_data.shape[2]))
         for i in range(len(self.groupbox_list)):
@@ -223,7 +225,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                 #     f"A {self.freq_data[index, -3, self.selected_curve]:.2f}\n" +
                 #     f"\u03C6 {self.freq_data[index, -2, self.selected_curve]:.1f}")
                 self.point_label.setText(
-                    f"\t\t\t\t\tf {self.freq_data[index, -4, self.selected_curve]:.2f}" +
+                    f"\t\t\t\t\t\t\tf {self.freq_data[index, -4, self.selected_curve]:.2f}" +
                     f"\tA {self.freq_data[index, -3, self.selected_curve]:.2f}" +
                     f"\t\u03C6 {self.freq_data[index, -2, self.selected_curve]:.1f}")
                 # self.cursor_label.setText(
@@ -274,6 +276,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     def write_xlsx(self):
         self.warning_signal.emit("Start saving")
         self.logger.info(f"Get Excel")
+        if not len(self.sensor_name_line_edit_list[self.selected_curve].text()):
+            return
         currnt_xlsx_path = \
             self.projects_combo_box.projects_dict[
                 self.projects_combo_box.currentText()] + \
@@ -289,11 +293,10 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         except FileNotFoundError:
             self.warning_signal.emit("File not found!")
             return
-        ws = wb['Настройка КП']  # or wb.active
+        ws = wb['Настройка КП']  #
         self.logger.info(f"Save in Excel 2")
         ws['I11'] = float(self.freq_info_line_edit_list[self.selected_curve].text())
         ws['K11'] = float(self.amp_info_line_edit_list[self.selected_curve].text())
-        # ws.column_dimensions['F'].width = 51
         try:
             wb.save(currnt_xlsx_path)
         except IOError:
@@ -325,6 +328,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     def clear_plots(self):
         self.freq_data = np.array([])  # лучше пустой массив создавать
         self.region.setRegion([0, 0])
+        for i in range(2):
+            self.infinite_x_line_list[i].setVisible(False)
         # self.logger.info(f"len amp prev {len(self.amp_curves)}")
         # self.logger.info(f"len phase_curves prev {len(self.phase_curves)}")
         for i in range(self.count() - 2):
@@ -399,17 +404,17 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 
     def plot_fft_median(self):
         self.freq_data = np.array([])  # лучше пустой массив создавать
-        self.last_tab_layout = QtWidgets.QGridLayout(spacing=0)
-        self.last_tab_layout.addWidget(self.groupbox, 0, 1, 3, 1) 
+        last_tab_layout = QtWidgets.QGridLayout(spacing=0)
+        last_tab_layout.addWidget(self.groupbox, 0, 1, 3, 1) 
 
-        self.tab_widget_page_list.append(QtWidgets.QWidget(self, minimumWidth=180))
+        self.tab_widget_page_list.append(QtWidgets.QWidget(self, minimumWidth=200))
         self.append_amp_plot()
-        self.last_tab_layout.addWidget(self.amp_plot_list[0], 0, 0, 1, 1)
+        last_tab_layout.addWidget(self.amp_plot_list[0], 0, 0, 1, 1)
         self.point_label = QtWidgets.QLabel()
-        self.last_tab_layout.addWidget(self.point_label, 1, 0, 1, 1)
+        last_tab_layout.addWidget(self.point_label, 1, 0, 1, 1)
         self.append_phase_plot()
-        self.last_tab_layout.addWidget(self.phase_plot_list[0], 2, 0, 1, 1)
-        self.tab_widget_page_list[0].setLayout(self.last_tab_layout)
+        last_tab_layout.addWidget(self.phase_plot_list[0], 2, 0, 1, 1)
+        self.tab_widget_page_list[0].setLayout(last_tab_layout)
         self.addTab(
             self.tab_widget_page_list[0], "&АФЧХ (средний)")  # FC average
   
@@ -422,6 +427,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 
         self.infinite_x_line_list = [pg.InfiniteLine(angle=90, pen=pg.mkPen(self.COLOR_LIST[0]))
                                      for _ in range(2)]
+        for i in range(2):
+            self.infinite_x_line_list[i].setVisible(False)
         self.amp_plot_list[0].addItem(self.infinite_x_line_list[0], ignoreBounds=True)
         self.phase_plot_list[0].addItem(self.infinite_x_line_list[1], ignoreBounds=True)
         self.phase_plot_list[0].addItem(
@@ -446,7 +453,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         """
         Create new tab and append amplitude and grequency graphs
         """
-        index = self.count() - 1
+        # index = 
         self.tab_widget_page_list.append(QtWidgets.QWidget(self))
         layout = QtWidgets.QVBoxLayout(spacing=0)
         self.append_amp_plot()
@@ -457,7 +464,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         layout.addWidget(self.phase_plot_list[-1])
         self.tab_widget_page_list[-1].setLayout(layout)
         self.addTab(
-            self.tab_widget_page_list[-1], f"ЧХ &{index}")  # FC        
+            self.tab_widget_page_list[-1], f"ЧХ &{self.count() - 1}")  # FC        
 
     def append_amp_plot(self):
         amp_plot_item = pg.PlotItem(viewBox=CustomViewBox(),
@@ -468,7 +475,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         amp_plot_item.addLegend(offset=(-1, 1), labelTextSize=f'{self.pt - 1}pt',
                                      labelTextColor=pg.mkColor('w'))
         amp_plot_item.setLabel('left', 'Amplitude',
-                                    units="", **self.LABEL_STYLE)
+                               units="", **self.LABEL_STYLE)
         # amp_plot_item.setLabel('bottom', 'Frequency',
         #                             units='Hz', **self.LABEL_STYLE)
         # self.SYMBOL_SIZE = 6
