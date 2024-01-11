@@ -12,26 +12,21 @@ class QTextEditLogger():
         log = logging.getLogger('main')
         log.setLevel(logging.INFO)
 
-
-        # file_handler = logging.FileHandler('./log')
         if file_log:
-        #     # with open('GyroTestPyQt.log', encoding="utf-8") as f:
             # logging.basicConfig(  # не выводит сообщния на русском
             #     filename='GyroTestPyQt.log',
-            #     # filename=f,
             #     filemode='w',
             #     format=('#%(levelname)-s,\t%(pathname)s:%(lineno)d,\t%(asctime)s, %(message)s'),
             #     # format=('#%(levelname)-s,\t%(pathname)s,\tline %(lineno)d,\t[%(asctime)s]: %(message)s'),
             #     level=logging.INFO,
             # )  #  encoding="utf-8" work since python 3.9
-            file_formatter = logging.Formatter(  # выводит сообщния на русском
-                ('#%(levelname)-s,\t%(pathname)s:%(lineno)d,\t%(asctime)s, %(message)s')
-            )
-            file_handler = logging.FileHandler('GyroTestPyQt.log', mode='w', encoding="utf-8")
+            # выводит сообщния на русском
+            file_formatter = logging.Formatter(
+                ('#%(levelname)-s,\t%(pathname)s:%(lineno)d,\t%(asctime)s, %(message)s'))
+            file_handler = logging.FileHandler('PyQt_VibroGyroTest.log', mode='w', encoding="utf-8")
             file_handler.setLevel(logging.INFO)
             file_handler.setFormatter(file_formatter)
             log.addHandler(file_handler)
-
         # console_formatter = logging.Formatter(('#%(levelname)-s, %(pathname)s, '
                                             # 'line %(lineno)d: %(message)s'))
         # console_handler = logging.StreamHandler()

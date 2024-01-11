@@ -64,7 +64,6 @@ def get_fft_data(gyro: np.ndarray, encoder: np.ndarray, fs: int):
     FS [Hz] - частота дискретизации
     """
     L = gyro.size  # длина записи
-    # print(type(L))
     next_power = np.ceil(np.log2(L))  # показатель степени 2 для числа длины записи
     NFFT = np.int32(np.power(2, next_power))
     HALF = np.int32(NFFT / 2)
@@ -77,11 +76,15 @@ def get_fft_data(gyro: np.ndarray, encoder: np.ndarray, fs: int):
     #  delta_phase = asin(2*np.mean(encoder1.*gyro1)/(np.mean(abs(encoder1))*np.mean(abs(gyro1))*pi^2/4))*180/pi
     ng = np.argmax(np.abs(Yg[0:HALF]))
     Mg = 2 * np.abs(Yg[ng])
+    freq = f[ng]  # !  у гироскопопв меньше помехи обычно
+    # если с гироскопа придет постоянное число, то частота будет нулевой
     # freq = f[ne]  # make sence?
-
+    # print(f[ng])
     ne = np.argmax(np.abs(Ye[0:HALF]))
     Me = 2 * np.abs(Ye[ne])
-    freq = f[ne]
+    if freq == 0:  # !!!
+        freq = f[ne]
+    # print(f[ne])
 
     d_phase = np.angle(Yg[ng], deg=True) - np.angle(Ye[ne], deg=True)
     amp = Mg/Me

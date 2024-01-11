@@ -148,10 +148,10 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             
     # @overload
     def plot_time_graph(self, time: np.ndarray,
-                        enc_data: np.ndarray, gyro_data: list):
+                        enc_data: np.ndarray, gyro_data: np.ndarray):
         self.time_curves[0].setData(time, enc_data)
         for i in range(self.GYRO_NUMBER):
-            self.time_curves[i + 1].setData(time, gyro_data[i])
+            self.time_curves[i + 1].setData(time, gyro_data[:, i])
 
     def set_fft_data(self, freq_data: np.ndarray, frame: list):
         """Adds points to frequency graphs"""
@@ -161,10 +161,14 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             # self.phase_plot_list[-1].getPlotItem().curves[i].setData(freq_data[:, 0, i],
                                         # freq_data[:, 2, i])
             # ind = self.GYRO_NUMBER * (self.count() - 2) + i
-            self.amp_curves[-1 - i].setData(np.copy(freq_data[:, 0, i]),
-                                         np.copy(freq_data[:, 1, i]))
-            self.phase_curves[-1 - i].setData(np.copy(freq_data[:, 0, i]),
-                                           np.copy(freq_data[:, 2, i]))
+            self.amp_curves[-1 - i].setData(freq_data[:, 0, i],
+                                            freq_data[:, 1, i])
+            self.phase_curves[-1 - i].setData(freq_data[:, 0, i],
+                                              freq_data[:, 2, i])
+            # self.amp_curves[-1 - i].setData(np.copy(freq_data[:, 0, i]),
+            #                              np.copy(freq_data[:, 1, i]))
+            # self.phase_curves[-1 - i].setData(np.copy(freq_data[:, 0, i]),
+            #                                np.copy(freq_data[:, 2, i]))
         self.region.setRegion([frame[0]/self.fs, frame[1]/self.fs])
         self.amp_plot_list[-1].autoRange()
         self.phase_plot_list[-1].autoRange()
