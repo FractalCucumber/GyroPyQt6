@@ -109,8 +109,9 @@ class SecondThread(QtCore.QThread):
             self.k_amp.fill(1)
             self.total_num_time_rows = 0  #
             self.count_fft_frame = 1
-            self.current_delay = 0
-            self.required_delay = self.WAIT_TIME_SEC * self.fs / self.READ_INTERVAL_MS
+            # self.current_delay = 0
+            # self.required_delay = self.WAIT_TIME_SEC * self.fs / self.READ_INTERVAL_MS
+            self.required_delay = int(self.WAIT_TIME_SEC * self.fs)  # !
             self.flag_frame_start = False
             self.flag_sent = True
 
@@ -172,7 +173,7 @@ class SecondThread(QtCore.QThread):
                     self.package_num_signal.emit(self.package_num, array)
                     # пусть эта функция срабатывает всегда, даже если данных нет, 
                     # поскольку ее поведение зависит в первую очередь от протокола измерений
-                    self.make_3_fft_frame(encoder=self.time_data[:, 2],
+                    self.make_fft_frame(encoder=self.time_data[:, 2],
                                           gyro_list=self.time_data[:, 1::4])
                     self.logger.info("end thread cycle")
                 self.data_recieved_event.clear()
@@ -195,7 +196,7 @@ class SecondThread(QtCore.QThread):
 #
 # -------------------------------------------------------------------------------------------------
     def get_ints_from_bytes(self):
-        self.logger.info("\n\n\tstart matrix processing data frame")
+        self.logger.info("start matrix processing data frame")
         # bytes_arr = np.frombuffer(self.rx, dtype=np.uint8)
         # self.logger.info(self.rx)
         # # self.logger.info(bytes_arr[:21])
@@ -401,17 +402,19 @@ class SecondThread(QtCore.QThread):
                 self.all_fft_data[:, -3, i] = np.round(self.all_fft_data[:, -3, i], 4)
 # -------------------------------------------------------------------------------------------------
 
-    def make_3_fft_frame(self, encoder: np.ndarray, gyro_list: np.ndarray):
-        if not self.flag_sent:
+    def make_fft_frame(self, encoder: np.ndarray, gyro_list: np.ndarray):
+        # if not self.flag_sent:
+        if not self.flag_sent and not self.flag_frame_start: # пусть срабатывает только 1 раз
             self.flag_frame_start = True
-            if self.current_delay < self.required_delay:
-                self.bourder[0] = self.package_num
-            self.current_delay += 1
-        if self.flag_frame_start and self.flag_sent:
+            self.bourder[0] = self.package_num + self.required_delay
+            # if self.current_delay < self.required_delay:
+            #     self.bourder[0] = self.package_num
+            # self.current_delay += 1
+        elif self.flag_frame_start and self.flag_sent:
             self.flag_frame_start = False
             # self.bourder[1] = self.package_num - int(self.fs / 20)  # frame end
             self.bourder[1] = self.package_num  # frame end
-            self.current_delay = 0
+            # self.current_delay = 0
             self.logger.info(f"old bourders = {self.bourder}")
             self.bourder = self.get_new_bourder(self.bourder, self.fs)  # !!!!!!!!!!!!!!!!!!!!!!!!
             self.logger.info(f"\tnew bourders = {self.bourder}")

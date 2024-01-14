@@ -19,33 +19,7 @@ from PyQt_Functions import get_icon_by_name, get_res_path
 # pyinstaller PyQt_Application.spec 
 # pyinstaller --onefile --noconsole PyQt_Application.py
 # -----------------------------------------------------------------------------
-# -----------------------------------------------------------------------------
 
-
-# self.logger = logging.getLogger(__name__)
-logger = logging.getLogger('main')
-logger.setLevel(logging.INFO)
-
-file_formatter = logging.Formatter(
-    ('#%(levelname)-s,\t%(pathname)s:%(lineno)d,\t%(asctime)s, %(message)s'))
-file_handler = logging.FileHandler('PyQt_VibroGyroTest.log', mode='w', encoding="utf-8")
-file_handler.setLevel(logging.INFO)
-file_handler.setFormatter(file_formatter)
-logger.addHandler(file_handler)
-
-handler = logging.StreamHandler(stream=sys.stdout)
-handler.setLevel(logging.ERROR)
-logger.addHandler(handler)
-
-def handle_exception(exc_type, exc_value, exc_traceback):
-    if issubclass(exc_type, KeyboardInterrupt):
-        sys.__excepthook__(exc_type, exc_value, exc_traceback)
-        return
-
-    logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
-
-sys.excepthook = handle_exception
-# self.logger = logging.getLogger(LOGGER_NAME)
 
 class AppWindow(QtWidgets.QMainWindow):
     def __init__(self, parent=None):
@@ -89,6 +63,11 @@ class AppWindow(QtWidgets.QMainWindow):
         self.serial_port = QSerialPort(dataBits=QSerialPort.DataBits.Data8,
                                   stopBits=QSerialPort.StopBits.OneStop,
                                   parity=QSerialPort.Parity.NoParity)
+# ------ Logger ---------------------------------------------------------------
+        self.logger = logging.getLogger('main')
+        self.log_text_box = PyQt_Logger.QTextEditLogger(
+            self, file_log=FILE_LOG_FLAG)
+# ------ Settings -------------------------------------------------------------
         self.settings = QtCore.QSettings(
             get_res_path('config.ini'), QtCore.QSettings.Format.IniFormat)
         self.settings.setIniCodec("UTF-8")
@@ -112,16 +91,13 @@ class AppWindow(QtWidgets.QMainWindow):
         self.file_watcher = QtCore.QFileSystemWatcher()
         # self.fs_watcher.directoryChanged.connect(self.directory_changed)
         self.file_watcher.fileChanged.connect(self.check_filename_and_get_data)
-# ------ Logger ---------------------------------------------------------------
-        self.logger = logging.getLogger('main')
-        self.log_text_box = PyQt_Logger.QTextEditLogger(
-            self, file_log=FILE_LOG_FLAG)
 # ------ Thread ---------------------------------------------------------------
         self.processing_thr = PyQt_Thread.SecondThread(
             gyro_number=self.GYRO_NUMBER,
             READ_INTERVAL_MS=self.READ_INTERVAL_MS,
             logger_name=LOGGER_NAME)
-        self.processing_thr.package_num_signal.connect(self.get_and_show_data_from_thread)
+        self.processing_thr.package_num_signal.connect(
+            self.get_and_show_data_from_thread)
         self.processing_thr.fft_data_signal.connect(self.plot_fft)
         self.processing_thr.median_data_ready_signal.connect(
             self.plot_fft_final)
@@ -193,8 +169,8 @@ class AppWindow(QtWidgets.QMainWindow):
         """
         self.com_param_groupbox = QtWidgets.QGroupBox(
             'Настройки COM порта', maximumWidth=310)
-        self.com_param_groupbox_layout = QtWidgets.QGridLayout()
-        self.com_param_groupbox.setLayout(self.com_param_groupbox_layout)
+        com_param_groupbox_layout = QtWidgets.QGridLayout()
+        self.com_param_groupbox.setLayout(com_param_groupbox_layout)
 
         self.com_port_name_combobox = PyQt_CustomWidgets.CustomComboBox(
             settings=self.settings,
@@ -209,7 +185,7 @@ class AppWindow(QtWidgets.QMainWindow):
             self.__contextMenu)
         # self.com_param_groupbox_layout.addWidget(QtWidgets.QLabel('COM:'),
                                                 #  0, 0, 1, 1)
-        self.com_param_groupbox_layout.addWidget(self.com_port_name_combobox,
+        com_param_groupbox_layout.addWidget(self.com_port_name_combobox,
                                                  0, 0, 1, 1)
 
         self.com_boderate_combo_box = PyQt_CustomWidgets.CustomComboBox(
@@ -218,19 +194,19 @@ class AppWindow(QtWidgets.QMainWindow):
             default_items_list=['921600', '115200', '0'])
         # self.com_param_groupbox_layout.addWidget(QtWidgets.QLabel('Скорость:'),
                                                 #  1, 0, 1, 1)  # Speed
-        self.com_param_groupbox_layout.addWidget(self.com_boderate_combo_box,
+        com_param_groupbox_layout.addWidget(self.com_boderate_combo_box,
                                                  0, 1, 1, 1)
 # ------  fs  -----------------------------------------------------
         self.fs_groupbox = QtWidgets.QGroupBox(
             'Fs, Гц', maximumWidth=155)
-        self.fs_groupbox_layout = QtWidgets.QHBoxLayout()
-        self.fs_groupbox.setLayout(self.fs_groupbox_layout)
+        fs_groupbox_layout = QtWidgets.QHBoxLayout()
+        self.fs_groupbox.setLayout(fs_groupbox_layout)
         self.fs_combo_box = PyQt_CustomWidgets.CustomComboBox(
             settings=self.settings,
             settings_name="fs_settings",
             default_items_list=['1000', '2000', '741'])
         self.fs = int(self.fs_combo_box.currentText())
-        self.fs_groupbox_layout.addWidget(self.fs_combo_box)
+        fs_groupbox_layout.addWidget(self.fs_combo_box)
 # ------  cycle num  ----------------------------------------------------------
         self.cycle_number_groupbox = QtWidgets.QGroupBox(
             'Циклы:', maximumWidth=155)
@@ -248,22 +224,22 @@ class AppWindow(QtWidgets.QMainWindow):
         """
         self.measurements_groupbox = QtWidgets.QGroupBox(
             'Измерения', maximumWidth=310)
-        self.measurements_groupbox_layout = QtWidgets.QGridLayout()
-        self.measurements_groupbox.setLayout(self.measurements_groupbox_layout)
+        measurements_groupbox_layout = QtWidgets.QGridLayout()
+        self.measurements_groupbox.setLayout(measurements_groupbox_layout)
 
         # self.measurements_groupbox_layout.addWidget(
         #     QtWidgets.QLabel('Measurement\ncycle file:'), 1, 0, 1, 1)
         self.choose_file = QtWidgets.QPushButton(
             'Выбрать',
             icon=get_icon_by_name('open_folder'))  # &Choose file
-        self.measurements_groupbox_layout.addWidget(self.choose_file,
+        measurements_groupbox_layout.addWidget(self.choose_file,
                                                     3, 0, 1, 2)
 
         self.edit_file_button = QtWidgets.QPushButton('Открыть')  # &Open file
-        self.measurements_groupbox_layout.addWidget(self.edit_file_button,
+        measurements_groupbox_layout.addWidget(self.edit_file_button,
                                                     3, 2, 1, 2)
 
-        self.measurements_groupbox_layout.addWidget(
+        measurements_groupbox_layout.addWidget(
             QtWidgets.QLabel('Путь:'), 0, 0, 3, 1)  # Filepath
 
         self.filename_and_path_textedit = QtWidgets.QTextEdit(
@@ -273,7 +249,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self.filename_and_path_textedit.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Ignored,
             QtWidgets.QSizePolicy.Policy.Ignored)
-        self.measurements_groupbox_layout.addWidget(
+        measurements_groupbox_layout.addWidget(
             self.filename_and_path_textedit, 0, 1, 3, 3)
         # self.measurements_groupbox_layout.setSizeConstraint(
         # QtWidgets.QLayout.SizeConstraint.SetNoConstraint)
@@ -310,13 +286,13 @@ class AppWindow(QtWidgets.QMainWindow):
         """Logs widget"""
         self.logs_groupbox = QtWidgets.QGroupBox(
             'Лог', maximumWidth=350)  # Logs
-        self.logs_groupbox_layout = QtWidgets.QVBoxLayout()
-        self.logs_groupbox.setLayout(self.logs_groupbox_layout)
+        logs_groupbox_layout = QtWidgets.QVBoxLayout()
+        self.logs_groupbox.setLayout(logs_groupbox_layout)
 
-        self.logs_groupbox_layout.addWidget(self.log_text_box.widget)
+        logs_groupbox_layout.addWidget(self.log_text_box.widget)
 
         self.logs_clear_button = QtWidgets.QPushButton('Очистить')  # Clear logs
-        self.logs_groupbox_layout.addWidget(self.logs_clear_button)
+        logs_groupbox_layout.addWidget(self.logs_clear_button)
 
         self.start_all_button = QtWidgets.QPushButton(
             'Старт', objectName="start_button")  # START
@@ -325,8 +301,8 @@ class AppWindow(QtWidgets.QMainWindow):
 
 # ------ Others ------------------------------------------------------------
         self.plot_groupbox = QtWidgets.QGroupBox(minimumWidth=160)
-        self.plot_groupbox_layout = QtWidgets.QGridLayout()
-        self.plot_groupbox.setLayout(self.plot_groupbox_layout)
+        plot_groupbox_layout = QtWidgets.QGridLayout()
+        self.plot_groupbox.setLayout(plot_groupbox_layout)
 
         self.check_box_list: list[QtWidgets.QCheckBox] = []
         self.check_box_list.append(
@@ -339,19 +315,19 @@ class AppWindow(QtWidgets.QMainWindow):
                     f"gyro {i + 1}", objectName=f"{i + 1}", checked=True,
                     icon=get_icon_by_name(self.ICON_COLOR_LIST[i])))
         for i in range(self.GYRO_NUMBER + 1):
-            self.plot_groupbox_layout.addWidget(self.check_box_list[i],
+            plot_groupbox_layout.addWidget(self.check_box_list[i],
                                                 0, 5 * i, 1, 4)
 
         self.progress_bar = QtWidgets.QProgressBar(
             format='%v/%m сек', maximum=1, value=self.progress_value)  # sec
-        self.plot_groupbox_layout.addWidget(self.progress_bar,
+        plot_groupbox_layout.addWidget(self.progress_bar,
                                             1, 0, 1, 13)
 
         package_number_label = QtWidgets.QLabel('Пакеты:')  # Package number
-        self.plot_groupbox_layout.addWidget(package_number_label,
+        plot_groupbox_layout.addWidget(package_number_label,
                                             1, 13, 1, 4)
         self.package_num_label = QtWidgets.QLabel('0')
-        self.plot_groupbox_layout.addWidget(self.package_num_label,
+        plot_groupbox_layout.addWidget(self.package_num_label,
                                             1, 17, 1, 1)
         # QToolButton # есть wordWrap
 
@@ -1053,7 +1029,8 @@ class AppWindow(QtWidgets.QMainWindow):
                                int(self.settings_autosave_action.isChecked()))
         if self.settings_autosave_action.isChecked():
             self.save_all_settings()
-        self.logger.warning("Saving the settings and exit")
+        # self.custom_tab_plot_widget.excel_com_object.Quit()  # !
+        self.logger.warning("Exit")
 
 # ------ settings --------------------------------------------------------------------
 
@@ -1321,7 +1298,7 @@ if __name__ == "__main__":
     app.processEvents()
 
     test = True
-    test = False
+    # test = False
     if test:
         window = AppWindowTest()
         pass
