@@ -5,11 +5,13 @@ import re
 import numpy as np
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtSerialPort import QSerialPort, QSerialPortInfo
-from time import time
+from time import time, sleep
 import PyQt_Logger
 import PyQt_Thread
 import PyQt_CustomWidgets
 from PyQt_Functions import get_icon_by_name, get_res_path
+
+# import time
 
 # путь к прошивке
 # D:\FromPrevComputer\Vibrostand\ProgramAndLoager\ARM_vibro(VibroStend_16bit)_v1.2_1000_0184_1000Hz\Debug
@@ -18,6 +20,8 @@ from PyQt_Functions import get_icon_by_name, get_res_path
 # pyinstaller PyQt_ApplicationOnefolder.spec
 # pyinstaller PyQt_Application.spec 
 # pyinstaller --onefile --noconsole PyQt_Application.py
+# D:\Gyro2023_Git\venv3.6\Lib\site-packages\PyQt5\Qt5\qml\QtQuick\Controls\GroupBox.qml
+# -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 
 
@@ -32,18 +36,14 @@ class AppWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("GyroVibroTest")
         # print(QtWidgets.QStyleFactory.keys())
         QtWidgets.QApplication.setStyle('Fusion')  # 'Fusion' 'Windows' 'windowsvista' ... QtWidgets.QStyle
-        # self.setWindowFlags(
-        #     QtCore.Qt.Window |
-        #     QtCore.Qt.WindowStaysOnTopHint
-        #     )
 # ------ GUI ------------------------------------------------------------------
         # widget = QtWidgets.QWidget(objectName="size16px")
         widget = QtWidgets.QWidget()
         self.main_grid_layout = QtWidgets.QGridLayout(widget, spacing=2)
         self.setCentralWidget(widget)
 # ------ Init vars ------------------------------------------------------------
-        self.GYRO_NUMBER = 3  #1
-        # self.GYRO_NUMBER = 1
+        self.GYRO_NUMBER = 1
+        # self.GYRO_NUMBER = 3  #1
         self.PLOT_TIME_INTERVAL_SEC = 10
         self.PAUSE_INTERVAL_MS = 750
         self.READ_INTERVAL_MS = 100 * 2  #  125 * 2
@@ -64,9 +64,9 @@ class AppWindow(QtWidgets.QMainWindow):
                                   stopBits=QSerialPort.StopBits.OneStop,
                                   parity=QSerialPort.Parity.NoParity)
 # ------ Logger ---------------------------------------------------------------
-        self.logger = logging.getLogger('main')
         self.log_text_box = PyQt_Logger.QTextEditLogger(
             self, file_log=FILE_LOG_FLAG)
+        self.logger = logging.getLogger('main')
 # ------ Settings -------------------------------------------------------------
         self.settings = QtCore.QSettings(
             get_res_path('config.ini'), QtCore.QSettings.Format.IniFormat)
@@ -96,8 +96,7 @@ class AppWindow(QtWidgets.QMainWindow):
             gyro_number=self.GYRO_NUMBER,
             READ_INTERVAL_MS=self.READ_INTERVAL_MS,
             logger_name=LOGGER_NAME)
-        self.processing_thr.package_num_signal.connect(
-            self.get_and_show_data_from_thread)
+        self.processing_thr.package_num_signal.connect(self.get_and_show_data_from_thread)
         self.processing_thr.fft_data_signal.connect(self.plot_fft)
         self.processing_thr.median_data_ready_signal.connect(
             self.plot_fft_final)
@@ -151,10 +150,10 @@ class AppWindow(QtWidgets.QMainWindow):
         options_menu.addSeparator()
         # options_menu.addAction(gyro_count_action)
 
-        measurement_action = QtWidgets.QAction("&Считать данные без сохранения", self)
-        measurement_action.triggered.connect(self.measurement_start)
+        self.measurement_action = QtWidgets.QAction("&Считать данные без сохранения", self)
+        self.measurement_action.triggered.connect(self.measurement_start)
         options_menu.addSeparator()
-        options_menu.addAction(measurement_action)
+        options_menu.addAction(self.measurement_action)
 
         exit_action = QtWidgets.QAction("&Exit", self)
         # exit_action.setShortcut("Ctrl+Q")
@@ -168,7 +167,7 @@ class AppWindow(QtWidgets.QMainWindow):
         Block with COM port settings and sampling frequency selection
         """
         self.com_param_groupbox = QtWidgets.QGroupBox(
-            'Настройки COM порта', maximumWidth=310)
+            'Настройки COM порта', maximumWidth=320)
         com_param_groupbox_layout = QtWidgets.QGridLayout()
         self.com_param_groupbox.setLayout(com_param_groupbox_layout)
 
@@ -183,7 +182,7 @@ class AppWindow(QtWidgets.QMainWindow):
             QtCore.Qt.CustomContextMenu)
         self.com_port_name_combobox.customContextMenuRequested.connect(
             self.__contextMenu)
-        # self.com_param_groupbox_layout.addWidget(QtWidgets.QLabel('COM:'),
+        # com_param_groupbox_layout.addWidget(QtWidgets.QLabel('COM:'),
                                                 #  0, 0, 1, 1)
         com_param_groupbox_layout.addWidget(self.com_port_name_combobox,
                                                  0, 0, 1, 1)
@@ -192,13 +191,13 @@ class AppWindow(QtWidgets.QMainWindow):
             settings=self.settings,
             settings_name="COM_speed_settings",
             default_items_list=['921600', '115200', '0'])
-        # self.com_param_groupbox_layout.addWidget(QtWidgets.QLabel('Скорость:'),
+        # com_param_groupbox_layout.addWidget(QtWidgets.QLabel('Скорость:'),
                                                 #  1, 0, 1, 1)  # Speed
         com_param_groupbox_layout.addWidget(self.com_boderate_combo_box,
                                                  0, 1, 1, 1)
 # ------  fs  -----------------------------------------------------
         self.fs_groupbox = QtWidgets.QGroupBox(
-            'Fs, Гц', maximumWidth=155)
+            'Fs, Гц', maximumWidth=160)
         fs_groupbox_layout = QtWidgets.QHBoxLayout()
         self.fs_groupbox.setLayout(fs_groupbox_layout)
         self.fs_combo_box = PyQt_CustomWidgets.CustomComboBox(
@@ -209,7 +208,7 @@ class AppWindow(QtWidgets.QMainWindow):
         fs_groupbox_layout.addWidget(self.fs_combo_box)
 # ------  cycle num  ----------------------------------------------------------
         self.cycle_number_groupbox = QtWidgets.QGroupBox(
-            'Циклы:', maximumWidth=155)
+            'Циклы:', maximumWidth=160)
         self.cycle_number_groupbox_layout = QtWidgets.QHBoxLayout()
         self.cycle_number_groupbox.setLayout(self.cycle_number_groupbox_layout)
 
@@ -223,11 +222,11 @@ class AppWindow(QtWidgets.QMainWindow):
         Block with button to open and edit measurement file
         """
         self.measurements_groupbox = QtWidgets.QGroupBox(
-            'Измерения', maximumWidth=310)
+            'Измерения', maximumWidth=320)
         measurements_groupbox_layout = QtWidgets.QGridLayout()
         self.measurements_groupbox.setLayout(measurements_groupbox_layout)
 
-        # self.measurements_groupbox_layout.addWidget(
+        # measurements_groupbox_layout.addWidget(
         #     QtWidgets.QLabel('Measurement\ncycle file:'), 1, 0, 1, 1)
         self.choose_file = QtWidgets.QPushButton(
             'Выбрать',
@@ -251,7 +250,7 @@ class AppWindow(QtWidgets.QMainWindow):
             QtWidgets.QSizePolicy.Policy.Ignored)
         measurements_groupbox_layout.addWidget(
             self.filename_and_path_textedit, 0, 1, 3, 3)
-        # self.measurements_groupbox_layout.setSizeConstraint(
+        # measurements_groupbox_layout.setSizeConstraint(
         # QtWidgets.QLayout.SizeConstraint.SetNoConstraint)
 
 # ------ Saving results -------------------------------------------------------
@@ -263,7 +262,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self.choose_path_button_list: list[QtWidgets.QPushButton] = []
 
         self.saving_measurements_groupbox = QtWidgets.QGroupBox(
-            maximumWidth=310) # , minimumHeight=110)
+            maximumWidth=320) # , minimumHeight=110)
         saving_measurements_groupbox_layout = QtWidgets.QGridLayout()
         self.saving_measurements_groupbox.setLayout(
             saving_measurements_groupbox_layout)
@@ -276,11 +275,11 @@ class AppWindow(QtWidgets.QMainWindow):
 
         self.text_output_groupbox = QtWidgets.QGroupBox(
             'Содержимое файла', maximumWidth=350, minimumWidth=150)
-        self.text_output_groupbox_layout = QtWidgets.QGridLayout()
-        self.text_output_groupbox.setLayout(self.text_output_groupbox_layout)
+        text_output_groupbox_layout = QtWidgets.QGridLayout()
+        self.text_output_groupbox.setLayout(text_output_groupbox_layout)
 
         self.table_widget = PyQt_CustomWidgets.CustomTableWidget()
-        self.text_output_groupbox_layout.addWidget(self.table_widget)
+        text_output_groupbox_layout.addWidget(self.table_widget)
 
 # ------ Logger ---------------------------------------------------------------
         """Logs widget"""
@@ -296,9 +295,10 @@ class AppWindow(QtWidgets.QMainWindow):
 
         self.start_all_button = QtWidgets.QPushButton(
             'Старт', objectName="start_button")  # START
+        self.start_all_button.installEventFilter(self)
         self.stop_button = QtWidgets.QPushButton(
             'Стоп', enabled=False, objectName="stop_button")  # STOP
-
+        self.stop_button.installEventFilter(self)
 # ------ Others ------------------------------------------------------------
         self.plot_groupbox = QtWidgets.QGroupBox(minimumWidth=160)
         plot_groupbox_layout = QtWidgets.QGridLayout()
@@ -369,10 +369,10 @@ class AppWindow(QtWidgets.QMainWindow):
         #     self.choose_result_saving_path)
         self.filename_and_path_textedit.textChanged.connect(
             self.filename_and_path_text_change)
+        self.edit_file_button.clicked.connect(self.open_file)
+            # lambda: os.startfile(self.filename_and_path_textedit.toPlainText()))
         self.logs_clear_button.clicked.connect(
             lambda: self.log_text_box.widget.clear())
-        self.edit_file_button.clicked.connect(
-            lambda: os.startfile(self.filename_and_path_textedit.toPlainText()))
         for i in range(self.GYRO_NUMBER):
             self.choose_path_button_list[i].clicked.connect(
                 self.choose_result_saving_path)
@@ -382,29 +382,14 @@ class AppWindow(QtWidgets.QMainWindow):
             self.check_box_list[i].stateChanged.connect(
                 self.custom_tab_plot_widget.change_curve_visibility)
         
-        self.logger.info("Прграмма запущена")
+        self.logger.info("Программа запущена")
         self.show()
-        # logging.error("fff", exc_info=True, stack_info=True)
-        # logging.error("fff", exc_info=True)
-        # logging.error("fff")
-        # Install exception handler
-        # sys.excepthook = self.my_handler
-        # self.logger.error("fff", exc_info=True, stack_info=True)
-        # self.logger.error("fff", exc_info=True)
-        # self.logger.error("fff")
-        # print(1/0)
         # print(self.palette().window().color().name())
-        # print(sys.getsizeof((self.GYRO_NUMBER)))
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
 #
-    # @staticmethod
-    # def my_handler(type, value, tb):
-    #     self.logger.exception("Uncaught exception: {0}".format(str(value)), stack_info=True)
-    #     print("\nUncaught exception: {0}\n".format(str(value)))
 
     def __contextMenu(self):
-        # self._normalMenu = self.combo_box_name.layout().createStandardContextMenu()
         self._normalMenu = self.com_port_name_combobox.lineEdit().createStandardContextMenu()
         # self._normalMenu = QtWidgets.QMenu()
         # self._normalMenu = self.combo_box_name.visibleRegion().createStandardContextMenu()
@@ -416,7 +401,6 @@ class AppWindow(QtWidgets.QMainWindow):
         menu.addSeparator()
         # action = QtWidgets.QAction("Обновить", self, shortcut="Ctrl+U")
         # action.setShortcut("Ctrl+U")
-        # action.triggered.connect(self.get_avaliable_com)        
         # menu.addAction(action)
         menu.addAction('Обновить', self.get_avaliable_com)
 
@@ -432,7 +416,8 @@ class AppWindow(QtWidgets.QMainWindow):
         # self.saving_measurements_groupbox_list[-1].installEventFilter(self)
 
         saving_measurements_groupbox_layout.addWidget(
-            QtWidgets.QLabel('<b>Папка:</b>'), 0, 0, 3, 1)
+            QtWidgets.QLabel('Папка:'), 0, 0, 3, 1)
+            # QtWidgets.QLabel('<b>Папка:</b>'), 0, 0, 3, 1)
         self.saving_result_folder_label_list.append(QtWidgets.QTextEdit(
             self.folder_name_list[ind],
             objectName="with_bourder"))
@@ -462,8 +447,27 @@ class AppWindow(QtWidgets.QMainWindow):
             # self.create_folder_checkbox_list[-1], 3, 3, 1, 1)  #
             self.create_folder_checkbox_list[-1], 4, 2, 1, 1)  #
 
-    # def eventFilter(self, obj, event):
-    #     if event.type() == QtCore.QEvent.ContextMenu:
+    def eventFilter(self, obj, event):
+        # print(time())
+        if event.type() == QtCore.QEvent.ContextMenu:
+            if obj is self.stop_button:
+                if not self.processing_thr.isRunning():
+                    return True
+                print(1)
+                menu = QtWidgets.QMenu(self)
+                action = QtWidgets.QAction('Стоп без сохранения', self)
+                action.triggered.connect(self.stop_no_save)
+                menu.addAction(action)
+                menu.exec_(event.globalPos())
+            elif obj is self.start_all_button:
+                if self.processing_thr.isRunning():
+                    return True
+                menu = QtWidgets.QMenu(self)
+                action = QtWidgets.QAction('Старт без сохранения', self)
+                action.triggered.connect(self.measurement_start)
+                menu.addAction(action)                
+                menu.exec_(event.globalPos())
+                    # action.setDisabled(True)
     #         if obj is self.saving_measurements_groupbox_list[0]:
     #             print(0)
     #         else:
@@ -478,9 +482,13 @@ class AppWindow(QtWidgets.QMainWindow):
     #         action = QtWidgets.QAction('Удалить текущий проект', self)
     #         # action.triggered.connect(self.delete_xlsx_item)
     #         menu.addAction(action)
-    #         menu.exec_(event.globalPos())
-    #         return True
-    #     return False
+                # menu.exec_(event.globalPos())
+            return True
+        return False
+
+    def stop_no_save(self):
+        self.processing_thr.flag_do_not_save = True
+        self.stop()
 
     def get_gyro_count(self):
         if not self.serial_port.open(QtCore.QIODevice.OpenModeFlag.ReadWrite):
@@ -545,7 +553,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self.processing_thr.start()
         if False:
             path = 'sencors_nums.txt'
-            self.processing_thr.do_not_save = True
+            self.processing_thr.flag_do_not_save = True
 
 # ----------------------------------------------------------------------------------------------
     @QtCore.pyqtSlot()
@@ -590,7 +598,6 @@ class AppWindow(QtWidgets.QMainWindow):
         self.logger.info(f"{self.com_port_name_combobox.currentText()} open")
         self.logger.warning("Start")
         self.serial_port.clear()
-        from time import sleep
         sleep(0.1)
         # self.serial_port.readLine()
         if self.serial_port.bytesAvailable() > 35:
@@ -610,12 +617,11 @@ class AppWindow(QtWidgets.QMainWindow):
         self.start_time = time()
         self.timer_recieve.start()
         self.fs = int(self.fs_combo_box.currentText())
-        self.points_shown = self.PLOT_TIME_INTERVAL_SEC * self.fs
         # Copy variables to another classes and start thread
         self.custom_tab_plot_widget.fs = self.fs
         self.processing_thr.fs = self.fs
         self.processing_thr.flag_measurement_start = True
-        self.processing_thr.do_not_save = True
+        self.processing_thr.flag_do_not_save = True
         self.processing_thr.total_time = self.table_widget.total_time
         self.processing_thr.start()
             
@@ -624,6 +630,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self.custom_tab_plot_widget.region.setVisible(True)
         self.progress_value = 0  # не создавать эту переменную
         self.progress_bar.setValue(0)
+        self.progress_bar.setFormat('%v/%m сек (определение смещения)')
         self.package_num_label.setText('0')
         self.count = 0
         self.current_cylce = 1
@@ -632,7 +639,7 @@ class AppWindow(QtWidgets.QMainWindow):
             self.logger.warning("Thread still work")
             return
         # Check COM port
-        self.logger.info(F"\nPORT: {self.com_port_name_combobox.currentText()}\n")
+        self.logger.info(F"PORT: {self.com_port_name_combobox.currentText()}\n")
         if not len(self.com_port_name_combobox.currentText()):
             self.get_avaliable_com()
             self.logger.info(
@@ -673,30 +680,50 @@ class AppWindow(QtWidgets.QMainWindow):
         self.progress_bar_set_max()
         self.set_avaliable_butttons(flag_running=True)  # disable widgets
 
-        self.logger.info(f"{self.com_port_name_combobox.currentText()} open")
-        self.logger.info(f"self.cycle_num = {self.total_cycle_num}")
-        self.logger.warning("Start")
+        self.logger.info(f"{self.com_port_name_combobox.currentText()} open " +
+                         f"self.cycle_num = {self.total_cycle_num}")
 
         self.serial_port.clear()
         # self.timer_recieve.setInterval(0)
         # self.timer_sent_com.setInterval(0)
         # Start timers
         self.flag_sent = False
-        self.start_time = time()
-        self.timer_event_sent_com()
-        self.timer_sent_com.start()
+        self.start_time = time()  # !!!!!
+        # self.timer_event_sent_com()  # !!!!!
+        # self.timer_sent_com.start()  # !!!!!
         self.timer_recieve.start()
         self.fs = int(self.fs_combo_box.currentText())
-        self.points_shown = self.PLOT_TIME_INTERVAL_SEC * self.fs
         # Copy variables to another classes and start thread
         self.custom_tab_plot_widget.fs = self.fs
         self.processing_thr.fs = self.fs
-        self.processing_thr.flag_full_measurement_start = True
+        # self.processing_thr.flag_full_measurement_start = True  # !!!!!
+        self.processing_thr.flag_measurement_start = True  # !!!!!
         self.processing_thr.total_time = self.table_widget.total_time
         self.processing_thr.num_measurement_rows = self.table_widget.rowCount()
+        self.processing_thr.flag_do_not_save = True
         self.processing_thr.total_cycle_num = self.total_cycle_num
         self.processing_thr.start()
+        QtCore.QTimer.singleShot(1050, self.end_start)
+        self.logger.warning("Start")
 
+    @QtCore.pyqtSlot()
+    def end_start(self):
+        self.progress_bar.setFormat('%v/%m сек')
+        if self.processing_thr.flag_measurement_start:
+            self.serial_port.clear()
+            self.processing_thr.flag_do_not_save = False
+            # self.timer_recieve.setInterval(0)
+            # self.timer_sent_com.setInterval(0)
+            self.processing_thr.flag_full_measurement_start = True
+            self.processing_thr.flag_measurement_start = False
+            # Start timer
+            self.start_time = time()
+            self.timer_event_sent_com()
+            self.timer_sent_com.start()
+            self.logger.info('start full measurements')
+            # self.logger.warning(f"Shift: {self.processing_thr.amp_shift}")
+        # print(1)
+        # pass
 # ------ Timer Recieve --------------------------------------------------------
     @QtCore.pyqtSlot()
     def timer_read_event(self):
@@ -713,6 +740,7 @@ class AppWindow(QtWidgets.QMainWindow):
                     f"No data from {self.com_port_name_combobox.currentText()}!")
         # self.read_serial()
 
+    @QtCore.pyqtSlot()
     def read_serial(self):
         self.logger.info(
             f"ready to read, bytes num = {self.serial_port.bytesAvailable()}")  # +
@@ -722,7 +750,6 @@ class AppWindow(QtWidgets.QMainWindow):
         if self.processing_thr.data_recieved_event.is_set():
             self.logger.warning("Thread still work with previous data")
             return
-
         self.copy_variables_to_thread()
         self.logger.info(f"command thr to start, count = {self.count}")
 
@@ -740,9 +767,9 @@ class AppWindow(QtWidgets.QMainWindow):
         Sent command with frequency and amplitude or stop vibration
         """
         if self.flag_sent:
-            self.logger.info(
-                f"command count = {self.count}")
             if self.count >= self.table_widget.rowCount():
+                self.logger.info(
+                    f"end cycle = {self.count}")
                 if self.current_cylce < self.total_cycle_num:
                     self.new_cycle_event()
                     self.sent_stop_vibro_command()
@@ -757,21 +784,22 @@ class AppWindow(QtWidgets.QMainWindow):
         self.logger.info("---end_sent_command")
 
     def sent_stop_vibro_command(self):
-        self.serial_port.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
         self.timer_sent_com.setInterval(self.PAUSE_INTERVAL_MS)
+        self.serial_port.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
+        # sleep(0.01)
 
     def sent_vibro_command(self):
         self.table_widget.selectRow(self.count)
+        self.timer_sent_com.setInterval(self.table_widget.get_current_T())
         F = int.to_bytes(self.table_widget.get_current_F(),
                          length=2, byteorder='little', signed=False)
         A = int.to_bytes(self.table_widget.get_current_A(),
                          length=2, byteorder='little', signed=False)
         self.serial_port.write(
             bytes([77, 0, F[0], F[1], A[0], A[1], 0, 0]))
-        # print(bytes([77, 0, F[0], F[1], A[0], A[1], 0, 0]))
-        self.timer_sent_com.setInterval(self.table_widget.get_current_T())
+        # sleep(0.01)
         self.logger.info(
-            f"--- vibro command {self.count} was sent, {self.table_widget.get_current_F()}, {self.table_widget.get_current_A()}")
+            f"--- vibro command {self.count} was sent")
         self.count += 1
 
 # ----- End cycle, stop, etc --------------------------------------------------
@@ -785,19 +813,19 @@ class AppWindow(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot()
     def stop(self):
-        self.set_avaliable_butttons(False)
         if self.timer_sent_com.isActive():
             self.timer_sent_com.stop()
         if self.timer_recieve.isActive():
             self.timer_recieve.stop()
-        self.logger.info(
-            f"time = {self.progress_value}, " +
-            f"total time = {self.progress_bar.maximum()}")
 
         if self.serial_port.isOpen():
-            self.serial_port.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
-            self.logger.info("COM close? " +
-                             str(self.serial_port.waitForBytesWritten(250)))
+            if self.processing_thr.flag_full_measurement_start:
+                self.serial_port.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
+                sleep(0.01)
+                self.logger.info("COM close? " +
+                                 str(self.serial_port.waitForBytesWritten(250)))
+            # self.serial_port.clearError()
+            # self.serial_port.flush()
             self.serial_port.close()
             self.logger.warning("End of measurements\n")
             if self.progress_value > 3:
@@ -814,7 +842,13 @@ class AppWindow(QtWidgets.QMainWindow):
         self.processing_thr.flag_measurement_start = False
         self.processing_thr.data_recieved_event.set()
         self.flag_sent = False
+        self.set_avaliable_butttons(False)
 
+        total_time = self.total_cycle_num * (self.table_widget.total_time +
+                (self.table_widget.rowCount() + 1) * self.PAUSE_INTERVAL_MS / 1000)
+        self.logger.info(
+            f"time = {self.progress_value}, " +
+            f"total time = {self.progress_bar.maximum()} ({total_time})")
 ###############################################################################
 # ----- plotting --------------------------------------------------------------
 
@@ -824,26 +858,13 @@ class AppWindow(QtWidgets.QMainWindow):
     def get_and_show_data_from_thread(self, package_num_signal, plot_data):
         # package_num можно брать из массива time_data
         self.package_num_label.setText(str(package_num_signal))
-
         self.progress_value = time() - self.start_time
         self.progress_bar.setValue(int(round(self.progress_value)))
-        self.logger.info(f"Progress: {self.progress_value}")
-
-        # start_i = (package_num_signal - self.points_shown
-                #    if package_num_signal > self.points_shown else 0)
-        self.logger.info(f"thr_stop, count = {self.count}, " +
+        self.logger.info(f"Progress: {self.progress_value} " +
+                         f"thr_stop, count = {self.count}, " +
                          f"package_num = {package_num_signal} ")
-        # self.custom_tab_plot_widget.plot_time_graph(plot_data[:, 0], plot_data[:, 1], plot_data[:, 2:])  
         self.custom_tab_plot_widget.plot_time_graph(
             plot_data[:, 0], plot_data[:, 2], plot_data[:, 1::4])
-            # self.processing_thr.time_data[start_i:package_num_signal, 0] / self.fs,
-            # self.processing_thr.time_data[start_i:package_num_signal, 2] / 1000,
-            # self.processing_thr.time_data[start_i:package_num_signal, 1::4] / self.processing_thr.k_amp / 1000) # ! изменить для массива другой формы для 3х гироскопов
-            # [self.processing_thr.time_data[start_i:package_num_signal, 1 + 4*i] /
-            #  self.processing_thr.k_amp[i] / 1000
-            # for i in range(self.GYRO_NUMBER)])  
-        # все остальные изменения в потоке
-        self.logger.info("end")
 
     @QtCore.pyqtSlot(bool)
     def plot_fft(self, _):
@@ -896,13 +917,13 @@ class AppWindow(QtWidgets.QMainWindow):
         self.start_all_button.setDisabled(flag_running)
         self.stop_button.setDisabled(not flag_running)
         self.choose_file.setDisabled(flag_running)
+        self.measurement_action.setDisabled(flag_running)
         # for groupbox in self.saving_measurements_groupbox_list:
             # groupbox.setDisabled(flag_running)
         # saving_measurements_groupbox_list можно редактировать,
         # т.к. путь отправляется в поток перед окончанием цикла
 
     def get_avaliable_com(self):
-        # print(fff)
         """Append avaliable com ports to combo box widget"""
         port_name_list = [ports.portName() 
                for ports in QSerialPortInfo.availablePorts()]
@@ -921,7 +942,6 @@ class AppWindow(QtWidgets.QMainWindow):
         return [atoi(c) for c in re.split(r'(\d+)', text)]
 
 # ------ file name and data from file -----------------------------------------
-
     def make_filename(self, i: int):
         # подправить if
         if not len(self.file_name_line_edit_list[i].text()) or not len(self.folder_name_list[i]): # or not len():
@@ -933,10 +953,8 @@ class AppWindow(QtWidgets.QMainWindow):
             return
         if self.create_folder_checkbox_list[i].isChecked():
             folder = re.split("_", self.file_name_line_edit_list[i].text())[0]
-            # if not os.path.isdir(folder):  # ? будет ли это работать, надо ведь путь добавить
             if not os.path.isdir(self.folder_name_list[i] + folder):
                 os.mkdir(self.folder_name_list[i] + folder)
-                # os.mkdir(folder)
             folder += '/'
         else:
             folder = ''
@@ -947,6 +965,7 @@ class AppWindow(QtWidgets.QMainWindow):
     # def directory_changed(self, path):
     #     self.logger.info(f'Directory Changed: {path}')
     #     print(f'Directory Changed: {path}')
+
     def folder_chage_event(self):
         for i in range(len(self.saving_result_folder_label_list)):
             if self.sender() == self.saving_result_folder_label_list[i]:
@@ -963,7 +982,7 @@ class AppWindow(QtWidgets.QMainWindow):
         else:
             return
         folder = QtWidgets.QFileDialog.getExistingDirectory(
-            self, "Выбрать папку", ".")
+            self, "Выбрать папку", self.folder_name_list[i])
         if not len(folder):
             return
         self.folder_name_list[i] = folder + '/'
@@ -973,6 +992,8 @@ class AppWindow(QtWidgets.QMainWindow):
     @QtCore.pyqtSlot()
     def filename_and_path_text_change(self):
         if not os.path.exists(self.filename_and_path_textedit.toPlainText()):  # text
+            # QtCore.QTimer.singleShot(1500, self.check2)
+            # можно вместо уведомлений делать серым шрифт, например
             self.logger.warning("The file path does not exist!")
             # доработать, чтобы человек не получал кучу таких уведомлений
             return False
@@ -981,6 +1002,10 @@ class AppWindow(QtWidgets.QMainWindow):
         self.filename_path_watcher = self.filename_and_path_textedit.toPlainText()  # os.path.basename(filename)
         self.file_watcher.addPath(self.filename_path_watcher)
         return self.get_data_from_file(self.filename_path_watcher)
+
+    # @QtCore.pyqtSlot()
+    # def check2(self):
+    #     print(1)
 
     @QtCore.pyqtSlot(str)
     def check_filename_and_get_data(self, path: str):
@@ -996,7 +1021,8 @@ class AppWindow(QtWidgets.QMainWindow):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
             "Выберите методику измерений",
-            ".", "Text Files(*.txt)")
+            os.path.dirname(self.filename_path_watcher),
+            "Text Files(*.txt)")
         if not filename:
             return False
         self.logger.info(
@@ -1015,22 +1041,23 @@ class AppWindow(QtWidgets.QMainWindow):
             self.progress_bar_set_max()
         return self.table_widget.total_time > 0
 
-    # @QtCore.pyqtSlot()
-    # def open_file(self):
-    #     os.startfile(self.filename_and_path_widget.toPlainText())
+    @QtCore.pyqtSlot()
+    def open_file(self):
+        self.logger.info('startfile')
+        os.startfile(self.filename_and_path_textedit.toPlainText())
 
     @QtCore.pyqtSlot()
     def closeEvent(self, _):
         """
         Sending stop command to the vibrostand and saving user settings
         """
+        self.custom_tab_plot_widget.close_com()  # !
         self.stop()
         self.settings.setValue("autosave",
                                int(self.settings_autosave_action.isChecked()))
         if self.settings_autosave_action.isChecked():
             self.save_all_settings()
-        # self.custom_tab_plot_widget.excel_com_object.Quit()  # !
-        self.logger.warning("Exit")
+        self.logger.warning("Saving the settings and exit")
 
 # ------ settings --------------------------------------------------------------------
 
@@ -1136,12 +1163,11 @@ class AppWindowTest(AppWindow):
         self.start_time = time()
         self.timer_recieve.start()
         self.fs = int(self.fs_combo_box.currentText())
-        self.points_shown = self.PLOT_TIME_INTERVAL_SEC * self.fs
         # Copy variables to another classes and start thread
         self.custom_tab_plot_widget.fs = self.fs
         self.processing_thr.fs = self.fs
         self.processing_thr.flag_measurement_start = True
-        self.processing_thr.do_not_save = True
+        self.processing_thr.flag_do_not_save = True
         self.processing_thr.total_time = self.table_widget.total_time
         self.processing_thr.start()
 
@@ -1198,7 +1224,6 @@ class AppWindowTest(AppWindow):
         self.timer_sent_com.start()
         self.timer_recieve.start()
         self.fs = int(self.fs_combo_box.currentText())
-        self.points_shown = self.PLOT_TIME_INTERVAL_SEC * self.fs
         self.custom_tab_plot_widget.fs = self.fs
         self.processing_thr.fs = self.fs
         self.processing_thr.flag_full_measurement_start = True
@@ -1206,6 +1231,13 @@ class AppWindowTest(AppWindow):
         self.processing_thr.num_measurement_rows = self.table_widget.rowCount()
         self.processing_thr.total_cycle_num = self.total_cycle_num
         self.processing_thr.start()
+        # print(np.mean(self.time_data_test[:, 0]))
+        print(np.mean(self.time_data_test[:100, 0]))
+        print(np.mean(self.time_data_test[:500, 0]))
+        print(np.mean(self.time_data_test[:750, 0]))
+        print(np.mean(self.time_data_test[:2500, 0]))
+        print(np.mean(self.time_data_test[:4000, 0]))
+        print("enc " + str(np.mean(self.time_data_test[:4000, 1])))
 
     @QtCore.pyqtSlot()
     def timer_read_event(self):
@@ -1224,8 +1256,7 @@ class AppWindowTest(AppWindow):
                                      length=3, byteorder='big', signed=True)
             data += int.to_bytes(0x27, length=1, byteorder='big')
         self.processing_thr.rx = data
-        # self.processing_thr.flag_recieve = True
-        self.processing_thr.data_recieved_event.set()  ###########################################################
+        self.processing_thr.data_recieved_event.set()
         self.processing_thr.count_fft_frame = self.count
         self.processing_thr.flag_sent = self.flag_sent
         self.logger.info(f"thr_start, count = {self.count}")
@@ -1298,10 +1329,9 @@ if __name__ == "__main__":
     app.processEvents()
 
     test = True
-    # test = False
+    test = False
     if test:
         window = AppWindowTest()
-        pass
     else:
         window = AppWindow()
     splash.finish(window)

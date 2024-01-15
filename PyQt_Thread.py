@@ -8,6 +8,7 @@ from threading import Event
 from PyQt_Functions import get_fft_data, check_name_simple, custom_g_filter
 # from numba import jit, prange, njit
 
+
 class SecondThread(QtCore.QThread):
     # package_num_signal = QtCore.pyqtSignal(int)
     package_num_signal = QtCore.pyqtSignal(int, np.ndarray)
@@ -34,6 +35,7 @@ class SecondThread(QtCore.QThread):
 
         self.bourder: np.ndarray = np.array([0, 0], dtype=np.uint32)
         self.k_amp = np.ones(self.GYRO_NUMBER, dtype=np.float32)
+        self.amp_shift = np.zeros(self.GYRO_NUMBER, dtype=np.float32)
         self.fs = 0
         # self.WAIT_TIME_SEC = 1
         self.WAIT_TIME_SEC = 0.75
@@ -42,7 +44,7 @@ class SecondThread(QtCore.QThread):
         self.total_cycle_num = 0  # !!!
         self.cycle_count = 1
         # 1/0
-        self.do_not_save = False
+        self.flag_do_not_save = False
         self.flag_by_name = False
         self.selected_files_to_fft: list[str] = []
         self.total_time: int = 0
@@ -68,7 +70,7 @@ class SecondThread(QtCore.QThread):
         self.total_num_rows = 10_000
         self.flag_measurement_start = False
         self.flag_big_processing = False
-        self.points_shown = 20000
+        self.points_shown = 20_000
         # print(get_fft_data(np.array([1, 1, 1, 1, 1, 1, 1, 1, 1]), np.array([0, 1, 2, 1, 0, -1, -2, -1, 0]), 9))
 # -------------------------------------------------------------------------------------------------
 
@@ -82,149 +84,147 @@ class SecondThread(QtCore.QThread):
             self.GYRO_NUMBER = 1
             self.k_amp.resize(self.GYRO_NUMBER)
             self.k_amp.fill(1)
+            self.amp_shift.resize(self.GYRO_NUMBER)
+            self.amp_shift.fill(0)
 
-        if self.do_not_save and self.flag_big_processing:
-            self.logger.info("do_not_save")  # добавить создание папки в текущей директории
-            self.get_fft_from_folders(folder=os.getcwd())
+            if self.flag_do_not_save and self.flag_big_processing:
+                self.logger.info("do_not_save")  # добавить создание папки в текущей директории
+                self.get_fft_from_folders(folder=os.getcwd())
 
-        if self.flag_by_name:
-            self.logger.info("flag_by_name")
-            file = os.path.basename(self.selected_files_to_fft[0])
-            last_str = list(filter(None, re.split("_|_|.txt", file)))
-            name_part = (f'{last_str[0]}_{last_str[1]}_{last_str[2]}'
-                         if len(last_str) >= 3 else file)
-            # folder = os.path.split(self.selected_files_to_fft[0])[0] + '/'
-            folder = os.path.dirname(self.selected_files_to_fft[0]) + '/'  # меняем folder для сохранения в ту же папку
-            # self.save_file_name[0] = self.folder + name_part 
-            self.save_file_name[0] = folder + name_part
-            self.fft_from_file_median(self.selected_files_to_fft)
-            # self.do_not_save = True  # !
+            if self.flag_by_name:
+                self.logger.info("flag_by_name")
+                file = os.path.basename(self.selected_files_to_fft[0])
+                last_str = list(filter(None, re.split("_|_|.txt", file)))
+                name_part = (f'{last_str[0]}_{last_str[1]}_{last_str[2]}'
+                            if len(last_str) >= 3 else file)
+                folder = os.path.dirname(self.selected_files_to_fft[0]) + '/'  # меняем folder для сохранения в ту же папку
+                self.save_file_name[0] = folder + name_part
+                self.fft_from_file_median(self.selected_files_to_fft)
 
-        if self.flag_full_measurement_start or self.flag_measurement_start:
-            self.logger.info(f"flag_full_measurement_start {self.flag_full_measurement_start}")
-            self.logger.info(f"flag_measurement_start {self.flag_measurement_start}")
-            self.cycle_count = 1
-            self.package_num = 0
-            self.k_amp.resize(self.GYRO_NUMBER)
-            self.k_amp.fill(1)
-            self.total_num_time_rows = 0  #
-            self.count_fft_frame = 1
-            # self.current_delay = 0
-            # self.required_delay = self.WAIT_TIME_SEC * self.fs / self.READ_INTERVAL_MS
-            self.required_delay = int(self.WAIT_TIME_SEC * self.fs)  # !
-            self.flag_frame_start = False
-            self.flag_sent = True
-
-            self.package_num_list = [0]
-            self.bourder.fill(0)
-            self.all_fft_data.resize(
-                (self.num_measurement_rows, 4 * (self.total_cycle_num + 1),
-                 self.GYRO_NUMBER), refcheck=False)
-            self.all_fft_data.fill(np.nan)
-
-            # self.time_data.resize(int(self.total_time * self.fs * 1.5 * self.total_cycle_num),
-                                #   1 + 4*self.GYRO_NUMBER, refcheck=False)
-            self.time_data.resize(
-                self.total_num_rows, 1 + 4*self.GYRO_NUMBER, refcheck=False)
+        if self.flag_measurement_start or self.flag_full_measurement_start:
+            self.points_shown = 20 * self.fs
+            self.amp_shift.resize(self.GYRO_NUMBER)
+            self.amp_shift.fill(0)
             # self.get_ints_from_bytes = self.get_ints_from_bytes14
-            # if self.GYRO_NUMBER == 1:  # !
-                # self.time_data.resize(
-                    # self.total_num_rows, 1+2, refcheck=False)
-                # self.get_ints_from_bytes = self.get_ints_from_bytes14
-            # if self.GYRO_NUMBER == 3:  # !
-                # self.time_data.resize(
-                    # self.total_num_rows, 1+6, refcheck=False)
-                # self.get_ints_from_bytes = self.get_ints_from_bytes20
-            while self.flag_measurement_start:
-                self.data_recieved_event.wait(5)  # Timeout 5 sec!
-                if not self.data_recieved_event.is_set():
-                    self.logger.info("Timeout")
-                    self.flag_measurement_start = False
-                if self.flag_measurement_start:
-                    self.get_ints_from_bytes()
-                    # self.package_num_signal.emit(self.package_num)
-                    start_i = (self.package_num - self.points_shown
-                        if self.package_num > self.points_shown else 0)
-                    array = (np.copy(self.time_data[start_i:self.package_num, :])).astype(np.float32)
-                    array[:, 0] = array[:, 0] / self.fs
-                    array[:, 2] = array[:, 2] / 1000
-                    array[:, 1::4] = array[:, 1::4] / 1000 / self.k_amp
-                            # [self.time_data[start_i:self.package_num, 1 + 2*i] / self.k_amp[i] / 1000
-                            # [self.time_data[start_i:self.package_num, 1::2] / self.k_amp[i] / 1000
-                            # for i in range(self.GYRO_NUMBER)]])
-                    self.package_num_signal.emit(self.package_num, array)
-                self.data_recieved_event.clear()
+            if self.GYRO_NUMBER == 1:  # !
+                self.time_data.resize(
+                    self.total_num_rows, 1+2, refcheck=False)
+                self.get_ints_from_bytes = self.get_ints_from_bytes14
+            if self.GYRO_NUMBER == 3:  # !
+                self.time_data.resize(
+                    self.total_num_rows, 1+6, refcheck=False)
+                self.get_ints_from_bytes = self.get_ints_from_bytes20
 
-            while self.flag_full_measurement_start:
-                # QWaitCondition
-                self.data_recieved_event.wait(5)  # Timeout 5 sec!
-                if not self.data_recieved_event.is_set():
-                    self.logger.info("Timeout")
-                    self.flag_full_measurement_start = False
-                if self.flag_full_measurement_start:
-                    self.get_ints_from_bytes()
-                    # self.package_num_signal.emit(self.package_num)
-                    start_i = (self.package_num - self.points_shown
-                        if self.package_num > self.points_shown else 0)
-                    array = (np.copy(self.time_data[start_i:self.package_num, :])).astype(np.float32)
-                    array[:, 0] = array[:, 0] / self.fs
-                    array[:, 2] = array[:, 2] / 1000
-                    array[:, 1::4] = array[:, 1::4] / 1000 / self.k_amp
-                    self.package_num_signal.emit(self.package_num, array)
-                    # пусть эта функция срабатывает всегда, даже если данных нет, 
-                    # поскольку ее поведение зависит в первую очередь от протокола измерений
-                    self.make_fft_frame(encoder=self.time_data[:, 2],
-                                          gyro_list=self.time_data[:, 1::4])
-                    self.logger.info("end thread cycle")
-                self.data_recieved_event.clear()
-            self.package_num_list.append(self.package_num)
+            if self.flag_measurement_start:
+                self.package_num = 0
+                self.time_data.resize(
+                    self.total_num_rows, 1 + 4*self.GYRO_NUMBER, refcheck=False)
+                self.logger.info(f"flag_measurement_start {self.flag_measurement_start}")
+                while self.flag_measurement_start:
+                    self.data_recieved_event.wait(1)  # Timeout 1 sec!
+                    if not self.data_recieved_event.is_set():
+                        self.logger.info("Timeout")
+                        # self.flag_measurement_start = False
+                    if self.flag_measurement_start:
+                        self.get_ints_from_bytes()
+                        self.prepare_to_emit()
+                        # start_i = (self.package_num - self.points_shown
+                        #     if self.package_num > self.points_shown else 0)
+                        # array = (np.copy(self.time_data[start_i:self.package_num, :])).astype(np.float32)
+                        # array[:, 0] = array[:, 0] / self.fs
+                        # array[:, 2] = array[:, 2] / 1000
+                        # array[:, 1::4] = array[:, 1::4] / 1000 / self.k_amp
+                        # self.time_data[:, 1::4] = self.time_data[:, 1::4] # !!!
+                        # self.package_num_signal.emit(self.package_num, array)
+                    self.data_recieved_event.clear()
+                if self.package_num > 5 * self.fs:
+                    self.amp_shift = np.mean(self.time_data[:5 * self.fs, 1::4], axis=0)
+                else:
+                    self.amp_shift = np.mean(self.time_data[:, 1::4], axis=0)
+                self.logger.info(f"amp_shift = {self.amp_shift}")
+                for i in range(self.GYRO_NUMBER):
+                    if np.equal(self.amp_shift[i], -1):
+                        self.amp_shift[i] = 0  # нет нужды тогда 0 выводить, -1 показательнее
+                        self.warning_signal.emit(f"There is no data from gyro{i+1}!")
+                # добавить проверку на -1
+                # можно тут же проверять частоту дискретизации
+                # желательно добавить пункт "не сохранять" на случай ошибки
+
+            if self.flag_full_measurement_start:
+                self.logger.info(f"flag_full_measurement_start {self.flag_full_measurement_start}")
+                self.cycle_count = 1
+                self.package_num = 0
+                self.k_amp.resize(self.GYRO_NUMBER)
+                self.k_amp.fill(1)
+                self.total_num_time_rows = 0  #
+                self.count_fft_frame = 1
+                self.required_delay = self.WAIT_TIME_SEC * self.fs / self.READ_INTERVAL_MS
+                self.flag_frame_start = False
+                self.flag_sent = True
+                self.package_num_list = [0]
+                self.bourder.fill(0)
+                self.all_fft_data.resize(
+                    (self.num_measurement_rows, 4 * (self.total_cycle_num + 1),
+                    self.GYRO_NUMBER), refcheck=False)
+                self.all_fft_data.fill(np.nan)
+                self.time_data.resize(
+                    self.total_num_rows, 1 + 4*self.GYRO_NUMBER, refcheck=False)
+
+                while self.flag_full_measurement_start:
+                    self.data_recieved_event.wait(1)  # Timeout 1 sec!
+                    if not self.data_recieved_event.is_set():
+                        self.logger.info("Timeout")
+                        # self.flag_full_measurement_start = False
+                    if self.flag_full_measurement_start:
+                        self.get_ints_from_bytes()
+                        self.prepare_to_emit()
+                        # start_i = (self.package_num - self.points_shown
+                        #     if self.package_num > self.points_shown else 0)
+                        # array = (np.copy(self.time_data[start_i:self.package_num, :])).astype(np.float32)
+                        # array[:, 0] = array[:, 0] / self.fs
+                        # array[:, 2] = array[:, 2] / 1000
+                        # array[:, 1::4] = (array[:, 1::4] - self.amp_shift) / 1000 / self.k_amp
+                        # self.package_num_signal.emit(self.package_num, array)
+                        # пусть эта функция срабатывает всегда, даже если данных нет, 
+                        # поскольку ее поведение зависит в первую очередь от протокола измерений
+                        self.make_fft_frame(encoder=self.time_data[:, 2],
+                                            gyro_list=self.time_data[:, 1::4])
+                        self.logger.info("end thread cycle\n")
+                    self.data_recieved_event.clear()
+                self.package_num_list.append(self.package_num)
         self.logger.info(
-            f"Start saving {(not self.flag_by_name and self.package_num) and not self.do_not_save}")
-        # self.logger.info(
-            # f"Start saving {not self.do_not_save}")
-        if self.package_num and not self.do_not_save:
+            f"Start saving {(not self.flag_by_name and self.package_num) and not self.flag_do_not_save}")
+        if self.package_num and not self.flag_do_not_save:
             self.save_time_cycles()
-        if not self.do_not_save:
+        if not self.flag_do_not_save:
             if (not self.flag_by_name and self.package_num) or self.flag_by_name:
                 self.save_fft()  # формировать имя
         self.GYRO_NUMBER = temp
         self.flag_by_name = False
-        self.do_not_save = False
+        self.flag_do_not_save = False
         self.logger.info("Tread stop")
 
 # -------------------------------------------------------------------------------------------------
 #
 # -------------------------------------------------------------------------------------------------
+    def prepare_to_emit(self):
+        start_i = (self.package_num - self.points_shown
+            if self.package_num > self.points_shown else 0)
+        self.logger.info(f"prepare data to graph, {start_i}, {self.package_num}")
+        array = (np.copy(self.time_data[start_i:self.package_num, :])).astype(np.float32)
+        # я добавляю только 200 точек, логично именн их обрабатывать
+        # (измерить, насколько быстро точки на график вывдятся)
+        # мжно использовать roll или %, чтобы обращаться к другим индексам или take с mode="wrap"
+        # сдвигать на размер пакета влево с помощью roll, а потом вставлять в конец нужные данные
+        # можно сделать несколько режимов вывода, которые можно будет переключать
+        array[:, 0] = array[:, 0] / self.fs
+        array[:, 2] = array[:, 2] / 1000
+        array[:, 1::4] = (array[:, 1::4] - self.amp_shift) / 1000 / self.k_amp
+        self.time_data[:, 1::4] = self.time_data[:, 1::4] # !!!
+        self.package_num_signal.emit(self.package_num, array)
+
     def get_ints_from_bytes(self):
         self.logger.info("start matrix processing data frame")
-        # bytes_arr = np.frombuffer(self.rx, dtype=np.uint8)
-        # self.logger.info(self.rx)
-        # # self.logger.info(bytes_arr[:21])
-        # self.logger.info(f"len {len(self.rx)}")
-        # start = np.where(
-        #     (bytes_arr[:-(self.package_len+1)] == 0x72) & (bytes_arr[(self.package_len+1):] == 0x27))[0] + 1
-        # self.logger.info(f"srart {start}")
-        # if not start.size:
-        #     return
-        # start = np.insert(start, start.size, start[-1] + self.package_len + 2)
-        # start = start[np.where(np.diff(start) == self.package_len + 2)[0]]
-        # # self.logger.info(start)
-        # expand = start.size
-        # array_r = np.zeros((expand, int(self.package_len/3), 4), dtype=np.uint8)
-        # for i in range(int(self.package_len/3)):  # число чисел в посылке
-        #     for j in range(3):
-        #         array_r[:, i, j] = bytes_arr[np.add(start, 3*i + j)]
-        # self.time_data[
-        #     self.package_num:self.package_num + expand, 0
-        #     ] = np.arange(self.package_num, expand + self.package_num)
-        # arr = np.einsum("ijk,jk->ij", array_r, self.POWERS) / 256
-        # for k in range(self.GYRO_NUMBER):  # !!!
-        #     self.time_data[
-        #         # self.package_num:self.package_num + expand, (1 + 2*k)+2*k:(3 + 2*k)+2*k
-        #         self.package_num:self.package_num + expand, 4*k + 1:4*k + 3
-        #         ] = (arr[:, 2*k:2*k + 2])
-        # self.package_num += expand
-# --------------------------------------------------------------------------------------------
         bytes_arr = np.frombuffer(self.rx, dtype=np.uint8)
         start = np.where(
             (bytes_arr[:-13] == 0x72) & (bytes_arr[13:] == 0x27))[0] + 1
@@ -239,17 +239,14 @@ class SecondThread(QtCore.QThread):
         for i in range(4):
             for j in range(3):
                 array_r[:, i, j] = bytes_arr[np.add(start, 3*i + j)]
-        # self.time_data.resize(
-            # self.package_num + expand, 1 + 4*self.GYRO_NUMBER, refcheck=False)
         self.logger.info(expand)
         if self.package_num + expand >= self.total_num_rows:
             self.total_num_rows += 10_000
-            self.logger.info("wxpand array")
+            self.logger.info("expand array")
             self.time_data.resize(self.total_num_rows, 1 + 4*self.GYRO_NUMBER, refcheck=False)
         self.time_data[self.package_num:self.package_num + expand, 0] = np.arange(
             self.package_num, self.package_num + expand)
-        # self.logger.info(self.GYRO_NUMBER)
-        for k in range(self.GYRO_NUMBER):  # !!!
+        for k in range(self.GYRO_NUMBER):
             self.time_data[self.package_num:self.package_num + expand,
                            (1 + 4*k):(5 + 4*k)] = (
                                np.einsum("ijk,jk->ij", array_r, self.POWERS) / 256)
@@ -275,7 +272,7 @@ class SecondThread(QtCore.QThread):
         self.logger.info(expand)
         if self.package_num + expand >= self.total_num_rows:
             self.total_num_rows += 10_000
-            self.logger.info("wxpand array")
+            self.logger.info("expand array")
             self.time_data.resize(self.total_num_rows, 1 + 4*self.GYRO_NUMBER, refcheck=False)
         self.time_data[self.package_num:self.package_num + expand, 0] = np.arange(
             self.package_num, self.package_num + expand)
@@ -303,7 +300,7 @@ class SecondThread(QtCore.QThread):
         self.logger.info(expand)
         if self.package_num + expand >= self.total_num_rows:
             self.total_num_rows += 15_000
-            self.logger.info("wxpand array")
+            self.logger.info("expand array")
             self.time_data.resize(self.total_num_rows, 1 + 4*self.GYRO_NUMBER, refcheck=False)
         self.time_data[self.package_num:self.package_num + expand, 0] = np.arange(
             self.package_num, self.package_num + expand)
@@ -320,11 +317,13 @@ class SecondThread(QtCore.QThread):
         self.logger.info("save time cycles!")
         for j_gyro in range(self.GYRO_NUMBER):
             if not len(self.save_file_name[j_gyro]):
-                self.logger.info("skip")
+                self.logger.info(f"skip gyro{j_gyro}")
                 continue
             if not os.path.isdir(os.path.dirname(self.save_file_name[j_gyro])):
-                self.logger.info(f"Folder {os.path.dirname(self.save_file_name[i])} doesn't exist!")
-                self.warning_signal.emit(f"Folder {os.path.dirname(self.save_file_name[i])} doesn't exist!")
+                self.logger.info(
+                    f"Folder {os.path.dirname(self.save_file_name[i])} doesn't exist!")
+                self.warning_signal.emit(
+                    f"Folder {os.path.dirname(self.save_file_name[i])} doesn't exist!")
                 continue
             for i in range(len(self.package_num_list) - 1):
                 filename = check_name_simple(
@@ -333,10 +332,14 @@ class SecondThread(QtCore.QThread):
                 time_data_df = DataFrame(
                     self.time_data[
                         self.package_num_list[i]:self.package_num_list[i + 1], :])
-                time_data_df.to_csv(filename, columns=[0, 1 + 4*j_gyro, 2 + 4*j_gyro,
-                                                       3 + 4*j_gyro, 4 + 4*j_gyro],
-                                    header=None, index=None,
-                                    sep='\t', mode='w', date_format='%d')
+                k = 2  # !
+                time_data_df.to_csv(
+                    filename, columns=[0,
+                                       k*j_gyro + 1, k*j_gyro + 2],
+                                    #    k*j_gyro + 1, k*j_gyro + 2,
+                                    #    k*j_gyro + 3, k*j_gyro + 4],
+                                       header=None, index=None,
+                                       sep='\t', mode='w', date_format='%d')
 # -------------------------------------------------------------------------------------------------
 
     def save_fft(self):
@@ -352,7 +355,7 @@ class SecondThread(QtCore.QThread):
             f"total_cycle_num {self.total_cycle_num}, cycle_count {self.cycle_count}")
         for i in range(self.all_fft_data.shape[2]):
             if not len(self.save_file_name[i]):
-                self.logger.info("skip")
+                self.logger.info(f"skip gyro{i}")
                 continue
             if not os.path.isdir(os.path.dirname(self.save_file_name[i])):
                 self.logger.info(f"Folder {os.path.dirname(self.save_file_name[i])} doesn't exist!")
@@ -403,13 +406,14 @@ class SecondThread(QtCore.QThread):
 # -------------------------------------------------------------------------------------------------
 
     def make_fft_frame(self, encoder: np.ndarray, gyro_list: np.ndarray):
-        # if not self.flag_sent:
         if not self.flag_sent and not self.flag_frame_start: # пусть срабатывает только 1 раз
             self.flag_frame_start = True
             self.bourder[0] = self.package_num + self.required_delay
-            # if self.current_delay < self.required_delay:
-            #     self.bourder[0] = self.package_num
-            # self.current_delay += 1
+        # if not self.flag_sent:
+        #     self.flag_frame_start = True
+        #     if self.current_delay < self.required_delay:
+        #         self.bourder[0] = self.package_num
+        #     self.current_delay += 1
         elif self.flag_frame_start and self.flag_sent:
             self.flag_frame_start = False
             # self.bourder[1] = self.package_num - int(self.fs / 20)  # frame end
@@ -421,7 +425,9 @@ class SecondThread(QtCore.QThread):
             if all(self.bourder):
                 for i in range(self.GYRO_NUMBER):
                     [freq, amp, d_phase] = get_fft_data(
-                        gyro=gyro_list[self.bourder[0]:self.bourder[1], i],
+                        # gyro=gyro_list[self.bourder[0]:self.bourder[1], i],
+                        gyro=(gyro_list[self.bourder[0]:self.bourder[1], i] - self.amp_shift[i]),  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                        # добавил сюда учет смещения
                         encoder=encoder[self.bourder[0]:self.bourder[1]] * self.k_amp[i],
                         fs=self.fs)
                     [freq, amp, d_phase, tau] = self.fft_normalisation(
@@ -661,7 +667,7 @@ class SecondThread(QtCore.QThread):
         self.get_special_points()
         filename_list_median = [re.split("_", os.path.basename(file_for_fft))[0]]
         self.median_data_ready_signal.emit(filename_list_median)
-        self.do_not_save = True
+        self.flag_do_not_save = True
 # ----------------------------------------------------------------------------
 #
 # ----------------------------------------------------------------------------
@@ -676,3 +682,33 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     window = PyQt_ApplicationClass.AppWindow()
     sys.exit(app.exec())
+
+
+
+        # bytes_arr = np.frombuffer(self.rx, dtype=np.uint8)
+        # self.logger.info(self.rx)
+        # # self.logger.info(bytes_arr[:21])
+        # self.logger.info(f"len {len(self.rx)}")
+        # start = np.where(
+        #     (bytes_arr[:-(self.package_len+1)] == 0x72) & (bytes_arr[(self.package_len+1):] == 0x27))[0] + 1
+        # self.logger.info(f"srart {start}")
+        # if not start.size:
+        #     return
+        # start = np.insert(start, start.size, start[-1] + self.package_len + 2)
+        # start = start[np.where(np.diff(start) == self.package_len + 2)[0]]
+        # # self.logger.info(start)
+        # expand = start.size
+        # array_r = np.zeros((expand, int(self.package_len/3), 4), dtype=np.uint8)
+        # for i in range(int(self.package_len/3)):  # число чисел в посылке
+        #     for j in range(3):
+        #         array_r[:, i, j] = bytes_arr[np.add(start, 3*i + j)]
+        # self.time_data[
+        #     self.package_num:self.package_num + expand, 0
+        #     ] = np.arange(self.package_num, expand + self.package_num)
+        # arr = np.einsum("ijk,jk->ij", array_r, self.POWERS) / 256
+        # for k in range(self.GYRO_NUMBER):  # !!!
+        #     self.time_data[
+        #         # self.package_num:self.package_num + expand, (1 + 2*k)+2*k:(3 + 2*k)+2*k
+        #         self.package_num:self.package_num + expand, 4*k + 1:4*k + 3
+        #         ] = (arr[:, 2*k:2*k + 2])
+        # self.package_num += expand

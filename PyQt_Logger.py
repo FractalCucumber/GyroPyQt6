@@ -38,13 +38,9 @@ class QTextEditLogger():
 
         # console_formatter = logging.Formatter(('#%(levelname)-s, %(pathname)s, '
         #                                     'line %(lineno)d: %(message)s'))
-        # console_handler = logging.StreamHandler()
-        # console_handler.setFormatter(console_formatter)
-        # console_handler.setLevel(logging.WARNING)
-        # console_handler.setFormatter(console_formatter)
-        # logger.addHandler(console_handler)
         console_handler = logging.StreamHandler(stream=sys.stdout)
         console_handler.setLevel(logging.ERROR)
+        # console_handler.setFormatter(console_formatter)
         logger.addHandler(console_handler)
 
         log_window_formatter = logging.Formatter(
