@@ -401,6 +401,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self.show()
         # os.system(r'start D:/')  # так можно открывать папку
         # print(self.palette().window().color().name())
+        # win32api.ShellExecute()
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
 #
@@ -809,11 +810,12 @@ class AppWindow(QtWidgets.QMainWindow):
         else:
             self.sent_stop_vibro_command()
         self.flag_sent = not self.flag_sent
+        self.check_time = time()
 
     def sent_stop_vibro_command(self):
         self.timer_sent_com.setInterval(self.PAUSE_INTERVAL_MS)
         self.serial_port.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
-        self.logger.debug("---stop vibro command was sent")
+        self.logger.debug(f"---stop vibro command was sent, time: {time() - self.check_time}")
         # sleep(0.01)
 
     def sent_vibro_command(self):
@@ -827,7 +829,7 @@ class AppWindow(QtWidgets.QMainWindow):
             bytes([77, 0, F[0], F[1], A[0], A[1], 0, 0]))
         # sleep(0.01)
         self.logger.debug(
-            f"--- vibro command {self.count} was sent")
+            f"--- vibro command {self.count} was sent, time: {{time() - self.check_time}}")
         self.count += 1
 
 # ----- End cycle, stop, etc --------------------------------------------------
@@ -1370,7 +1372,7 @@ if __name__ == "__main__":
     app.processEvents()
 
     test = True
-    # test = False
+    test = False
     if test:
         window = AppWindowTest()
     else:
