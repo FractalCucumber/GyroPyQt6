@@ -24,7 +24,7 @@ class QTextEditLogger():
             file_formatter = logging.Formatter(
                 ('#%(levelname)-s,\t%(pathname)s:%(lineno)d,\t%(asctime)s, %(message)s'))
             file_handler = logging.FileHandler('PyQt_VibroGyroTest.log',
-            mode='w', encoding="utf-8")
+                                               mode='w', encoding="utf-8")
             file_handler.setLevel(logging.DEBUG)
             file_handler.setFormatter(file_formatter)
             logger.addHandler(file_handler)

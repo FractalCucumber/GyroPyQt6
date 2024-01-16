@@ -13,42 +13,17 @@ CRC8_Table = np.array([
 	0x120f2835,0x667b5c41,0xfae7c0dd,0x8e93b4a9,0xdfc2e5f8,0xabb6918c,0x372a0d10,0x435e7964,
 	0x9588afb2,0xe1fcdbc6,0x7d60475a,0x0914332e,0x5845627f,0x2c31160b,0xb0ad8a97,0xc4d9fee3])
 
-def CRC8_CountBYTE(uiData, iSize):
+def CRC8_CountBYTE(uiData: np.ndarray, iSize):
 	iRez=np.full((iSize), CRC8_INIT_VALUE)
+	# uiData - uint8
 	# unsigned int i
 	# unsigned int iIndex
 	# for(i=0;i <iSize; i++):
 	for i in range(iSize):
-		iIndex = np.bitwise_and(np.bitwise_xor(iRez, uiData[:, i]), 0xff)
-		iRez = np.right_shift(CRC8_Table[np.right_shift(iIndex, 2)], (8 * (iIndex % 4)))
-	return np.bitwise_and(np.bitwise_xor(iRez, CRC8_END_VALUE), 0xff)
+		# iIndex = (iRez ^ uiData[:, i]) & 0xff
+		iIndex = np.bitwise_and(np.bitwise_xor(iRez, uiData[:, i]), 255)
+		# iRez = CRC8_Table[iIndex >> 2] >> (8 * (iIndex % 4))
+		np.left_shift(CRC8_Table[np.left_shift(iIndex, 2)], (8 * (iIndex % 4))
+	return (iRez ^ CRC8_END_VALUE) & 0xff
 
-# rx: bytes = b'\x72\xFF\xFF\xFF\x00\x00\x02\xFF\xFF\xFF\x00\x02\x09\x27\x72\x07\x02\x0F\x02\x29\x72\x25\x00\x00\x02\x00\x00\x27\x72\xFF\xFF\xFF\x00\x00\x02\xFF\xFF\xFF\x00\x02\x09\x27\x72\x07\x02\x0F\x02\x29\x72\x25\x00\x00\x02\x00\x00\x27\x72\xFF\xFF\xFF\x00\x00\x02\xFF\xFF\xFF\x00\x02\x09\x27\x72\x07\x02\x0F\x02\x29\x72\x25\x00\x00\x02\x00\x00\x27\x72\xFF\xFF\xFF\x00\x00\x02\xFF\xFF\xFF\x00\x02\x09\x27\x72\x07\x02\x0F\x02\x29\x72\x25\x00\x00\x02\x00\x00\x27\x72\xFF\xFF\xFF\x00\x00\x02\xFF\xFF\xFF\x00\x02\x09\x27\x72\x07\x02\x0F\x02\x29\x72\x25\x00\x00\x02\x00\x00\x27\x72\xFF\xFF\xFF\x00\x00\x02\xFF\xFF\xFF\x00\x02\x09\x27\x72\x07\x02\x0F\x02\x29\x72\x25\x00\x00\x02\x00\x00\x27\x72\xFF\xFF\xFF\x00\x00\x02\xFF\xFF\xFF\x00\x02\x09\x27\x72\x07\x02\x0F\x02\x29\x72\x25\x00\x00\x02\x00\x00\x27\x72\xFF\xFF\xFF\x00\x00\x02\xFF\xFF\xFF\x00\x02\x09\x27\x72\x07\x02\x0F\x02\x29\x72\x25\x00\x00\x02\x00\x00\x27\x72\xFF'
-rx: bytes = b'\x72\xFF\xFF\xFF\x00\x00\x02\xFF\xFF\xFF\x00\x02\x09\x27\x72\xFF\xFF\xFF\x00\x00\x02\xFF\xFF\xFF\x00\x02\x09\x27'
-bytes_arr = np.frombuffer(rx, dtype=np.uint8)
-# print(np.unpackbits(b'\x72\xFF\xFF'))
-start = np.where((bytes_arr[:-13] == 0x72) & (bytes_arr[13:] == 0x27))[0] + 1
-start = start[np.where(np.diff(start) == 14)[0]]
-start = np.insert(start, start.size, start[-1] + 14)
-print(start)
-expand = len(start)
-array_r = np.zeros((expand, 4, 4), dtype=np.uint8)
-iRez=np.full((expand), CRC8_INIT_VALUE)
-for i in range(4):
-	for j in range(3):
-		print("----")
-		array_r[:, i, j] = bytes_arr[np.add(start, 3*i + j)]
-		print(np.add(start, 3*i + j))
-		uiData = bytes_arr[np.add(start, 3*i + j)]
-		print(uiData)
-		iIndex = np.bitwise_and(np.bitwise_xor(iRez, uiData), 0xff)
-		print(iIndex)
-		iRez = np.right_shift(CRC8_Table[np.right_shift(iIndex, 2)], (8 * (iIndex % 4)))
-		# uint8 ???
-		print(iRez)
-	# print(CRC8_CountBYTE(array_r[:, i, j], len(bytes_arr[np.add(start, 3*i + j)])))
-print(np.bitwise_and(np.bitwise_xor(iRez, CRC8_END_VALUE), 0xff))
-
-
-
-
+print(CRC8_CountBYTE())

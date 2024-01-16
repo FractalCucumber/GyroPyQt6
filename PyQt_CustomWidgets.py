@@ -127,10 +127,10 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.ok_btn.clicked.connect(self.write_xlsx)
 
         self.get_filenames_btn = QtWidgets.QPushButton("АФЧХ для файла")
-        # self.get_filenames_btn.setContextMenuPolicy(
-        #     QtCore.Qt.CustomContextMenu)
-        # self.get_filenames_btn.customContextMenuRequested.connect(
-        #     self.__contextMenu)
+        self.get_filenames_btn.setContextMenuPolicy(
+            QtCore.Qt.CustomContextMenu)
+        self.get_filenames_btn.customContextMenuRequested.connect(
+            self.__contextMenu)
         self.median_plot_groupbox_layout.addWidget(
             self.get_filenames_btn, 7, 0, 1, 3)
         self.get_filenames_btn.clicked.connect(self.get_filenames_to_fft)
@@ -154,22 +154,22 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 # ----------------------------------------------------------------------------------------------
 #
         
-    # def __contextMenu(self):
-    #     # self._normalMenu = self.combo_box_name.layout().createStandardContextMenu()
-    #     # self._normalMenu = self.com_port_name_combobox.lineEdit().createStandardContextMenu()
-    #     self._normalMenu = QtWidgets.QMenu()
-    #     # self._normalMenu = self.combo_box_name.visibleRegion().createStandardContextMenu()
-    #     # self._normalMenu = self.combo_box_name.layoutDirection().createStandardContextMenu()
-    #     self._addCustomMenuItems(self._normalMenu)
-    #     self._normalMenu.exec_(QtGui.QCursor.pos())
+    def __contextMenu(self):
+        # self._normalMenu = self.combo_box_name.layout().createStandardContextMenu()
+        # self._normalMenu = self.com_port_name_combobox.lineEdit().createStandardContextMenu()
+        self._normalMenu = QtWidgets.QMenu()
+        # self._normalMenu = self.combo_box_name.visibleRegion().createStandardContextMenu()
+        # self._normalMenu = self.combo_box_name.layoutDirection().createStandardContextMenu()
+        self._addCustomMenuItems(self._normalMenu)
+        self._normalMenu.exec_(QtGui.QCursor.pos())
 
-    # def _addCustomMenuItems(self, menu: QtWidgets.QMenu):
-    #     # menu.addSeparator()
-    #     # action = QtWidgets.QAction("Обновить", self, shortcut="Ctrl+U")
-    #     # action.setShortcut("Ctrl+U")
-    #     # action.triggered.connect(self.get_avaliable_com)        
-    #     # menu.addAction(action)
-    #     menu.addAction('Обновить', self.get_filenames_to_fft)
+    def _addCustomMenuItems(self, menu: QtWidgets.QMenu):
+        # menu.addSeparator()
+        # action = QtWidgets.QAction("Обновить", self, shortcut="Ctrl+U")
+        # action.setShortcut("Ctrl+U")
+        # action.triggered.connect(self.get_avaliable_com)        
+        # menu.addAction(action)
+        menu.addAction('Обновить', self.get_filenames_to_fft)
 
     # def action(self):
     #     # отсюда в поток ведь ничего не передать
@@ -207,7 +207,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 # ------ FFT median plot ------------------------------------------------------------------
     def set_fft_median_data(self, freq_data: np.ndarray,
                             special_points: np.ndarray, folder: list):
-        self.logger.info(f"Final median plot, sensor: {folder}")
+        self.logger.debug(f"Final median plot, sensor: {folder}")
         if np.isnan(freq_data[:, -4, :]).all():
             return
         for i in range(2):
@@ -303,7 +303,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             self.get_filename_signal.emit(True)
             self.start_folder = os.path.dirname(self.selected_files_to_fft[0])
  
-    def close_com(self):
+    def close_excel_com_object(self):
         self.excel_com_object.Quit  # !
         del self.excel_com_object
 
@@ -314,14 +314,14 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                 self.projects_combo_box.currentText()] + '/' +\
                     self.sensor_name_line_edit_list[self.selected_curve].text() + '.xlsm'
                     # "6553 222" + '.xlsm'
-        self.logger.info(f"path {currnt_xlsx_path}")
+        self.logger.debug(f"path {currnt_xlsx_path}")
         if not os.path.exists(currnt_xlsx_path):
             self.warning_signal.emit(
                 f"File {self.sensor_name_line_edit_list[self.selected_curve].text() + '.xlsm'} not found!")
             return
         try: # удобная проверка на открытие файла
             os.rename(currnt_xlsx_path, currnt_xlsx_path)
-            self.logger.info("File is closed")
+            self.logger.debug("File is closed")
             self.warning_signal.emit("Start saving")
             # excel_com_object = win32com.client.DispatchEx("Excel.Application")  # !!
             excel_com_object = self.excel_com_object  # !
@@ -329,50 +329,51 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             close_flag = True
             excel_com_object.DisplayAlerts = False   # !!
         except OSError:
-            self.logger.info("Saving to an open file")
+            self.logger.debug("Saving to an open file")
             self.warning_signal.emit("Start saving to an open file")
             # Excel = win32com.client.GetActiveObject('Excel.Application')  # ! GetActiveObject ?
             # excel_com_object = win32com.client.GetActiveObject(currnt_xlsx_path)
             excel_com_object = win32com.client.GetObject(currnt_xlsx_path).Application
-            self.logger.info(type(excel_com_object))
-            self.logger.info(f"{excel_com_object}, {excel_com_object.ActiveWorkbook}")
+            self.logger.debug(type(excel_com_object))
+            self.logger.debug(f"{excel_com_object}, {excel_com_object.ActiveWorkbook}")
             if excel_com_object.ActiveWorkbook is None:  # проверить!
                 self.warning_signal.emit("Erorr! (the file may be open on another device)")
                 excel_com_object.Quit()
                 del excel_com_object
                 return
-            self.logger.info(f"{excel_com_object.ActiveWorkbook.FullName}")
+            self.logger.debug(f"{excel_com_object.ActiveWorkbook.FullName}")
             close_flag = False
-        self.logger.info("1")
+        self.logger.debug("1")
         wb = excel_com_object.Workbooks.Open(currnt_xlsx_path)
-        self.logger.info("2")
+        self.logger.debug("2")
         if not close_flag:
             wb.Save()  # если файл открыт, в нем сохраняются прежние изменения
-        wb.Worksheets(u'Настройка КП').Cells(11, "I").value = \
+        wb.Worksheets(u'Настройка КП').Cells(11, "I").Value = \
             float(self.freq_info_line_edit_list[self.selected_curve].text())
-        wb.Worksheets(u'Настройка КП').Cells(11, "K").value = \
+        wb.Worksheets(u'Настройка КП').Cells(11, "K").Value = \
             float(self.amp_info_line_edit_list[self.selected_curve].text())
+        self.logger.debug("3")
         wb.Save()
-        self.logger.info("3")
+        self.logger.debug("4")
         if close_flag:
             wb.Close()
             # excel_com_object.Quit()  # !
         else:
             excel_com_object.Goto(wb.Worksheets(u'Настройка КП').Range("I10:K10"), True)
-        self.logger.info(f"Successfully save in {currnt_xlsx_path}")
+        self.logger.debug(f"Successfully save in {currnt_xlsx_path}")
         self.warning_signal.emit(f"Successfully save in {currnt_xlsx_path}")
 
     # @QtCore.pyqtSlot()
     # def write_xlsx(self):
     #     self.warning_signal.emit("Start saving")
-    #     self.logger.info(f"Get Excel")
+    #     self.logger.debug(f"Get Excel")
     #     if not len(self.sensor_name_line_edit_list[self.selected_curve].text()):
     #         return
     #     currnt_xlsx_path = \
     #         self.projects_combo_box.projects_dict[
     #             self.projects_combo_box.currentText()] + \
     #                 '/' + self.sensor_name_line_edit_list[self.selected_curve].text() + '.xlsm'
-    #     self.logger.info(currnt_xlsx_path)
+    #     self.logger.debug(currnt_xlsx_path)
     #     try:
     #         wb = load_workbook(currnt_xlsx_path,
     #                            read_only=False, keep_vba=True)
@@ -380,7 +381,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     #         self.warning_signal.emit("File not found!")
     #         return
     #     ws = wb['Настройка КП']  #
-    #     self.logger.info(f"Save in Excel 2")
+    #     self.logger.debug(f"Save in Excel 2")
     #     ws['I11'] = float(self.freq_info_line_edit_list[self.selected_curve].text())
     #     ws['K11'] = float(self.amp_info_line_edit_list[self.selected_curve].text())
     #     try:
@@ -388,7 +389,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     #     except IOError:
     #         self.warning_signal.emit("File was open! Close and try again")
     #         return
-    #     self.logger.info(f"Successfully save in {currnt_xlsx_path}")
+    #     self.logger.debug(f"Successfully save in {currnt_xlsx_path}")
     #     self.warning_signal.emit(f"Successfully save in {currnt_xlsx_path}")
 
 # ----- plot change -----------------------------------------------------------
@@ -437,8 +438,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.region.setRegion([0, 0])
         for i in range(2):
             self.infinite_x_line_list[i].setVisible(False)
-        # self.logger.info(f"len amp prev {len(self.amp_curves)}")
-        # self.logger.info(f"len phase_curves prev {len(self.phase_curves)}")
+        # self.logger.debug(f"len amp prev {len(self.amp_curves)}")
+        # self.logger.debug(f"len phase_curves prev {len(self.phase_curves)}")
         for i in range(self.count() - 2):
             for _ in range(self.GYRO_NUMBER):
                 self.amp_curves.pop()
@@ -448,8 +449,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             self.removeTab(2)
             self.tab_widget_page_list.pop()
         #         phase_plot_list
-        # self.logger.info(f"len amp {len(self.amp_curves)}")
-        # self.logger.info(f"len phase_curves {len(self.phase_curves)}")
+        # self.logger.debug(f"len amp {len(self.amp_curves)}")
+        # self.logger.debug(f"len phase_curves {len(self.phase_curves)}")
         self.time_curves[0].setData([])
         for i in range(self.GYRO_NUMBER):
             self.time_curves[i + 1].setData([])
@@ -817,7 +818,7 @@ if __name__ == "__main__":
 
 
 #    def plot_fft_median(self, freq_data: np.ndarray, special_points: np.ndarray, folder: str):
-#         self.logger.info("Final median plot")
+#         self.logger.debug("Final median plot")
 #         # self.append_fft_plot_tab()
 #         self.last_tab_layout = QtWidgets.QGridLayout(spacing=0)
 #         self.last_tab_layout.addWidget(self.groupbox, 0, 1, 2, 1) 
