@@ -317,14 +317,16 @@ class CustomTabWidget(QtWidgets.QTabWidget):
  
     def create_excel_com_object(self):
         self.logger.debug("Создаем COM объект")
-        # self.excel_com_object = win32.gencache.EnsureDispatch('Excel.Application')
+        self.excel_com_object = win32.gencache.EnsureDispatch('Excel.Application')
         # self.excel_com_object = win32.Dispatch('Excel.Application')
-        self.excel_com_object = win32.DispatchEx("Excel.Application")  # !
+        # self.excel_com_object = win32.DispatchEx("Excel.Application")  # !
+        self.excel_com_object.Interactive = False
+        self.excel_com_object.DisplayAlerts = False
         self.logger.debug(f"excel.Visible: {self.excel_com_object.Visible}")
         self.logger.debug("Продолжаем")
 
     def close_excel_com_object(self):
-        if not self.excel_com_object in None:
+        if not self.excel_com_object is None:
             self.excel_com_object.Quit  # !
             del self.excel_com_object
 

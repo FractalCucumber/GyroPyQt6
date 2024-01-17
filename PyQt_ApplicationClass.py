@@ -1099,8 +1099,8 @@ class AppWindow(QtWidgets.QMainWindow):
             self.logger.warning("Wait Excel to close...")
             self.custom_tab_plot_widget.close_excel_com_object()  # !
             self.logger.debug("Close COM object")
-        except Exception:
-            self.logger.debug("Can't close COM object!")
+        except Exception as e:
+            self.logger.debug(f"Can't close COM object! {e}")
 
 # ------ settings --------------------------------------------------------------------
     def save_all_settings(self):
