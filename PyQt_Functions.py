@@ -1,9 +1,15 @@
 import os
+import re
 import sys
 import numpy as np
 from PyQt5 import QtGui
 # from numba import jit, prange, njit
 
+
+def natural_keys(text):
+    def atoi(text):
+        return int(text) if text.isdigit() else text
+    return [atoi(c) for c in re.split(r'(\d+)', text)]
 
 def get_res_path(relative_path: str):
     """

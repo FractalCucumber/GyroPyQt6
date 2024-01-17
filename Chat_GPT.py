@@ -4,6 +4,86 @@ from time import time
 import os
 import numpy as np
 import re, sys
+import logging
+import pandas as pd
+import win32com.client
+# print(os.path.dirname("D://dwa"))
+# a = [5]
+# b = a
+# a[0] = 4
+# print(a, b)
+# c = True
+# d = c
+# d = False
+# print(c, d)
+arr = np.array([[2, 1,2, np.nan,3, 6]])
+print(arr)
+arr = np.roll(arr, -2)
+print(arr)
+arr = np.array([[2, 1], [2, np.nan], [3, 6]])
+time_data_df = pd.DataFrame(arr)
+        # self.package_num_list[i]:self.package_num_list[i + 1], cols])
+        # все столбцы преобразовывать нерационально
+time_data_df.to_csv(
+    # filename, header=None,
+    "000fff.txt", header=None,
+    index=None, sep='\t', mode='w', date_format='%d')
+exit(0)
+# import pywin32 #  win32com.client.Dispatch.Workbooks.Open
+# name = u'D:\\Work\\Gyro2023_Git\\65533.xlsm'
+name = 'D:\\Work\\Gyro2023_Git\\65533.xlsm'
+t = time()
+try:
+    os.rename(name, name)
+    print("File is closed.")
+    Excel = win32com.client.DispatchEx("Excel.Application")
+    # Excel.Visible = False
+    flag = True
+except OSError:
+    print("File is opened.")
+    # Excel = win32com.client.GetActiveObject('Excel.Application')
+    Excel = win32com.client.GetObject(name).Application
+    # Excel.Visible = True
+    flag = False
+# Excel = win32com.client.Dispatch("Excel.Application")
+# Excel = win32com.client.DispatchEx("Excel.Application") 
+# Excel = win32com.client.GetObject('65533.xlsm').Application
+# Excel = win32com.client.GetActiveObject('65533.xlsm').Application
+
+# except ValueError:
+    # print(0)
+Excel.DisplayAlerts = False
+print(Excel)
+# Excel.Quit()
+# exit(0)
+# 
+# Excel = win32com.client.GetObject(None, "Excel.Application")
+# Excel = win32com.client.CreateObject("Excel.Application")
+# Excel = win32com.client.ProgID("Excel.Application")
+# Excel = win32com.client.GetActiveObject("Excel.Application")
+t1 = time()
+# wb = Excel.Workbooks.Open(u'D:\\Scripts\\DataScience\\ArticleScripts\\ExcelPython\\xl.xls')
+# wb = Excel.Workbooks.Open(u'D:\\Work\\Gyro2023_Git\\65532.xlsm', False)
+wb = Excel.Workbooks.Open(name)
+print(1)
+wb.Worksheets(u'Настройка КП').Cells(11, 9).value = 129
+wb.Worksheets(u'Настройка КП').Cells(11, 11).value = 12
+wb.Save()
+print(2)
+
+#закрываем ее
+# wb.Close(True)
+# wb.Close()
+if flag:
+    wb.Close()
+    Excel.Quit()
+print(3)
+print(time() - t1)
+
+#закрываем COM объект
+# Excel.Quit()
+print(time() - t)
+exit(0)
 # from numba import jit, prange, njit
 # import multiprocessing as mp
 # h=2.2
@@ -18,7 +98,6 @@ import re, sys
 # hh.resize(1)
 # hh.resize(3)
 # print(hh)
-# exit(0)
 # from multiprocessing import Pool, TimeoutError, current_process
 # import time, os
 
