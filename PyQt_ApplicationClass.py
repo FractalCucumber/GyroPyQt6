@@ -402,6 +402,7 @@ class AppWindow(QtWidgets.QMainWindow):
                 self.custom_tab_plot_widget.change_curve_visibility)
         
         self.show()
+        self.custom_tab_plot_widget.create_excel_com_object()  # !
         self.logger.debug("Программа запущена")
         # os.system(r'start D:/')  # так можно открывать папку
         # print(self.palette().window().color().name())

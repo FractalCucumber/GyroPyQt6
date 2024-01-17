@@ -160,13 +160,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # print(self.palette().window().color().name())
         # pg.setConfigOption('background', self.palette().window().color().name())
         self.start_folder = "."  # !
-        self.logger.debug("Создаем COM объект")
-        # self.excel_com_object = win32.gencache.EnsureDispatch('Excel.Application')
-        # self.excel_com_object = win32.Dispatch('Excel.Application')
-        self.excel_com_object = win32.DispatchEx("Excel.Application")  # !
-        self.logger.debug(f"excel.Visible: {self.excel_com_object.Visible}")
-        self.logger.debug("Продолжаем")
         # self.log_mode()
+        self.excel_com_object = None
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
 #
@@ -320,9 +315,18 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             self.get_filename_signal.emit(True)
             self.start_folder = os.path.dirname(self.selected_files_to_fft[0])
  
+    def create_excel_com_object(self):
+        self.logger.debug("Создаем COM объект")
+        # self.excel_com_object = win32.gencache.EnsureDispatch('Excel.Application')
+        # self.excel_com_object = win32.Dispatch('Excel.Application')
+        self.excel_com_object = win32.DispatchEx("Excel.Application")  # !
+        self.logger.debug(f"excel.Visible: {self.excel_com_object.Visible}")
+        self.logger.debug("Продолжаем")
+
     def close_excel_com_object(self):
-        self.excel_com_object.Quit  # !
-        del self.excel_com_object
+        if not self.excel_com_object in None:
+            self.excel_com_object.Quit  # !
+            del self.excel_com_object
 
     @QtCore.pyqtSlot()
     def write_xlsx(self):
