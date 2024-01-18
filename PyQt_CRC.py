@@ -64,6 +64,8 @@ def ff():
 		print("true")
 	yield i
 
+
+
 def infinite_sequence():
 	num = 0
 	while True:
@@ -82,6 +84,21 @@ def infinite_print():
 		num += 1
 # print(ff)
 # print(ff())
+def infinite_sequence2():
+	print("start")
+	value = yield
+	while True:
+		print(value)
+		value = yield
+f = infinite_sequence2()
+# f = infinite_sequence2(1).sent(2)
+print(type(f))
+next(f)
+print(f.send(2))
+print(f.send(5))
+# print(iter(f))
+exit(0)
+		
 f = ff()
 print(next(f))
 print(next(f))

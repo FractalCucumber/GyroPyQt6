@@ -497,7 +497,7 @@ class AppWindow(QtWidgets.QMainWindow):
             if obj is self.stop_button:
                 if not self.processing_thr.isRunning():
                     return True
-                print(1)
+                # print(1)
                 menu = QtWidgets.QMenu(self)
                 action = QtWidgets.QAction('Стоп без сохранения', self)
                 action.triggered.connect(self.stop_no_save)
@@ -905,13 +905,16 @@ class AppWindow(QtWidgets.QMainWindow):
         self.logger.debug(f"Progress: {self.progress_value} " +
                          f"thr_stop, count = {self.count}, " +
                          f"package_num = {package_num_signal} ")
+        self.logger.debug("start plot")
         self.custom_tab_plot_widget.plot_time_graph(
             plot_data[:, 0], plot_data[:, 2], plot_data[:, 1::self.processing_thr.pack_len])
             # plot_data[:, 0], plot_data[:, 2], plot_data[:, 1::4])
+        self.logger.debug("end plot")
 
     @QtCore.pyqtSlot(bool)
     def plot_fft(self, _):
         """Adds points to frequency graphs"""
+        self.logger.debug("start plot_fft")
         self.custom_tab_plot_widget.set_fft_data(
             self.processing_thr.all_fft_data[:, (self.current_cylce-1)*4:self.current_cylce*4, :],
             self.processing_thr.bourder)
@@ -1124,8 +1127,9 @@ class AppWindow(QtWidgets.QMainWindow):
             self.custom_tab_plot_widget.projects_combo_box.currentText())
         # import json
         # with open('projects_dict.json', 'w', encoding='utf-8') as f:
+        #     d = {"dict": self.custom_tab_plot_widget.projects_combo_box.projects_dict, "ddd22": False, "2ddd22": "f"}
         #     json.dump(
-        #         self.custom_tab_plot_widget.projects_combo_box.projects_dict,
+        #         d,
         #         f, ensure_ascii=False, indent=4)
 
     def load_previous_settings(self, settings: QtCore.QSettings):
@@ -1182,6 +1186,10 @@ class AppWindow(QtWidgets.QMainWindow):
         # with open('projects_dict.json', 'r', encoding='utf-8') as f:
         #     res = json.load(f)
         #     print(res)
+        #     print(type(res["2ddd22"]))
+        #     print(res["2ddd22"])
+        #     print(type(res["ddd22"]))
+        #     print(res["ddd22"])
         #     print(type(res))
             # self.fs_combo_box.addItems(None)
 # -----------------------------------------------------------------------------
@@ -1407,7 +1415,7 @@ if __name__ == "__main__":
     app.processEvents()
 
     test = True
-    # test = False
+    test = False
     if test:
         window = AppWindowTest()
     else:

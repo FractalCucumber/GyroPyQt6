@@ -1,6 +1,7 @@
 import logging
 import sys
 from PyQt5.QtWidgets import QTextEdit
+from PyQt5 import QtCore,QtWidgets, QtGui
 
 
 class QTextEditLogger():
@@ -47,13 +48,22 @@ class QTextEditLogger():
         logger.addHandler(console_handler)
 
         log_window_formatter = logging.Formatter(
-            ('>>> %(asctime)s %(message)s\n'), datefmt='%H:%M:%S'
-        )
-        log_window_handler = logging.Handler()
+            ('>>> %(asctime)s %(message)s\n'), datefmt='%H:%M:%S')
+        self.log_window_handler = logging.Handler()
         self.widget = QTextEdit(parent, readOnly=True, objectName="logger")
-        log_window_handler.emit = lambda record: self.widget.insertPlainText(
-            log_window_handler.format(record)
-        )
-        log_window_handler.setLevel(logging.WARNING)
-        log_window_handler.setFormatter(log_window_formatter)
-        logger.addHandler(log_window_handler)
+        # self.widget.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.NoTextInteraction)
+        self.log_window_handler.emit = self.insert_text
+        # log_window_handler.emit = lambda record: self.widget.insertPlainText(
+            # log_window_handler.format(record)
+        # )
+        self.log_window_handler.setLevel(logging.WARNING)
+        self.log_window_handler.setFormatter(log_window_formatter)
+        logger.addHandler(self.log_window_handler)
+    
+    def insert_text(self, record):
+        cur = self.widget.textCursor()
+        cur.movePosition(QtGui.QTextCursor.End)
+        # так пользователь сможет выделять текст,
+        # но новые записи не будут перекрывать старые
+        self.widget.setTextCursor(cur)
+        self.widget.insertPlainText(self.log_window_handler.format(record))
