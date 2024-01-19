@@ -18,7 +18,7 @@ import win32com.client
 # print(c, d)
 arr = np.array([[2, 1,2, np.nan,3, 6]])
 print(arr)
-arr = np.roll(arr, -2)
+# arr = np.roll(arr, -2)
 print(arr)
 arr = np.array([[2, 1], [2, np.nan], [3, 6]])
 time_data_df = pd.DataFrame(arr)
