@@ -299,6 +299,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self.text_output_groupbox.setLayout(text_output_groupbox_layout)
 
         self.table_widget = PyQt_CustomWidgets.CustomTableWidget()
+        self.table_widget.itemSelectionChanged.connect(self.show_certain_data)
         text_output_groupbox_layout.addWidget(self.table_widget)
 # ------ Logger ---------------------------------------------------------------
 
@@ -946,6 +947,39 @@ class AppWindow(QtWidgets.QMainWindow):
             # plot_data[:, 0], plot_data[:, 2], plot_data[:, 1::4])
         self.logger.debug("end plot")
 
+    @QtCore.pyqtSlot()
+    def show_certain_data(self):
+        # возможно, лучше часть этих вычислений делать в функции потока
+        if self.processing_thr.isRunning():
+            return False
+        time = 0
+        if int(self.package_num_label.text()):
+            self.logger.debug(self.table_widget.currentRow())
+            self.logger.debug(self.current_cylce)
+            time += self.PAUSE_INTERVAL_MS / 1000
+            for i in range(self.table_widget.currentRow()):
+                time += int(self.table_widget.item(i, 2).data(
+                    QtCore.Qt.ItemDataRole.EditRole)) + self.PAUSE_INTERVAL_MS / 1000
+            self.logger.debug(time)
+            start = time * self.fs - self.processing_thr.points_shown / 4
+            start += self.processing_thr.package_num_list[-2]
+            self.logger.debug(f"package_num_list: {self.processing_thr.package_num_list}")
+            self.logger.debug(start)
+            if start > int(self.package_num_label.text()):
+                return False
+            if start < 0: 
+                start = 0
+            start = int(start)
+            end = start + self.processing_thr.points_shown
+            if end > int(self.package_num_label.text()):
+                end = int(self.package_num_label.text())
+            end = int(end)
+            self.logger.debug(f"start={start}, end={end}")
+            self.custom_tab_plot_widget.plot_time_graph(
+                self.processing_thr.time_data[start:end, 0] / self.fs,
+                self.processing_thr.time_data[start:end, 2] / 1000,
+                self.processing_thr.time_data[start:end, 1::self.processing_thr.pack_len] / 1000 / self.processing_thr.k_amp)
+
     @QtCore.pyqtSlot(bool)
     def plot_fft(self, _):
         """Adds points to frequency graphs."""
@@ -1375,14 +1409,15 @@ class AppWindowTest(AppWindow):
         data: bytearray = b""
         package_num = int(self.package_num_label.text())
         if self.GYRO_NUMBER == 1:
-            for i in range(200):
+            for i in range(self.READ_INTERVAL_MS):
+            # for i in range(200):
                 data += int.to_bytes(0x72, length=1, byteorder='big')
                 for j in range(4):
                     data += int.to_bytes(int(self.time_data_test[package_num + i, j]),
                                         length=3, byteorder='big', signed=True)
                 data += int.to_bytes(0x27, length=1, byteorder='big')
         if self.GYRO_NUMBER == 3:
-            for i in range(200):
+            for i in range(self.READ_INTERVAL_MS):
                 data += int.to_bytes(0x72, length=1, byteorder='big')
                 for j in range(3):
                     data += int.to_bytes(int((j+1)*self.time_data_test[package_num + i, 0]),
@@ -1460,7 +1495,7 @@ if __name__ == "__main__":
     app.processEvents()
 
     test = True
-    test = False
+    # test = False
     if test:
         window = AppWindowTest()
     else:
