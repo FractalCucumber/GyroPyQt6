@@ -200,7 +200,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             self.time_curves[i + 1].setData(time, gyro_data[:, i])
 
     def set_fft_data(self, freq_data: np.ndarray, frame: list):
-        """Adds points to frequency graphs"""
+        """Adds points to frequency graphs."""
         for i in range(self.GYRO_NUMBER):
             # self.amp_plot_list[-1].getPlotItem().curves[i].setData(freq_data[:, 0, i],
                                         # freq_data[:, 1, i])
@@ -219,9 +219,10 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 # ------ FFT median plot ------------------------------------------------------------------
     def set_fft_median_data(self, freq_data: np.ndarray,
                             special_points: np.ndarray, folder: list):
+        """Adds points to median frequency graphs."""
         self.logger.debug(f"Final median plot, sensor: {folder}")
         if np.isnan(freq_data[:, -4, :]).all():
-            return
+            return False
         for i in range(2):
             self.infinite_x_line_list[i].setVisible(True)
         temp = np.empty(
@@ -252,6 +253,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 
 # ----- cursor ---------------------------------------------------------------------------------
     def update_crosshair(self, e):  # упросить для 3 гироскопов, может, выводить сразу 3 числа
+        """Move cursor to nearest frequency point and update label."""
         pos = e[0]
         # print(self.amp_plot_list[0].plotItem.sceneBoundingRect())
         # print(self.amp_plot_list[0].plotItem.vb.mapSceneToView(pos))
@@ -304,6 +306,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 
     @QtCore.pyqtSlot()
     def get_filenames_to_fft(self):
+        """Open folder for file selection."""
         self.selected_files_to_fft, _ = QtWidgets.QFileDialog.getOpenFileNames(
             self,
             "Выберите файлы для построения АФЧХ",
@@ -317,19 +320,22 @@ class CustomTabWidget(QtWidgets.QTabWidget):
  
     def create_excel_com_object(self):
         self.logger.debug("Создаем COM объект")
-        # self.excel_com_object = win32.gencache.EnsureDispatch('Excel.Application')
+        self.excel_com_object = win32.gencache.EnsureDispatch('Excel.Application')
         # self.excel_com_object = win32.Dispatch('Excel.Application')
-        self.excel_com_object = win32.DispatchEx("Excel.Application")  # !
+        # self.excel_com_object = win32.DispatchEx("Excel.Application")  # !
+        self.excel_com_object.Interactive = False
+        self.excel_com_object.DisplayAlerts = False
         self.logger.debug(f"excel.Visible: {self.excel_com_object.Visible}")
         self.logger.debug("Продолжаем")
 
     def close_excel_com_object(self):
-        if not self.excel_com_object in None:
+        if not self.excel_com_object is None:
             self.excel_com_object.Quit  # !
             del self.excel_com_object
 
     @QtCore.pyqtSlot()
     def write_xlsx(self):
+        """Write data in Excel cells."""
         currnt_xlsx_path = \
             self.projects_combo_box.projects_dict[
                 self.projects_combo_box.currentText()] + '/' +\
@@ -339,7 +345,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         if not os.path.exists(currnt_xlsx_path):
             self.warning_signal.emit(
                 f"File {self.sensor_name_line_edit_list[self.selected_curve].text() + '.xlsm'} not found!")
-            return
+            return False
         try: # удобная проверка на открытие файла
             os.rename(currnt_xlsx_path, currnt_xlsx_path)
             self.logger.debug("File is closed")
@@ -361,10 +367,11 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                 self.warning_signal.emit("Erorr! (the file may be open on another device)")
                 excel_com_object.Quit()
                 del excel_com_object
-                return
+                return False
             self.logger.debug(f"{excel_com_object.ActiveWorkbook.FullName}")
             close_flag = False
         self.logger.debug("1")
+        self.ok_btn.setDisabled(True)  # !
         wb = excel_com_object.Workbooks.Open(currnt_xlsx_path)
         self.logger.debug("2")
         if not close_flag:
@@ -375,6 +382,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             float(self.amp_info_line_edit_list[self.selected_curve].text())
         self.logger.debug("3")
         wb.Save()
+        self.ok_btn.setDisabled(False)  # !
         self.logger.debug("4")
         if close_flag:
             wb.Close()
@@ -384,6 +392,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             excel_com_object.Goto(wb.Worksheets(u'Настройка КП').Range("I10:K10"), True)
         self.logger.debug(f"Successfully save in {currnt_xlsx_path}")
         self.warning_signal.emit(f"Successfully save in {currnt_xlsx_path}")
+        return True
 
     # @QtCore.pyqtSlot()
     # def write_xlsx(self):
@@ -441,12 +450,12 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     def groupbox_clicked(self):
         # for i in range(len(self.groupbox_list)):
         if not self.freq_data.size:
-            return
+            return False
         for i in range(self.freq_data.shape[2]):
             if self.sender() == self.groupbox_list[i]:
                 break
         else:
-            return
+            return False
         for j in range(len(self.groupbox_list)):
             self.groupbox_list[j].setChecked(False)
         self.selected_curve = i
@@ -464,12 +473,14 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # self.logger.debug(f"len phase_curves prev {len(self.phase_curves)}")
         for i in range(self.count() - 2):
             for _ in range(self.GYRO_NUMBER):
+                # self.amp_curves[-1].clear()
+                # self.phase_curves[-1].clear()
                 self.amp_curves.pop()
                 self.phase_curves.pop()
             self.amp_plot_list.pop()
             self.phase_plot_list.pop()
-            self.removeTab(2)
             self.tab_widget_page_list.pop()
+            self.removeTab(2)
         #         phase_plot_list
         # self.logger.debug(f"len amp {len(self.amp_curves)}")
         # self.logger.debug(f"len phase_curves {len(self.phase_curves)}")
@@ -521,7 +532,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     def save_plot_image(self, path: str):
         if not os.path.isdir(os.path.dirname(path)):
             self.warning_signal.emit(f"Folder {os.path.dirname(path)} doesn't exist!")
-            return
+            return False
         pyqtgraph.exporters.ImageExporter(
             self.time_plot_item).export(
                 check_name_simple(path + '_time_plot.png'))
