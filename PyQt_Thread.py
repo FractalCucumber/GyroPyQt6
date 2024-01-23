@@ -24,30 +24,29 @@ class SecondThread(QtCore.QThread):
         self.GYRO_NUMBER = gyro_number
         self.READ_INTERVAL_MS = READ_INTERVAL_MS
         self.rx: bytes = b''
-        self.all_fft_data: np.ndarray = np.array([], dtype=np.float32)  # ???
+        self.all_fft_data: np.ndarray = np.array([], dtype=np.float32)
         self.time_data: np.ndarray = np.array([], dtype=np.int32)
         self.special_points: np.ndarray = np.empty((5, self.GYRO_NUMBER))
-
-        self.bourder: np.ndarray = np.array([0, 0], dtype=np.uint32)
         self.k_amp = np.ones(self.GYRO_NUMBER, dtype=np.float32)
         self.amp_shift = np.zeros(self.GYRO_NUMBER, dtype=np.float32)
-        self.fs = 0
+        self.bourder: np.ndarray = np.zeros(2, dtype=np.uint32)
         # self.WAIT_TIME_SEC = 1
         # self.WAIT_TIME_SEC = 0.7
         self.WAIT_TIME_SEC = 0.5
+        self.fs = 0
         self.flag_send: bool = True
-        self.num_measurement_rows = 0
+        self.total_time: int = 0
         self.total_cycle_num = 0  # !!!
         self.cycle_count = 1
+        self.num_measurement_rows = 0
+        self.pack_num = 0
+        self.package_num_list: list = [0]
         self.flag_full_measurement_start: bool = False  # лучше все эти флаги загнать в словарь
         self.flag_measurement_start = False
         self.flag_big_processing = False
         self.flag_by_name = False
         self.flag_do_not_save = False
         self.selected_files_to_fft: list[str] = []
-        self.total_time: int = 0
-        self.pack_num = 0
-        self.package_num_list: list = [0]
 
         self.save_file_name = [''] * self.GYRO_NUMBER
         self.POWERS14_4 = np.matrix(
@@ -63,12 +62,12 @@ class SecondThread(QtCore.QThread):
         # print((self.time_data.dtype))
         # print((self.time_data.shape))
         self.pack_len = 18
-        self.points_shown = 20_000
         self.pack_len = 2
         # self.package_len = 4
         # print(get_fft_data(np.array([1, 1, 1, 1, 1, 1, 1, 1, 1]),
         #   np.array([0, 1, 2, 1, 0, -1, -2, -1, 0]), 9))
         self.to_plot = np.array([], dtype=np.float32)  # !
+# -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------
 
     @QtCore.pyqtSlot()
@@ -80,11 +79,9 @@ class SecondThread(QtCore.QThread):
             self.delays = np.array(
                 [int(0.75 * self.WAIT_TIME_SEC * self.fs),
                  int(-0.25 * self.WAIT_TIME_SEC * self.fs)])  # не забыть их учесть в обработке
-            self.cycle_count = 1
+            # self.cycle_count = 1
             self.pack_num = 0
             self.GYRO_NUMBER = 1
-            self.k_amp.resize(self.GYRO_NUMBER)
-            self.k_amp.fill(1)
             self.amp_shift.resize(self.GYRO_NUMBER)
             self.amp_shift.fill(0)
 
@@ -104,21 +101,17 @@ class SecondThread(QtCore.QThread):
 
         if self.flag_measurement_start or self.flag_full_measurement_start:
             # --- init ---
+            self.time_data.resize(
+                10 * self.fs,
+                1 + self.pack_len * self.GYRO_NUMBER, refcheck=False)
             if self.GYRO_NUMBER == 1:  # ! может, здесь утечка?
-                self.time_data.resize(
-                    10 * self.fs,
-                    1 + self.pack_len * self.GYRO_NUMBER, refcheck=False)
                 if self.pack_len == 4:
                     get_ints_from_bytes = self.get_ints_from_bytes14_4
                 else:
                     get_ints_from_bytes = self.get_ints_from_bytes14_2
             if self.GYRO_NUMBER == 3:  # !
-                self.time_data.resize(
-                    10 * self.fs,
-                    1 + self.pack_len * self.GYRO_NUMBER, refcheck=False)
                 get_ints_from_bytes = self.get_ints_from_bytes20_2
-            self.points_shown = 16 * self.fs
-            self.to_plot.resize(self.points_shown,
+            self.to_plot.resize(16 * self.fs,
                                 self.time_data.shape[1])  # !
             self.amp_shift.resize(self.GYRO_NUMBER)
             self.amp_shift.fill(0)
@@ -140,18 +133,9 @@ class SecondThread(QtCore.QThread):
                         get_ints_from_bytes()
                         self.prepare_to_emit()
                     self.data_recieved_event.clear()
-                if self.pack_num > 5 * self.fs:
-                    self.amp_shift = np.mean(self.time_data[:5 * self.fs, 1::self.pack_len], axis=0)
-                else:
-                    self.amp_shift = np.mean(self.time_data[:self.pack_num, 1::self.pack_len], axis=0)
-                self.logger.debug(f"amp_shift = {self.amp_shift}")
-                for i in range(self.GYRO_NUMBER):
-                    if np.equal(self.amp_shift[i], -1):
-                        self.amp_shift[i] = 0  # нет нужды тогда 0 выводить, -1 показательнее
-                        self.warning_signal.emit(f"There is no data from gyro{i+1}!")
+                # --- ---
+                self.check_shift_and_gyro()
                 self.pack_num = 0
-                # можно тут же проверять частоту дискретизации
-                # желательно добавить пункт "не сохранять" на случай ошибки
 
             if self.flag_full_measurement_start:
                 # --- init ---
@@ -192,6 +176,18 @@ class SecondThread(QtCore.QThread):
 # -------------------------------------------------------------------------------------------------
 #
 # -------------------------------------------------------------------------------------------------
+    def check_shift_and_gyro(self):
+        if self.pack_num > 5 * self.fs:
+            self.amp_shift = np.mean(self.time_data[:5 * self.fs, 1::self.pack_len], axis=0)
+        else:
+            self.amp_shift = np.mean(self.time_data[:self.pack_num, 1::self.pack_len], axis=0)
+        self.logger.debug(f"amp_shift = {self.amp_shift}")
+        for i in range(self.GYRO_NUMBER):
+            if np.equal(self.amp_shift[i], -1):
+                self.amp_shift[i] = 0  # нет нужды тогда 0 выводить, -1 показательнее
+                self.warning_signal.emit(f"There is no data from gyro{i+1}!")
+        # можно тут же проверять частоту дискретизации
+        # желательно добавить пункт "не сохранять" на случай ошибки
 
     def prepare_to_emit(self):
         """Normalisate data and send it in main thread"""
@@ -434,7 +430,8 @@ class SecondThread(QtCore.QThread):
             (self.num_measurement_rows, 4 * (self.total_cycle_num + 1),
             self.GYRO_NUMBER), refcheck=False)
         self.all_fft_data.fill(np.nan)
-        delays = np.array([int(self.WAIT_TIME_SEC * self.fs), int(-0.33 * self.WAIT_TIME_SEC * self.fs)])
+        delays = np.array([int(self.WAIT_TIME_SEC * self.fs),
+                           int(-0.33 * self.WAIT_TIME_SEC * self.fs)])
         flag_frame_start = False
         # self.bourder: np.ndarray = np.array([0, 0], dtype=np.uint32)
         self.bourder.fill(0) # можно оставить self, просто обнулять здесь
@@ -504,12 +501,14 @@ class SecondThread(QtCore.QThread):
 # -------------------------------------------------------------------------------------------------
 
     def fft_from_file_median(self, file_list: list):
+        self.k_amp.resize(self.GYRO_NUMBER)
+        self.k_amp.fill(1)
         self.total_cycle_num = len(file_list)
         self.logger.debug(f"total_cycle_num={self.total_cycle_num}")
-        self.cycle_count = 1
         filter_len = int(self.fs * 0.15) * 2 + 1  # filter_len = int(self.fs * 0.1) * 2 + 1
         filter_list = [(np.ones(filter_len) / filter_len * 1.5).astype(np.float32),  # const_filter
                        (custom_g_filter(len=25, k=0.0075) * 1).astype(np.float32)]  # g_filter
+        self.cycle_count = 1
         for file_for_fft in file_list:
             with open(file_for_fft) as f:
                 line_len = len(f.readline().split("\t"))

@@ -17,9 +17,107 @@ from PyQt_ApplicationClass import AppWindow
 class AppWindowTest(AppWindow):
     def __init__(self, parent=None):
         AppWindow.__init__(self, parent, GYRO_NUMBER=3)
+        # print(sys.getsizeof(self))
+
+                # del (self.custom_tab_plot_widget.widget(self.custom_tab_plot_widget.count()-1)
+                # self.custom_tab_plot_widget.time_curves[0].setData([])
+                # for i in range(self.GYRO_NUMBER):
+                #     self.custom_tab_plot_widget.time_curves[i + 1].setData([])
+                #     self.custom_tab_plot_widget.amp_curves[i].setData([])
+                #     self.custom_tab_plot_widget.phase_curves[i].setData([])
+        # # print(sys.getsizeof(self))
+        # sleep(3)
+        # self.new_cycle_event()
+        # self.new_cycle_event()
+        # self.new_cycle_event()
+        # self.new_cycle_event()
+        # self.new_cycle_event()
+        # # # self.custom_tab_plot_widget.append_fft_plot_tab()
+        # # # self.custom_tab_plot_widget.append_fft_plot_tab()
+        # # # self.custom_tab_plot_widget.append_fft_plot_tab()
+        # # # self.custom_tab_plot_widget.append_fft_plot_tab()
+        # # # self.custom_tab_plot_widget.append_fft_plot_tab()
+        # sleep(3)
+        # self.custom_tab_plot_widget.clear_plots()
+        # print(sys.getsizeof(self))
 
     @QtCore.pyqtSlot()
     def measurement_start(self):
+        # self.custom_tab_plot_widget.append_fft_plot_tab()
+        # for i in range(self.GYRO_NUMBER):
+        #     # self.amp_plot_list[-1].getPlotItem().curves[i].setData(freq_data[:, 0, i],
+        #                                 # freq_data[:, 1, i])
+        #     # self.phase_plot_list[-1].getPlotItem().curves[i].setData(freq_data[:, 0, i],
+        #                                 # freq_data[:, 2, i])
+        #     # ind = self.GYRO_NUMBER * (self.count() - 2) + i
+        #     self.custom_tab_plot_widget.amp_curves[-1 - i].setData([3, 6])
+        #     self.custom_tab_plot_widget.phase_curves[-1 - i].setData([7, 9])
+        # print(self.custom_tab_plot_widget.count())
+        # self.custom_tab_plot_widget.setTabVisible(0, False)
+        # self.custom_tab_plot_widget.setTabEnabled(0, False)
+        # self.custom_tab_plot_widget.widget(0).setDisabled(False)
+        # print(self.custom_tab_plot_widget.vis())
+        # return
+        # for i in range(5):
+        #     sleep(1)
+        #     print("")
+        #     print("create")
+        #     print("")
+        #     # self.new_cycle_event()
+        #     # self.new_cycle_event()
+        #     # self.new_cycle_event()
+        #     # self.new_cycle_event()
+        #     # self.new_cycle_event()
+        #     self.custom_tab_plot_widget.append_fft_plot_tab()
+        # for i in range(self.GYRO_NUMBER):
+        #     # self.amp_plot_list[-1].getPlotItem().curves[i].setData(freq_data[:, 0, i],
+        #                                 # freq_data[:, 1, i])
+        #     # self.phase_plot_list[-1].getPlotItem().curves[i].setData(freq_data[:, 0, i],
+        #                                 # freq_data[:, 2, i])
+        #     # ind = self.GYRO_NUMBER * (self.count() - 2) + i
+        #     self.custom_tab_plot_widget.amp_curves[-1 - i].setData([7, 9,7,5,7,5,5,4,77,7,5,7, 9,7,5,7,5,5,4,77,7,5,7, 9,7,5,7,5,5,4,77,7,5,7])
+        #     self.custom_tab_plot_widget.phase_curves[-1 - i].setData([7, 9,7,5,7,5,5,4,77,7,5,7, 9,7,5,7,5,5,4,77,7,5,7, 9,7,5,7,5,5,4,77,7,5,7])
+        #     self.custom_tab_plot_widget.append_fft_plot_tab()
+        # for i in range(self.GYRO_NUMBER):
+        #     # self.amp_plot_list[-1].getPlotItem().curves[i].setData(freq_data[:, 0, i],
+        #                                 # freq_data[:, 1, i])
+        #     # self.phase_plot_list[-1].getPlotItem().curves[i].setData(freq_data[:, 0, i],
+        #                                 # freq_data[:, 2, i])
+        #     # ind = self.GYRO_NUMBER * (self.count() - 2) + i
+        #     self.custom_tab_plot_widget.amp_curves[-1 - i].setData([7, 9,7,5,7,5,5,4,77,7,5,7, 9,7,5,7,5,5,4,77,7,5,7, 9,7,5,7,5,5,4,77,7,5,7])
+        #     self.custom_tab_plot_widget.phase_curves[-1 - i].setData([7, 9,7,5,7,5,5,4,77,7,5,7, 9,7,5,7,5,5,4,77,7,5,7, 9,7,5,7,5,5,4,77,7,5,7])
+        #     # self.custom_tab_plot_widget.append_fft_plot_tab()
+        #     # self.custom_tab_plot_widget.append_fft_plot_tab()
+        #     # self.custom_tab_plot_widget.append_fft_plot_tab()
+        #     # print(sys.getsizeof(self))
+        #     # print(2)
+        #     sleep(1)
+        #     print("")
+        #     print("clear")
+        #     print("")
+        #     # self.custom_tab_plot_widget.clear_plots()
+        #     for _ in range(self.custom_tab_plot_widget.count() - 2):
+        #         for _ in range(self.GYRO_NUMBER):
+        #             # self.amp_curves[-1].clear()
+        #             # self.phase_curves[-1].clear()
+        #             self.custom_tab_plot_widget.amp_curves.pop()
+        #             self.custom_tab_plot_widget.phase_curves.pop()
+        #         print(self.custom_tab_plot_widget.count())
+        #         # print(self.custom_tab_plot_widget.amp_plot_list[-1])
+        #         # print(self.custom_tab_plot_widget.amp_plot_list[-1].parent())
+        #         # print(self.custom_tab_plot_widget.amp_plot_list[-1].parent().parent())
+        #         print(self.custom_tab_plot_widget.widget(self.custom_tab_plot_widget.count()-1))
+        #         # self.custom_tab_plot_widget.amp_plot_list[-1].deleteLater()
+        #         self.custom_tab_plot_widget.amp_plot_list.pop()
+        #         # self.custom_tab_plot_widget.phase_plot_list[-1].deleteLater()
+        #         self.custom_tab_plot_widget.phase_plot_list.pop()
+        #         # self.custom_tab_plot_widget.tab_widget_page_list[-1].deleteLater()
+        #         self.custom_tab_plot_widget.tab_widget_page_list.pop()
+        #         i =self.custom_tab_plot_widget.count()-1
+        #         self.custom_tab_plot_widget.widget(i).deleteLater()
+        #         self.custom_tab_plot_widget.removeTab(i)
+        #         # print(self.custom_tab_plot_widget.tab_widget_page_list)
+        # return
         self.progress_value = 0  # не создавать эту переменную
         self.progress_bar.setValue(0)
         self.package_num_label.setText('0')

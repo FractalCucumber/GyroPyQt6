@@ -406,8 +406,8 @@ class AppWindow(QtWidgets.QMainWindow):
             self.check_box_list[i].stateChanged.connect(
                 self.custom_tab_plot_widget.change_curve_visibility)
         
-        self.show()
         self.custom_tab_plot_widget.create_excel_com_object()  # !
+        self.show()
         self.logger.debug("Программа запущена")
         # os.system(r'start D:/')  # так можно открывать папку
         # print(self.palette().window().color().name())
@@ -962,6 +962,7 @@ class AppWindow(QtWidgets.QMainWindow):
         """Show part of time plot when you select row in table"""
         # возможно, лучше часть этих вычислений делать в функции потока
         if self.processing_thr.isRunning():
+            self.logger.warning("You can see previous results only after stop")
             return False
         if int(self.package_num_label.text()):
             time = 0
@@ -1126,7 +1127,8 @@ class AppWindow(QtWidgets.QMainWindow):
         if not os.path.exists(self.filename_and_path_textedit.toPlainText()):  # text
             # QtCore.QTimer.singleShot(1500, self.check2)
             # можно вместо уведомлений делать серым шрифт, например
-            self.logger.warning("The file path does not exist!")
+            # self.logger.warning("The file path does not exist!")  # !
+            self.logger.debug("The file path does not exist!")  # !
             # доработать, чтобы человек не получал кучу таких уведомлений
             return False
         if len(self.filename_and_path_textedit.toPlainText()):

@@ -350,7 +350,6 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             os.rename(currnt_xlsx_path, currnt_xlsx_path)
             self.logger.debug("File is closed")
             self.warning_signal.emit("Start saving")
-            # excel_com_object = win32.DispatchEx("Excel.Application")  # !!
             excel_com_object = self.excel_com_object  # !
             # excel_com_object.Visible = False
             close_flag = True
@@ -386,8 +385,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.logger.debug("4")
         if close_flag:
             wb.Close()
-            del wb
-            # excel_com_object.Quit()  # !
+            del wb  # excel_com_object.Quit()  # !
         else:
             excel_com_object.Goto(wb.Worksheets(u'Настройка КП').Range("I10:K10"), True)
         self.logger.debug(f"Successfully save in {currnt_xlsx_path}")
@@ -444,7 +442,6 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # self.amp_plot_list[0].ctrl.fftCheck.setChecked(False)
         # менять ограничения для осей
         # менять отображение точек
-        pass
 
     @QtCore.pyqtSlot()
     def groupbox_clicked(self):
@@ -473,17 +470,17 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # self.logger.debug(f"len phase_curves prev {len(self.phase_curves)}")
         for i in range(self.count() - 2):
             for _ in range(self.GYRO_NUMBER):
-                # self.amp_curves[-1].clear()
-                # self.phase_curves[-1].clear()
+                # self.amp_curves[-1].clear()  # self.phase_curves[-1].clear()
                 self.amp_curves.pop()
                 self.phase_curves.pop()
             self.amp_plot_list.pop()
             self.phase_plot_list.pop()
             self.tab_widget_page_list.pop()
-            self.removeTab(2)
-        #         phase_plot_list
-        # self.logger.debug(f"len amp {len(self.amp_curves)}")
-        # self.logger.debug(f"len phase_curves {len(self.phase_curves)}")
+            i = self.count() - 1
+            self.widget(i).deleteLater()  # без этого удаление не работает и случается утечка памяти
+            self.removeTab(i)
+        # так можно убирать вкладку без удаления:
+        # self.custom_tab_plot_widget.setTabVisible(0, False)  
         self.time_curves[0].setData([])
         for i in range(self.GYRO_NUMBER):
             self.time_curves[i + 1].setData([])
@@ -601,7 +598,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         Create new tab and append amplitude and grequency graphs
         """
         # index = 
-        self.tab_widget_page_list.append(QtWidgets.QWidget(self))
+        self.tab_widget_page_list.append(QtWidgets.QWidget())
         layout = QtWidgets.QVBoxLayout(spacing=0)
         self.append_amp_plot()
         # layout.addWidget(self.amp_plot_list[index])
@@ -612,12 +609,6 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.tab_widget_page_list[-1].setLayout(layout)
         self.addTab(
             self.tab_widget_page_list[-1], f"ЧХ &{self.count() - 1}")  # FC
-        i = self.count() - 2
-        for ind in range(1, len(self.visibility_flags)):
-            self.phase_curves[i*self.GYRO_NUMBER - 1 + ind].setVisible(
-                self.visibility_flags[ind])
-            self.amp_curves[i*self.GYRO_NUMBER - 1 + ind].setVisible(
-                self.visibility_flags[ind])        
 
     def append_amp_plot(self):
         amp_plot_item = pg.PlotItem(viewBox=CustomViewBox(),
@@ -636,11 +627,12 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             self.amp_curves.append(amp_plot_item.plot(
                 pen=self.COLOR_LIST[i], name=f"gyro {i + 1}", symbol="o",
                 symbolSize=6, symbolBrush=self.COLOR_LIST[i]))
+            self.amp_curves[-1].setVisible(self.visibility_flags[i+1])  
         self.amp_plot_list.append(pg.PlotWidget(plotItem=amp_plot_item))
         self.amp_plot_list[-1].getAxis('left').setWidth(60)
         self.amp_plot_list[-1].setLimits(
             xMin=-4, xMax=int(self.fs * 0.53), yMin=-0.08, yMax=100)
-
+    
     def append_phase_plot(self):
         phase_plot_item = pg.PlotItem(viewBox=CustomViewBox(),
                                            name=f'phase_plot{self.count()}')
@@ -657,6 +649,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             self.phase_curves.append(phase_plot_item.plot(
                 pen=self.COLOR_LIST[i], name=f"gyro {i + 1}", symbol="o",
                 symbolSize=6, symbolBrush=self.COLOR_LIST[i]))
+            self.phase_curves[-1].setVisible(self.visibility_flags[i+1])  
         self.phase_plot_list.append(
             pg.PlotWidget(plotItem=phase_plot_item))
         self.phase_plot_list[-1].getAxis('left').setWidth(60)
