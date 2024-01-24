@@ -96,8 +96,10 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             # )/100
         # self.time_curves[0].setData(self.x, self.y)
 # ------ Tab widget -----------------------------------------------------------
+
         page = QtWidgets.QWidget(self)
-        layout = QtWidgets.QVBoxLayout()
+        layout = QtWidgets.QVBoxLayout(spacing=0)
+
         layout.addWidget(self.time_plot)
         self.spectrum_button = QtWidgets.QPushButton("От времени")  # Time plot
         layout.addWidget(self.spectrum_button)
@@ -109,6 +111,9 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.amp_curves: list[pg.PlotCurveItem] = []
         self.phase_plot_list: list[pg.PlotWidget] = []
         self.amp_plot_list: list[pg.PlotWidget] = []
+
+        self.bytes_widget = QtWidgets.QTextEdit(visible=False)
+        layout.addWidget(self.bytes_widget)  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 # -----------------------------------------------------------------------------
         self.groupbox = QtWidgets.QGroupBox(
@@ -139,10 +144,10 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.ok_btn.clicked.connect(self.write_xlsx)
 
         self.get_filenames_btn = QtWidgets.QPushButton("АФЧХ для файла")
-        self.get_filenames_btn.setContextMenuPolicy(
-            QtCore.Qt.CustomContextMenu)
-        self.get_filenames_btn.customContextMenuRequested.connect(
-            self.__contextMenu)
+        # self.get_filenames_btn.setContextMenuPolicy(
+            # QtCore.Qt.CustomContextMenu)
+        # self.get_filenames_btn.customContextMenuRequested.connect(
+            # self.__contextMenu)
         self.median_plot_groupbox_layout.addWidget(
             self.get_filenames_btn, 7, 0, 1, 3)
         self.get_filenames_btn.clicked.connect(self.get_filenames_to_fft)
@@ -181,7 +186,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # action.setShortcut("Ctrl+U")
         # action.triggered.connect(self.get_avaliable_com)        
         # menu.addAction(action)
-        menu.addAction('Обновить', self.get_filenames_to_fft)
+        # pass
+        menu.addAction('Посмотреть без сохранения', self.get_filenames_to_fft)
 
     # def action(self):
     #     # отсюда в поток ведь ничего не передать
@@ -222,6 +228,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         """Adds points to median frequency graphs."""
         self.logger.debug(f"Final median plot, sensor: {folder}")
         if np.isnan(freq_data[:, -4, :]).all():
+            self.logger.debug("Only NaN")
             return False
         for i in range(2):
             self.infinite_x_line_list[i].setVisible(True)
@@ -248,6 +255,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.freq_data = temp
         self.amp_plot_list[0].autoRange()
         self.phase_plot_list[0].autoRange()
+        self.logger.debug("Final median plot end")
         # self.mouse_x = None
         # self.mouse_y = None
 
@@ -540,6 +548,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             pyqtgraph.exporters.ImageExporter(
                 self.phase_plot_list[i].getPlotItem()).export(
                     check_name_simple(path + f'_phase_plot_{i + 1}.png'))
+        self.warning_signal.emit("Save plots")
 
     def plot_fft_median(self):
         self.freq_data = np.array([])

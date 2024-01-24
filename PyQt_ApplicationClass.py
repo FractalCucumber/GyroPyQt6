@@ -16,7 +16,8 @@ from PyQt_Functions import get_icon_by_name, get_res_path, natural_keys
 
 # путь к прошивке для 3х гироскопов
 # D:\FromPrevComputer\Vibrostand\ProgramAndLoager\ARM_vibro(VibroStend_16bit)_v1.2_1000_0184_1000Hz\Debug
-# d:/GyroVibroTest/venv3.6/Scripts/Activate.bat
+# d:/GyroVibroTest/venv3.6/Scripts/Activate.bat                
+# C:\users\owner\appdata\local\programs\python\python36\lib\site-packages\PyQt5\Qt5\qml\QtQuick\Controls\Styles\Desktop\GroupBoxStyle.qml
 # git add PyQt_ApplicationClass.py PyQt_CustomWidgets.py PyQt_Thread.py PyQt_Logger.py PyQt_Functions.py
 # pyinstaller PyQt_ApplicationOnefolder.spec
 # pyinstaller PyQt_Application.spec 
@@ -45,6 +46,7 @@ class AppWindow(QtWidgets.QMainWindow):
         # self.time_error = 0
         self.GYRO_NUMBER = GYRO_NUMBER
         # self.GYRO_NUMBER = 3
+        self.MAX_WIGTH_FIRST_COL = 320  # не расширяется
         self.PLOT_TIME_INTERVAL_SEC = 10
         self.PAUSE_INTERVAL_MS = 750
         self.READ_INTERVAL_MS = 100 * 2  #  75 * 2  100 * 2 # 125 * 2
@@ -190,7 +192,7 @@ class AppWindow(QtWidgets.QMainWindow):
         Block with COM port settings and sampling frequency selection
         """
         self.com_param_groupbox = QtWidgets.QGroupBox(
-            'Настройки COM порта', maximumWidth=320)
+            'Настройки COM порта', maximumWidth=self.MAX_WIGTH_FIRST_COL)
         com_param_groupbox_layout = QtWidgets.QGridLayout()
         self.com_param_groupbox.setLayout(com_param_groupbox_layout)
 
@@ -220,7 +222,7 @@ class AppWindow(QtWidgets.QMainWindow):
                                                  0, 1, 1, 1)
 # ------  fs  -----------------------------------------------------
         self.fs_groupbox = QtWidgets.QGroupBox(
-            'Fs, Гц', maximumWidth=160)
+            'Fs, Гц', maximumWidth=self.MAX_WIGTH_FIRST_COL / 2)
         fs_groupbox_layout = QtWidgets.QHBoxLayout()
         self.fs_groupbox.setLayout(fs_groupbox_layout)
         self.fs_combo_box = PyQt_CustomWidgets.CustomComboBox(
@@ -231,7 +233,7 @@ class AppWindow(QtWidgets.QMainWindow):
         fs_groupbox_layout.addWidget(self.fs_combo_box)
 # ------  cycle num  ----------------------------------------------------------
         self.cycle_number_groupbox = QtWidgets.QGroupBox(
-            'Циклы:', maximumWidth=160)
+            'Циклы:', maximumWidth=self.MAX_WIGTH_FIRST_COL / 2)
         self.cycle_number_groupbox_layout = QtWidgets.QHBoxLayout()
         self.cycle_number_groupbox.setLayout(self.cycle_number_groupbox_layout)
 
@@ -245,7 +247,7 @@ class AppWindow(QtWidgets.QMainWindow):
         Block with button to open and edit measurement file
         """
         self.measurements_groupbox = QtWidgets.QGroupBox(
-            'Измерения', maximumWidth=320)
+            'Измерения', maximumWidth=self.MAX_WIGTH_FIRST_COL)
         measurements_groupbox_layout = QtWidgets.QGridLayout()
         self.measurements_groupbox.setLayout(measurements_groupbox_layout)
 
@@ -285,7 +287,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self.choose_path_button_list: list[QtWidgets.QPushButton] = []
 
         self.saving_measurements_groupbox = QtWidgets.QGroupBox(
-            maximumWidth=320) # , minimumHeight=110)
+            maximumWidth=self.MAX_WIGTH_FIRST_COL) # , minimumHeight=110)
         saving_measurements_groupbox_layout = QtWidgets.QGridLayout()
         self.saving_measurements_groupbox.setLayout(
             saving_measurements_groupbox_layout)
@@ -297,7 +299,7 @@ class AppWindow(QtWidgets.QMainWindow):
 # ------ Output logs and data from file ---------------------------------------
 
         self.text_output_groupbox = QtWidgets.QGroupBox(
-            'Содержимое файла', maximumWidth=350, minimumWidth=150)
+            'Содержимое файла', maximumWidth=350, minimumWidth=140)
         text_output_groupbox_layout = QtWidgets.QGridLayout()
         self.text_output_groupbox.setLayout(text_output_groupbox_layout)
 
@@ -328,18 +330,18 @@ class AppWindow(QtWidgets.QMainWindow):
         plot_groupbox_layout = QtWidgets.QGridLayout()
         self.plot_groupbox.setLayout(plot_groupbox_layout)
 
-        self.check_box_list: list[QtWidgets.QCheckBox] = []
-        self.check_box_list.append(
+        self.plot_check_box_list: list[QtWidgets.QCheckBox] = []
+        self.plot_check_box_list.append(
             QtWidgets.QCheckBox("encoder",
                                 objectName="0", checked=True,
                                 icon=get_icon_by_name('white')))
         for i in range(self.GYRO_NUMBER):
-            self.check_box_list.append(
+            self.plot_check_box_list.append(
                 QtWidgets.QCheckBox(
                     f"gyro {i + 1}", objectName=f"{i + 1}", checked=True,
                     icon=get_icon_by_name(self.ICON_COLOR_LIST[i])))
         for i in range(self.GYRO_NUMBER + 1):
-            plot_groupbox_layout.addWidget(self.check_box_list[i],
+            plot_groupbox_layout.addWidget(self.plot_check_box_list[i],
                                                 0, 5 * i, 1, 4)
 
         self.progress_bar = QtWidgets.QProgressBar(
@@ -403,7 +405,7 @@ class AppWindow(QtWidgets.QMainWindow):
             self.saving_result_folder_label_list[i].textChanged.connect(
                 self.folder_chage_event)
         for i in range(self.GYRO_NUMBER + 1):
-            self.check_box_list[i].stateChanged.connect(
+            self.plot_check_box_list[i].stateChanged.connect(
                 self.custom_tab_plot_widget.change_curve_visibility)
         
         self.custom_tab_plot_widget.create_excel_com_object()  # !
@@ -411,7 +413,19 @@ class AppWindow(QtWidgets.QMainWindow):
         self.logger.debug("Программа запущена")
         # os.system(r'start D:/')  # так можно открывать папку
         # print(self.palette().window().color().name())
-        # win32api.ShellExecute()
+        # win32api.ShellExecute()  # вроде так можно проводник открывать
+        # self.shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("Ctrl+E"), self.saving_result_folder_label_list[0])
+        # self.saving_result_folder_label_list[0].menu.setShortcut(QtGui.QKeySequence('Ctrl+O'), self)
+        # self.shortcut.activated.connect(self.on_open)
+        self.open_folder_action = QtWidgets.QAction("Open folder", self)
+        self.open_folder_action.setShortcut(QtGui.QKeySequence('Ctrl+O'))
+        for label in self.saving_result_folder_label_list:
+            label.addAction(self.open_folder_action)
+            # print(self.open_folder_action.parent())
+        # self.open_folder_actionsetShortcut = QtWidgets.QShortcut(QtGui.QKeySequence('Ctrl+O'), self.saving_result_folder_label_list[0])
+        # self.open_folder_actionsetShortcut.activated.connect(self.open_folder)
+        # self.open_folder_action.triggered.connect(self.on_open) 
+        self.open_folder_action.triggered.connect(self.open_folder) 
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
 #
@@ -438,6 +452,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self.custom_tab_plot_widget.GYRO_NUMBER = 3
         # self.
 
+    @QtCore.pyqtSlot()
     def __contextMenu(self):
         self._normalMenu = self.com_port_name_combobox.lineEdit().createStandardContextMenu()
         # self._normalMenu = QtWidgets.QMenu()
@@ -453,13 +468,70 @@ class AppWindow(QtWidgets.QMainWindow):
         # menu.addAction(action)
         menu.addAction('Обновить', self.get_avaliable_com)
 
+    @QtCore.pyqtSlot()
+    def __textEditContextMenu(self):
+        # if not self.sender().isWidgetType == QtWidgets.QTextEdit:
+        _normalMenu = self.sender().createStandardContextMenu()
+        _normalMenu.addSeparator()
+        _normalMenu.addAction(self.open_folder_action)
+        _normalMenu.exec_(QtGui.QCursor.pos())
+
+    @QtCore.pyqtSlot()
+    def open_folder(self):  # не открываются папки с пробелами!
+        self.logger.debug(f"open folder event")
+        # правильнее было бы определить родителя и по нему обратиться к нужному виджету
+        for i in range(len(self.saving_result_folder_label_list)):
+            # if self.saving_result_folder_label_list[i] == self.sender().parent():
+            if self.saving_result_folder_label_list[i].hasFocus() or self.file_name_line_edit_list[i].hasFocus():
+                # print(i)
+                # только если есть галочка создавать папку
+                path_to_sensor = os.path.realpath(
+                    self.saving_result_folder_label_list[i].toPlainText())
+                if self.create_folder_checkbox_list[i].isChecked():
+                    # print(self.create_folder_checkbox_list[i].isChecked())
+                    if os.path.isdir(path_to_sensor + '/' + self.file_name_line_edit_list[i].text()):
+                        path_to_sensor = path_to_sensor + '/' + self.file_name_line_edit_list[i].text()
+                    else:
+                        self.logger.warning("Sensor folder doesn't exist!")
+                # path_to_sensor = path_to_sensor.replace(' ', '\\ ')
+                # print(path_to_sensor)
+                # path_to_sensor = path_to_sensor.replace('\\', '//')
+                # path_to_sensor = path_to_sensor[2:]
+                # print(path_to_sensor)
+                # print(path_to_sensor[2:])
+                # print(repr(path_to_sensor))
+                parent_text = r'start ' + path_to_sensor
+                # parent_text = path_to_sensor
+                # print(parent_text)
+                # print("repr(parent_text)")
+                # print(repr(parent_text))
+                os.system((parent_text))
+                return True
+                # os.system(repr(parent_text))
+                # pypath = sys.executable # "E:\program files\python\python.exe"
+                # cmdline = path_to_sensor
+                # os.system(pypath + ' ' + cmdline)
+                # os.popen('%s %s' % (pypath, cmdline))
+                # os.system(repr(parent_text))
+        self.logger.warning("Select widget")
+        return False
+        # print(self.sender().parent().parent())
+        # path = os.path.realpath(self.sender().parent().parent().toPlainText())
+        # parent_text = r"start " + path
+        # print(parent_text)
+        # # if type
+        # print(self.sender().parent().parent().toPlainText())
+        # print(self.sender().parent())
+        # print(self.sender())
+        # print(self.sender().objectName())
+
     def append_gyro_widgets(self):
         """Append groupbox with widgets for gyroscope."""
         ind = len(self.saving_measurements_groupbox_list)
         self.saving_measurements_groupbox_list.append(QtWidgets.QGroupBox(
             f'Сохранение измерений gyro{ind + 1}',
-            maximumWidth=310, maximumHeight=175,
-            objectName='gyro_save_groupbox'))
+            minimumWidth=self.MAX_WIGTH_FIRST_COL / 1.7,
+            maximumHeight=175, objectName='gyro_save_groupbox'))
         saving_measurements_groupbox_layout = QtWidgets.QGridLayout()
         self.saving_measurements_groupbox_list[-1].setLayout(
             saving_measurements_groupbox_layout)
@@ -471,6 +543,10 @@ class AppWindow(QtWidgets.QMainWindow):
         self.saving_result_folder_label_list.append(QtWidgets.QTextEdit(
             self.folder_name_list[ind],
             objectName="with_bourder"))
+        self.saving_result_folder_label_list[-1].setContextMenuPolicy(
+            QtCore.Qt.CustomContextMenu)
+        self.saving_result_folder_label_list[-1].customContextMenuRequested.connect(
+            self.__textEditContextMenu)
         # self.current_folder_label.setMinimumHeight(20)
         self.saving_result_folder_label_list[-1].setVerticalScrollBarPolicy(
             QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff) 
@@ -478,16 +554,16 @@ class AppWindow(QtWidgets.QMainWindow):
             QtWidgets.QSizePolicy.Policy.Ignored,
             QtWidgets.QSizePolicy.Policy.Ignored)
         saving_measurements_groupbox_layout.addWidget(
-            self.saving_result_folder_label_list[-1], 0, 1, 3, 2)
+            self.saving_result_folder_label_list[-1], 0, 1, 3, 4)
 
         saving_measurements_groupbox_layout.addWidget(
             QtWidgets.QLabel('Имя:'), 3, 0, 1, 1)
         self.file_name_line_edit_list.append(QtWidgets.QLineEdit(f'test{ind + 1}'))
         saving_measurements_groupbox_layout.addWidget(
-            self.file_name_line_edit_list[-1], 3, 1, 1, 2)
+            self.file_name_line_edit_list[-1], 3, 1, 1, 4)
         self.choose_path_button_list.append(QtWidgets.QPushButton(
             # 'Выбрать папку\nсохранения',
-            icon=get_icon_by_name(f'open_folder_{self.ICON_COLOR_LIST[ind]}'))) ##QtGui.QIcon(
+            icon=get_icon_by_name(f'open_folder_{self.ICON_COLOR_LIST[ind]}')))
         saving_measurements_groupbox_layout.addWidget(
             # self.choose_path_button_list[-1], 0, 3, 1, 1)
             self.choose_path_button_list[-1], 4, 0, 1, 2)
@@ -495,8 +571,9 @@ class AppWindow(QtWidgets.QMainWindow):
             QtWidgets.QCheckBox('папка'))
         saving_measurements_groupbox_layout.addWidget(
             # self.create_folder_checkbox_list[-1], 3, 3, 1, 1)  #
-            self.create_folder_checkbox_list[-1], 4, 2, 1, 1)  #
+            self.create_folder_checkbox_list[-1], 4, 3, 1, 2)  #
 
+    @QtCore.pyqtSlot()
     def eventFilter(self, obj, event):
         # print(time())
         if event.type() == QtCore.QEvent.ContextMenu:
@@ -536,6 +613,7 @@ class AppWindow(QtWidgets.QMainWindow):
             return True
         return False
 
+    @QtCore.pyqtSlot()
     def stop_no_save(self):
         self.processing_thr.flag_do_not_save = True
         self.stop()
@@ -558,12 +636,12 @@ class AppWindow(QtWidgets.QMainWindow):
             self.GYRO_NUMBER = 1
             self.processing_thr.GYRO_NUMBER = 1
             self.custom_tab_plot_widget.GYRO_NUMBER = 1
-            for i in range(1, len(self.check_box_list)-1):
+            for i in range(1, len(self.plot_check_box_list)-1):
                 self.file_name_line_edit_list[i].setText('')
                 self.processing_thr.save_file_name[i] = ''
-        for i in range(1, len(self.check_box_list)-1):
+        for i in range(1, len(self.plot_check_box_list)-1):
             self.saving_measurements_groupbox_list[i].setVisible(flag)
-            self.check_box_list[i + 1].setVisible(flag)
+            self.plot_check_box_list[i + 1].setVisible(flag)
             self.custom_tab_plot_widget.groupbox_list[i].setVisible(flag)
         self.serial_port.close()
 ################################################################################################
@@ -647,6 +725,8 @@ class AppWindow(QtWidgets.QMainWindow):
         if not self.serial_port.open(QtCore.QIODevice.OpenModeFlag.ReadWrite):
             self.logger.warning(
                 f"Can't open {self.com_port_name_combobox.currentText()}")
+            QtWidgets.QMessageBox.critical(
+                None, "Error", "Can't open COM port")
             return False
         self.start_all_button.setDisabled(True)
         # надо понять, можно ли 2 раза нажать на старт
@@ -821,11 +901,32 @@ class AppWindow(QtWidgets.QMainWindow):
         self.logger.debug(f"command thr to start, count = {self.count}")
 
     def copy_variables_to_thread(self):
+
         self.processing_thr.rx = self.serial_port.readAll().data()
         self.processing_thr.count_fft_frame = self.count
         self.processing_thr.flag_send = self.flag_send
         # --- в конце выставляем флаг обработки данных ---
         self.processing_thr.data_recieved_event.set()
+
+        # self.timer_recieve.stop()
+        # self.show_bytes_flag = True
+        # if self.show_bytes_flag:
+        #     self.custom_tab_plot_widget.time_plot.setVisible(False)
+        #     self.custom_tab_plot_widget.spectrum_button.setVisible(False)
+        #     self.custom_tab_plot_widget.bytes_widget.setVisible(True)
+        #     if True:
+        #         opt = np.get_printoptions()
+        #         np.set_printoptions(threshold=np.inf)
+        #         # print(self.serial_port.readAll().data())
+        #         self.custom_tab_plot_widget.bytes_widget.insertPlainText(
+        #             str(np.frombuffer(self.processing_thr.rx, dtype=np.uint8)))
+        #         np.set_printoptions(**opt)
+        #         # self.processing_thr.get
+        #     # else:
+        #         # self.custom_tab_plot_widget.bytes_widget.insertPlainText(
+        #             # str(self.serial_port.readAll().data()))
+        #         self.custom_tab_plot_widget.bytes_widget.insertPlainText('\n\n')
+        #     return
 # ------- Timer Send ----------------------------------------------------------
 
     @QtCore.pyqtSlot()
@@ -962,7 +1063,7 @@ class AppWindow(QtWidgets.QMainWindow):
         """Show part of time plot when you select row in table"""
         # возможно, лучше часть этих вычислений делать в функции потока
         if self.processing_thr.isRunning():
-            self.logger.warning("You can see previous results only after stop")
+            # self.logger.warning("You can see previous results only after stop")
             return False
         if int(self.package_num_label.text()):
             time = 0
@@ -983,7 +1084,7 @@ class AppWindow(QtWidgets.QMainWindow):
             if start < 0: 
                 start = 0
             start = int(start)
-            end = start + self.processing_thr.points_shown
+            end = start + self.processing_thr.to_plot.shape[0]
             if end > int(self.package_num_label.text()):
                 end = int(self.package_num_label.text())
             end = int(end)
@@ -1018,10 +1119,12 @@ class AppWindow(QtWidgets.QMainWindow):
     def save_image(self):
         self.logger.debug("Save image")
         for i in range(self.GYRO_NUMBER):
-            if (len(self.processing_thr.save_file_name[i])
-                and self.check_box_list[i].isChecked()):
-                if self.processing_thr.flag_full_measurement_start:  # !
-                    self.make_filename(i)  # !
+            # print(333)
+            # if (len(self.processing_thr.save_file_name[i])
+                # and self.plot_check_box_list[i].isChecked()):
+            if self.plot_check_box_list[i].isChecked():
+                # if self.processing_thr.flag_full_measurement_start:  # !
+                self.make_filename(i)  # !
                 self.custom_tab_plot_widget.save_plot_image(
                     self.processing_thr.save_file_name[i])
         self.logger.debug("Saving complite")

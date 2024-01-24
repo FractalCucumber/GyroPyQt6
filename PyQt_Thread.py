@@ -7,6 +7,17 @@ from pandas import read_csv, DataFrame
 from threading import Event
 from PyQt_Functions import get_fft_data, check_name_simple, custom_g_filter
 # from numba import jit, prange, njit
+CRC8_END_VALUE = 0x17
+CRC8_INIT_VALUE = 0xfa
+CRC8_Table = np.array([
+	0x273a1d00,0x534e6974,0xcfd2f5e8,0xbba6819c,0xeaf7d0cd,0x9e83a4b9,0x021f3825,0x766b4c51,
+	0xa0bd9a87,0xd4c9eef3,0x4855726f,0x3c21061b,0x6d70574a,0x1904233e,0x8598bfa2,0xf1eccbd6,
+	0x34290e13,0x405d7a67,0xdcc1e6fb,0xa8b5928f,0xf9e4c3de,0x8d90b7aa,0x110c2b36,0x65785f42,
+	0xb3ae8994,0xc7dafde0,0x5b46617c,0x2f321508,0x7e634459,0x0a17302d,0x968bacb1,0xe2ffd8c5,
+	0x011c3b26,0x75684f52,0xe9f4d3ce,0x9d80a7ba,0xccd1f6eb,0xb8a5829f,0x24391e03,0x504d6a77,
+	0x869bbca1,0xf2efc8d5,0x6e735449,0x1a07203d,0x4b56716c,0x3f220518,0xa3be9984,0xd7caedf0,
+	0x120f2835,0x667b5c41,0xfae7c0dd,0x8e93b4a9,0xdfc2e5f8,0xabb6918c,0x372a0d10,0x435e7964,
+	0x9588afb2,0xe1fcdbc6,0x7d60475a,0x0914332e,0x5845627f,0x2c31160b,0xb0ad8a97,0xc4d9fee3])
 
 
 class SecondThread(QtCore.QThread):
@@ -63,6 +74,7 @@ class SecondThread(QtCore.QThread):
         # print((self.time_data.shape))
         self.pack_len = 18
         self.pack_len = 2
+        self.recieved_pack_len = 0
         # self.package_len = 4
         # print(get_fft_data(np.array([1, 1, 1, 1, 1, 1, 1, 1, 1]),
         #   np.array([0, 1, 2, 1, 0, -1, -2, -1, 0]), 9))
@@ -72,95 +84,15 @@ class SecondThread(QtCore.QThread):
 
     @QtCore.pyqtSlot()
     def run(self):
+        self.logger.debug("Thread Start")
         temp = self.GYRO_NUMBER
-
+        # --- check file processing flags ---
         if self.flag_big_processing or self.flag_by_name:  # лучше все эти флаги загнать в словарь
-            self.flag_do_not_save = True  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            self.delays = np.array(
-                [int(0.75 * self.WAIT_TIME_SEC * self.fs),
-                 int(-0.25 * self.WAIT_TIME_SEC * self.fs)])  # не забыть их учесть в обработке
-            # self.cycle_count = 1
-            self.pack_num = 0
-            self.GYRO_NUMBER = 1
-            self.amp_shift.resize(self.GYRO_NUMBER)
-            self.amp_shift.fill(0)
-
-            if self.flag_do_not_save and self.flag_big_processing:  # лучше все эти флаги загнать в словарь
-                self.logger.debug("do_not_save")  # добавить создание папки в текущей директории
-                self.get_fft_from_folders(folder=os.getcwd())
-
-            if self.flag_by_name:
-                self.logger.debug("flag_by_name")
-                file = os.path.basename(self.selected_files_to_fft[0])
-                last_str = list(filter(None, re.split("_|_|.txt", file)))
-                name_part = (f'{last_str[0]}_{last_str[1]}_{last_str[2]}'
-                            if len(last_str) >= 3 else file)
-                folder = os.path.dirname(self.selected_files_to_fft[0]) + '/'  # меняем folder для сохранения в ту же папку
-                self.save_file_name[0] = folder + name_part
-                self.fft_from_file_median(self.selected_files_to_fft)
-
+            self.get_fft_from_existing_data()
+        # --- check measurements flags ---
         if self.flag_measurement_start or self.flag_full_measurement_start:
-            # --- init ---
-            self.time_data.resize(
-                10 * self.fs,
-                1 + self.pack_len * self.GYRO_NUMBER, refcheck=False)
-            if self.GYRO_NUMBER == 1:  # ! может, здесь утечка?
-                if self.pack_len == 4:
-                    get_ints_from_bytes = self.get_ints_from_bytes14_4
-                else:
-                    get_ints_from_bytes = self.get_ints_from_bytes14_2
-            if self.GYRO_NUMBER == 3:  # !
-                get_ints_from_bytes = self.get_ints_from_bytes20_2
-            self.to_plot.resize(16 * self.fs,
-                                self.time_data.shape[1])  # !
-            self.amp_shift.resize(self.GYRO_NUMBER)
-            self.amp_shift.fill(0)
-
-            if self.flag_measurement_start:
-                self.to_plot.fill(np.nan)
-                # Когда данные не для сохранения считываются,
-                # то имеет смысл не расширять массив time_data, 
-                # писать в конец (сохранять стоит только то, что нужно выводить на график)
-                # Но пакеты лучше все равно считать
-                self.pack_num = 0
-                self.logger.debug(f"flag_measurement_start {self.flag_measurement_start}")
-                while self.flag_measurement_start:
-                    self.data_recieved_event.wait(1)  # Timeout 1 sec!
-                    if not self.data_recieved_event.is_set():
-                        self.logger.debug("Timeout")
-                        continue
-                    if self.flag_measurement_start:
-                        get_ints_from_bytes()
-                        self.prepare_to_emit()
-                    self.data_recieved_event.clear()
-                # --- ---
-                self.check_shift_and_gyro()
-                self.pack_num = 0
-
-            if self.flag_full_measurement_start:
-                # --- init ---
-                self.to_plot.fill(np.nan)
-                self.logger.debug(f"flag_full_measurement_start {self.flag_full_measurement_start}")
-                self.cycle_count = 1
-                self.pack_num = 0
-                self.k_amp.resize(self.GYRO_NUMBER)
-                self.k_amp.fill(1)
-                self.package_num_list = [0]
-                make_fft_frame_gen = self.make_fft_frame_generator() #####################################################################
-                # --- measurement and fft processing cycle ---
-                while self.flag_full_measurement_start:
-                    self.data_recieved_event.wait(1)  # Timeout 1 sec!
-                    if not self.data_recieved_event.is_set():
-                        self.logger.debug("Timeout")
-                        continue
-                    if self.flag_full_measurement_start:
-                        get_ints_from_bytes()
-                        next(make_fft_frame_gen)
-                        self.prepare_to_emit()
-                        self.logger.debug("end thread cycle\n")
-                    self.data_recieved_event.clear()
-                self.package_num_list.append(self.pack_num)
-        # --- save results ---
+            self.start_measurements()
+        # --- check save flag and save results ---
         self.logger.debug(
             f"Start saving {(not self.flag_by_name and self.pack_num) and not self.flag_do_not_save}")
         if self.pack_num and not self.flag_do_not_save:
@@ -168,11 +100,75 @@ class SecondThread(QtCore.QThread):
         if not self.flag_do_not_save:
             if (not self.flag_by_name and self.pack_num) or self.flag_by_name:
                 self.save_fft()
+                # сохранение результатов не всегда работает из-за сброса флагов; переделать
         self.GYRO_NUMBER = temp
         self.flag_by_name = False
         self.flag_do_not_save = False
-        self.logger.debug("Tread stop")
+        self.logger.debug("Thread stop")
+# -------------------------------------------------------------------------------------------------
 
+    def start_measurements(self):
+        # --- init ---
+        self.time_data.resize(
+            10 * self.fs,
+            1 + self.pack_len * self.GYRO_NUMBER, refcheck=False)
+        if self.GYRO_NUMBER == 1:  # ! может, здесь утечка?
+            if self.pack_len == 4:
+                get_ints_from_bytes = self.get_ints_from_bytes14_4
+            else:
+                get_ints_from_bytes = self.get_ints_from_bytes14_2
+        if self.GYRO_NUMBER == 3:  # !
+            get_ints_from_bytes = self.get_ints_from_bytes20_2
+        # get_ints_from_bytes = self.get_ints_from_bytes14_4_crc8  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        self.to_plot.resize(16 * self.fs,
+                            self.time_data.shape[1])  # !
+        self.amp_shift.resize(self.GYRO_NUMBER)
+        self.amp_shift.fill(0)
+
+        if self.flag_measurement_start:
+            self.to_plot.fill(np.nan)
+            # Когда данные не для сохранения считываются,
+            # то имеет смысл не расширять массив time_data, 
+            # писать в конец (сохранять стоит только то, что нужно выводить на график)
+            # Но пакеты лучше все равно считать
+            self.pack_num = 0
+            self.logger.debug(f"flag_measurement_start {self.flag_measurement_start}")
+            while self.flag_measurement_start:
+                self.data_recieved_event.wait(1)  # Timeout 1 sec!
+                if not self.data_recieved_event.is_set():
+                    self.logger.debug("Timeout")
+                    continue
+                if self.flag_measurement_start:
+                    get_ints_from_bytes()
+                    self.prepare_to_emit()
+                self.data_recieved_event.clear()
+            # --- ---
+            self.check_shift_and_gyro()
+            self.pack_num = 0
+
+        if self.flag_full_measurement_start:
+            # --- init ---
+            self.to_plot.fill(np.nan)
+            self.logger.debug(f"flag_full_measurement_start {self.flag_full_measurement_start}")
+            self.cycle_count = 1
+            self.pack_num = 0
+            self.k_amp.resize(self.GYRO_NUMBER)
+            self.k_amp.fill(1)
+            self.package_num_list = [0]
+            make_fft_frame_gen = self.make_fft_frame_generator() #####################################################################
+            # --- measurement and fft processing cycle ---
+            while self.flag_full_measurement_start:
+                self.data_recieved_event.wait(1)  # Timeout 1 sec!
+                if not self.data_recieved_event.is_set():
+                    self.logger.debug("Timeout")
+                    continue
+                if self.flag_full_measurement_start:
+                    get_ints_from_bytes()
+                    next(make_fft_frame_gen)
+                    self.prepare_to_emit()
+                    self.logger.debug("end thread cycle\n")
+                self.data_recieved_event.clear()
+            self.package_num_list.append(self.pack_num)
 # -------------------------------------------------------------------------------------------------
 #
 # -------------------------------------------------------------------------------------------------
@@ -188,6 +184,7 @@ class SecondThread(QtCore.QThread):
                 self.warning_signal.emit(f"There is no data from gyro{i+1}!")
         # можно тут же проверять частоту дискретизации
         # желательно добавить пункт "не сохранять" на случай ошибки
+# -------------------------------------------------------------------------------------------------
 
     def prepare_to_emit(self):
         """Normalisate data and send it in main thread"""
@@ -220,6 +217,69 @@ class SecondThread(QtCore.QThread):
         self.package_num_signal.emit(self.pack_num, self.to_plot)
         # self.package_num_signal.emit(self.to_plot)
         return True
+# -------------------------------------------------------------------------------------------------
+    def get_ints_from_bytes14_4_crc8(self):
+        bytes_arr = np.frombuffer(self.rx, dtype=np.uint8)
+        start = np.where(
+            # (bytes_arr[:-13] == 0x72) & (bytes_arr[13:] == 0x27))[0] + 1
+            (bytes_arr[:-13] == 0x72))[0] + 1
+        self.logger.info(f"len was: {start.size}")
+        if not start.size:
+            self.warning_signal.emit("Check settings, inncorrect data from COM port!")
+            self.recieved_pack_len = 0
+            return
+        # start = np.insert(start, start.size, start[-1] + 14)
+        # start = start[np.where(np.diff(start) == 14)[0]]
+        # ---
+        iRez=np.full((start.size), CRC8_INIT_VALUE)
+        # ---
+        uiData = bytes_arr[np.add(start, -1)]
+        iIndex = np.bitwise_and(np.bitwise_xor(iRez, np.bitwise_and(uiData, 0xff)), 0xff)
+        iRez = np.right_shift(CRC8_Table[np.right_shift(iIndex, 2)], (8 * (np.bitwise_and(iIndex, 0x03))))
+        for i in range(4):
+            for j in range(3):
+                # array_r[:, i, j] = bytes_arr[np.add(start, 3*i + j)]
+                uiData = bytes_arr[np.add(start, 3*i + j)]
+                iIndex = np.bitwise_and(np.bitwise_xor(iRez, np.bitwise_and(uiData, 0xff)), 0xff)
+                iRez = np.right_shift(CRC8_Table[np.right_shift(iIndex, 2)], (8 * (np.bitwise_and(iIndex, 0x03))))
+        # ---
+        # opt = np.get_printoptions()
+        # np.set_printoptions(threshold=np.inf)
+        # print("""\nlast\n""")
+        last = np.bitwise_and(np.bitwise_xor(iRez, CRC8_END_VALUE), 0xff)
+        # print("\nstart prev\n")
+        # print(last)
+        # print(start)
+        # print(bytes_arr[start[0]:start[1]])
+        # print("\ndsad)\n")
+        start = start[np.where(np.equal(bytes_arr[start + 12], last) == 1)]
+        # print(start)
+        # print("\ndsad)\n")
+        # np.set_printoptions(**opt)
+        self.recieved_pack_len = start.size
+        # print(self.recieved_pack_len)
+        self.logger.info(f"len real: {self.recieved_pack_len}")
+        array_r = np.zeros((self.recieved_pack_len, 4, 4), dtype=np.uint8)
+        for i in range(4):
+            for j in range(3):
+                array_r[:, i, j] = bytes_arr[np.add(start, 3*i + j)]
+        # ---
+        #for(i=0;i<iSize;i++)
+        #{
+            #iIndex=(iRez^(uiData[i]&0xff))&0xff;
+            #iRez=CRC8_Table[iIndex>>2]>>(8*(iIndex&0x03));
+        #}
+        #return (iRez^CRC8_END_VALUE)&0xff;
+        if self.pack_num + self.recieved_pack_len >= self.time_data.shape[0]:
+            self.time_data.resize(
+                self.time_data.shape[0] + 12 * self.fs, 1 + 4*self.GYRO_NUMBER, refcheck=False)  # !!!!!!!!!!!!!!!!!!!!
+        self.time_data[self.pack_num:self.pack_num + self.recieved_pack_len, 0] = np.arange(
+            self.pack_num, self.pack_num + self.recieved_pack_len)
+        for k in range(self.GYRO_NUMBER):
+            self.time_data[self.pack_num:self.pack_num + self.recieved_pack_len,
+                            (1 + 4*k):(5 + 4*k)] = (
+                                np.einsum("ijk,jk->ij", array_r, self.POWERS14_4) / 256)
+        self.pack_num += self.recieved_pack_len
 
     def get_ints_from_bytes14_4(self):
         self.logger.debug("start matrix processing data frame")
@@ -321,6 +381,8 @@ class SecondThread(QtCore.QThread):
         self.pack_num += self.recieved_pack_len
         self.logger.debug("end matrix processing")
 # -------------------------------------------------------------------------------------------------
+#
+# -------------------------------------------------------------------------------------------------
 
     def save_condition(self, gyro):
         if not len(self.save_file_name[gyro]): # эта проверка одинаковая и для fftб лучше ее вынести отдельно
@@ -408,17 +470,6 @@ class SecondThread(QtCore.QThread):
         self.cycle_count += 1
 # -------------------------------------------------------------------------------------------------
 
-    def fft_median_filter(self, round_flag=True):
-        for i in range(self.all_fft_data.shape[2]):
-            # нужна проверка на то, что все частоты +- совпадают, проще при создании массива проверять
-            for k in range(self.all_fft_data.shape[0]):
-                for j in range(4):
-                    self.all_fft_data[k, j - 4, i] = np.nanmedian(self.all_fft_data[k, j::4, i])
-            if round_flag:
-                self.all_fft_data[:, -4, i] = np.round(self.all_fft_data[:, -4, i], 2)
-                self.all_fft_data[:, -3, i] = np.round(self.all_fft_data[:, -3, i], 4)
-# -------------------------------------------------------------------------------------------------
-
     # def make_fft_frame_generator(self, encoder: np.ndarray, gyro_list: np.ndarray):
     def make_fft_frame_generator(self):  # generator
         # print(make_fft_frame_generator.send(2))
@@ -468,7 +519,17 @@ class SecondThread(QtCore.QThread):
                 else:
                     self.warning_signal.emit("Too small data frame!")
             yield
+# -------------------------------------------------------------------------------------------------
 
+    def fft_median_filter(self, round_flag=True):
+        for i in range(self.all_fft_data.shape[2]):
+            # нужна проверка на то, что все частоты +- совпадают, проще при создании массива проверять
+            for k in range(self.all_fft_data.shape[0]):
+                for j in range(4):
+                    self.all_fft_data[k, j - 4, i] = np.nanmedian(self.all_fft_data[k, j::4, i])
+            if round_flag:
+                self.all_fft_data[:, -4, i] = np.round(self.all_fft_data[:, -4, i], 2)
+                self.all_fft_data[:, -3, i] = np.round(self.all_fft_data[:, -3, i], 4)
 # -------------------------------------------------------------------------------------------------
 
     def get_special_points(self):
@@ -499,6 +560,34 @@ class SecondThread(QtCore.QThread):
                     f_180deg, -1000 * f_180deg / self.special_points[0, j] / 360, i]
                 self.logger.debug(f"special_points = {self.special_points[:, j]}")
 # -------------------------------------------------------------------------------------------------
+#
+# -------------------------------------------------------------------------------------------------
+
+    def get_fft_from_existing_data(self):
+        self.flag_do_not_save = True  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        self.delays = np.array(
+            [int(0.75 * self.WAIT_TIME_SEC * self.fs),
+                int(-0.25 * self.WAIT_TIME_SEC * self.fs)])  # не забыть их учесть в обработке
+        # self.cycle_count = 1
+        self.pack_num = 0
+        self.GYRO_NUMBER = 1
+        self.amp_shift.resize(self.GYRO_NUMBER)
+        self.amp_shift.fill(0)
+
+        if self.flag_do_not_save and self.flag_big_processing:  # лучше все эти флаги загнать в словарь
+            self.logger.debug("do_not_save")  # добавить создание папки в текущей директории
+            self.get_fft_from_folders(folder=os.getcwd())
+
+        if self.flag_by_name:
+            self.logger.debug("flag_by_name")
+            file = os.path.basename(self.selected_files_to_fft[0])
+            last_str = list(filter(None, re.split("_|_|.txt", file)))
+            name_part = (f'{last_str[0]}_{last_str[1]}_{last_str[2]}'
+                        if len(last_str) >= 3 else file)
+            folder = os.path.dirname(self.selected_files_to_fft[0]) + '/'  # меняем folder для сохранения в ту же папку
+            self.save_file_name[0] = folder + name_part
+            self.fft_from_file_median(self.selected_files_to_fft)
+# -------------------------------------------------------------------------------------------------
 
     def fft_from_file_median(self, file_list: list):
         self.k_amp.resize(self.GYRO_NUMBER)
@@ -521,6 +610,12 @@ class SecondThread(QtCore.QThread):
                     continue
             self.fft_for_file(file_for_fft, filter_list)
         self.cycle_count -= 1
+
+        if self.cycle_count:
+            self.fft_median_filter(round_flag=False)
+            self.get_special_points()
+            filename_list_median = [re.split("_", os.path.basename(file_for_fft))[0]]
+            self.median_data_ready_signal.emit(filename_list_median)
 # -------------------------------------------------------------------------------------------------
 
     def fft_for_file(self, filename: str, filter_list: list, threshold: int = 5500):

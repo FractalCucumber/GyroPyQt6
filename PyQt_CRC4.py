@@ -50,7 +50,7 @@ for i in range(4):
 	# print(CRC8_CountBYTE(array_r[:, i, j], len(bytes_arr[np.add(start, 3*i + j)])))
 print(np.bitwise_and(np.bitwise_xor(iRez, CRC8_END_VALUE), 0xff))
 
-
+exit(0)
 def ff():
 	# for i in range(12):
 	i = 0
