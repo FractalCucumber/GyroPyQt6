@@ -1,8 +1,8 @@
 
 
 import numpy as np
-CRC8_END_VALUE = 0x17
-CRC8_INIT_VALUE = 0xfa
+CRC8_END_VALUE = np.uint8(0x17)
+CRC8_INIT_VALUE = np.uint8(0xfa)
 CRC8_Table = np.array([
 	0x273a1d00,0x534e6974,0xcfd2f5e8,0xbba6819c,0xeaf7d0cd,0x9e83a4b9,0x021f3825,0x766b4c51,
 	0xa0bd9a87,0xd4c9eef3,0x4855726f,0x3c21061b,0x6d70574a,0x1904233e,0x8598bfa2,0xf1eccbd6,
@@ -50,6 +50,54 @@ for i in range(4):
 	# print(CRC8_CountBYTE(array_r[:, i, j], len(bytes_arr[np.add(start, 3*i + j)])))
 print(np.bitwise_and(np.bitwise_xor(iRez, CRC8_END_VALUE), 0xff))
 
+
+def get_ints_from_bytes14_4_crc8(self):
+	bytes_arr = np.frombuffer(self.rx, dtype=np.uint8)
+	start = np.where(
+		(bytes_arr[:-13] == 0x72) & (bytes_arr[13:] == 0x27))[0] + 1
+	if not start.size:
+		self.warning_signal.emit("Check settings, inncorrect data from COM port!")
+		self.recieved_pack_len = 0
+		return
+	start = np.insert(start, start.size, start[-1] + 14)
+	start = start[np.where(np.diff(start) == 14)[0]]
+	self.recieved_pack_len = start.size
+	array_r = np.zeros((self.recieved_pack_len, 4, 4), dtype=np.uint8)
+	# ---
+	iRez=np.full((expand), CRC8_INIT_VALUE)
+	# ---
+	uiData = bytes_arr[np.add(start, -1)]
+	iIndex = np.bitwise_and(np.bitwise_xor(iRez, uiData), 0xff)
+	iRez = np.right_shift(CRC8_Table[np.right_shift(iIndex, 2)], (8 * (np.bitwise_and(iIndex, 0x03))))
+	for i in range(4):
+		for j in range(3):
+			array_r[:, i, j] = bytes_arr[np.add(start, 3*i + j)]
+			# ---
+			uiData = bytes_arr[np.add(start, 3*i + j)]
+			iIndex = np.bitwise_and(np.bitwise_xor(iRez, uiData), 0xff)
+			iRez = np.right_shift(CRC8_Table[np.right_shift(iIndex, 2)], (8 * (iIndex % 4)))
+	# ---
+	opt = np.get_printoptions()
+	np.set_printoptions(threshold=np.inf)
+	print(np.bitwise_and(np.bitwise_xor(iRez, CRC8_END_VALUE), 0xff))
+	np.set_printoptions(**opt)
+	# ---
+	#for(i=0;i<iSize;i++)
+	#{
+		#iIndex=(iRez^(uiData[i]&0xff))&0xff;
+		#iRez=CRC8_Table[iIndex>>2]>>(8*(iIndex&0x03));
+	#}
+	#return (iRez^CRC8_END_VALUE)&0xff;
+	if self.pack_num + self.recieved_pack_len >= self.time_data.shape[0]:
+		self.time_data.resize(
+			self.time_data.shape[0] + 12 * self.fs, 1 + 4*self.GYRO_NUMBER, refcheck=False)  # !!!!!!!!!!!!!!!!!!!!
+	self.time_data[self.pack_num:self.pack_num + self.recieved_pack_len, 0] = np.arange(
+		self.pack_num, self.pack_num + self.recieved_pack_len)
+	for k in range(self.GYRO_NUMBER):
+		self.time_data[self.pack_num:self.pack_num + self.recieved_pack_len,
+						(1 + 4*k):(5 + 4*k)] = (
+							np.einsum("ijk,jk->ij", array_r, self.POWERS14_4) / 256)
+	self.pack_num += self.recieved_pack_len
 exit(0)
 def ff():
 	# for i in range(12):

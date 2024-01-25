@@ -119,7 +119,7 @@ class SecondThread(QtCore.QThread):
                 get_ints_from_bytes = self.get_ints_from_bytes14_2
         if self.GYRO_NUMBER == 3:  # !
             get_ints_from_bytes = self.get_ints_from_bytes20_2
-        # get_ints_from_bytes = self.get_ints_from_bytes14_4_crc8  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        get_ints_from_bytes = self.get_ints_from_bytes14_4_crc8  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         self.to_plot.resize(16 * self.fs,
                             self.time_data.shape[1])  # !
         self.amp_shift.resize(self.GYRO_NUMBER)
@@ -218,6 +218,7 @@ class SecondThread(QtCore.QThread):
         # self.package_num_signal.emit(self.to_plot)
         return True
 # -------------------------------------------------------------------------------------------------
+
     def get_ints_from_bytes14_4_crc8(self):
         bytes_arr = np.frombuffer(self.rx, dtype=np.uint8)
         start = np.where(
@@ -228,8 +229,9 @@ class SecondThread(QtCore.QThread):
             self.warning_signal.emit("Check settings, inncorrect data from COM port!")
             self.recieved_pack_len = 0
             return
-        # start = np.insert(start, start.size, start[-1] + 14)
-        # start = start[np.where(np.diff(start) == 14)[0]]
+        start = np.insert(start, start.size, start[-1] + 14)
+        start = start[np.where(np.diff(start) == 14)[0]]
+        self.logger.info(f"len was 2: {start.size}")
         # ---
         iRez=np.full((start.size), CRC8_INIT_VALUE)
         # ---
@@ -737,7 +739,7 @@ class SecondThread(QtCore.QThread):
 
     @staticmethod
     def get_new_bourderS(bourders: np.ndarray, fs: int):
-        """Почему бы не учесть отступы здесь?""" # тогда нужен лишний аргумент - неудобно
+        """Round array of bourders.""" # тогда нужен лишний аргумент - неудобно
         # логично возвращать только одну измененную границу,
         # если bourder[0, :] не изменился, то зачем возвращать?
         # bourder[0] = bourder[1] - ((bourder[1] - bourder[0]) // self.fs) * self.fs
@@ -747,8 +749,7 @@ class SecondThread(QtCore.QThread):
 
     @staticmethod
     def get_new_bourder(bourder: np.ndarray, fs: int):
-        """Почему бы не учесть отступы здесь?"""
-        # bourder[0] = bourder[1] - ((bourder[1] - bourder[0]) // self.fs) * self.fs
+        """Round bourders."""
         bourder[1] = bourder[0] + ((bourder[1] - bourder[0]) // fs) * fs
         return (np.array([0, 0]) if (bourder[1] - bourder[0]) < fs else bourder)
 

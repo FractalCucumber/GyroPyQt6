@@ -157,9 +157,23 @@ class AppWindow(QtWidgets.QMainWindow):
         # options_menu.addSeparator()
         # options_menu.addAction(gyro_count_action)
         options_menu.addSeparator()
+
+        self.start_full_measurement_action = QtWidgets.QAction("&Старт", self)
+        self.start_full_measurement_action.setShortcut("Ctrl+Return")
+        self.start_full_measurement_action.triggered.connect(self.full_measurement_start)
+        options_menu.addAction(self.start_full_measurement_action)
+
+        self.stop_action = QtWidgets.QAction('Стоп', self, enabled=False)
+        self.stop_action.setShortcut("Ctrl+Space")
+        self.stop_action.triggered.connect(self.stop)
+        options_menu.addAction(self.stop_action)
+
+        options_menu.addSeparator()
+
         self.measurement_action = QtWidgets.QAction("&Старт без сохранения", self)
         self.measurement_action.triggered.connect(self.measurement_start)
         options_menu.addAction(self.measurement_action)
+
         self.stop_with_no_save_action = QtWidgets.QAction('Стоп без сохранения',
                                                           self, enabled=False)
         self.stop_with_no_save_action.triggered.connect(self.stop_no_save)
@@ -418,7 +432,7 @@ class AppWindow(QtWidgets.QMainWindow):
         # self.saving_result_folder_label_list[0].menu.setShortcut(QtGui.QKeySequence('Ctrl+O'), self)
         # self.shortcut.activated.connect(self.on_open)
         self.open_folder_action = QtWidgets.QAction("Open folder", self)
-        self.open_folder_action.setShortcut(QtGui.QKeySequence('Ctrl+O'))
+        self.open_folder_action.setShortcut('Ctrl+O')
         for label in self.saving_result_folder_label_list:
             label.addAction(self.open_folder_action)
             # print(self.open_folder_action.parent())
@@ -500,6 +514,9 @@ class AppWindow(QtWidgets.QMainWindow):
                 # print(path_to_sensor)
                 # print(path_to_sensor[2:])
                 # print(repr(path_to_sensor))
+                if path_to_sensor.find(' '):
+                    self.logger.warning("Path contain space and cannot be open!")
+                    return False
                 parent_text = r'start ' + path_to_sensor
                 # parent_text = path_to_sensor
                 # print(parent_text)
@@ -513,16 +530,12 @@ class AppWindow(QtWidgets.QMainWindow):
                 # os.system(pypath + ' ' + cmdline)
                 # os.popen('%s %s' % (pypath, cmdline))
                 # os.system(repr(parent_text))
-        self.logger.warning("Select widget")
+        self.logger.warning("Select widget with path")
         return False
         # print(self.sender().parent().parent())
         # path = os.path.realpath(self.sender().parent().parent().toPlainText())
         # parent_text = r"start " + path
-        # print(parent_text)
-        # # if type
         # print(self.sender().parent().parent().toPlainText())
-        # print(self.sender().parent())
-        # print(self.sender())
         # print(self.sender().objectName())
 
     def append_gyro_widgets(self):
@@ -860,7 +873,8 @@ class AppWindow(QtWidgets.QMainWindow):
             # self.processing_thr.data_recieved_event.set()
             # Start timer
             self.start_time = time()
-            self.check_time = time()
+            self.table_widget.selectRow(0)
+            self.check_time = time() - self.table_widget.get_current_T() / 1000
             # self.check_time = time() - 0.75
             # self.flag_send = False
             self.flag_send = True
@@ -951,28 +965,16 @@ class AppWindow(QtWidgets.QMainWindow):
     def send_stop_vibro_command(self):
         """Send command with frequency and amplitude."""
         self.serial_port.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
-
-        # --- time regulator ---
-        self.logger.debug(
-            f"---stop vibro command was send, time: {time() - self.check_time} ") # +
-        # self.table_widget.selectRow(self.count - 1)  # ! ошибку выдает
-        # запретить выбирать строки на таблице
-        self.time_error += 1 * ((time() - self.check_time) * 1000 - \
-            (self.table_widget.get_current_T() + self.PAUSE_INTERVAL_MS))
-        self.check_time = time()
-        if self.time_error > 100 or self.time_error < -100:
-            self.time_error = 100 * self.time_error / abs(self.time_error)
-        # self.logger.debug(
-            # f"time_error: {self.time_error}, {self.PAUSE_INTERVAL_MS - self.time_error}")
-        self.logger.debug(
-            f"time_error: {self.time_error}, {self.PAUSE_INTERVAL_MS - self.time_error}")
+        # self.timer_send_com.setInterval(self.PAUSE_INTERVAL_MS)
         self.timer_send_com.setInterval(self.PAUSE_INTERVAL_MS - self.time_error)
-        # ---  ---
-
-        self.timer_send_com.setInterval(self.PAUSE_INTERVAL_MS)
 
     def send_vibro_command(self):
         """Send command to stop vibration."""
+        # --- time regulator ---
+        self.time_error += 1 * ((time() - self.check_time) * 1000 - \
+            (self.table_widget.get_current_T() + self.PAUSE_INTERVAL_MS))
+        # ---  ---
+
         self.table_widget.selectRow(self.count)
         self.timer_send_com.setInterval(self.table_widget.get_current_T())
         F = int.to_bytes(self.table_widget.get_current_F(),
@@ -984,6 +986,18 @@ class AppWindow(QtWidgets.QMainWindow):
         self.logger.debug(
             f"--- vibro command {self.count} was send, time: {time() - self.check_time}")
         self.count += 1
+
+        # --- time regulator ---
+        self.logger.debug(
+            f"---stop vibro command was send, time: {time() - self.check_time} ") # +
+        # self.time_error += 1 * ((time() - self.check_time) * 1000 - \
+        #     (self.table_widget.get_current_T() + self.PAUSE_INTERVAL_MS))
+        if self.time_error > 100 or self.time_error < -100:
+            self.time_error = 100 * self.time_error / abs(self.time_error)
+        self.logger.debug(
+            f"time_error: {self.time_error}, {self.PAUSE_INTERVAL_MS - 0.5 * self.time_error}")
+        self.check_time = time()
+        # ---  ---
 
 # ----- End cycle, stop, etc --------------------------------------------------
     def new_cycle_event(self):
@@ -1017,9 +1031,9 @@ class AppWindow(QtWidgets.QMainWindow):
             self.serial_port.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
             self.logger.debug("COM close? " +
                               str(self.serial_port.waitForBytesWritten(50)))
-            sleep(0.01)
-            self.serial_port.close()
+            sleep(0.05)
             self.logger.warning("End of measurements\n")
+            self.serial_port.close()
             if self.progress_value > 3:
                 check = int(int(self.package_num_label.text()) / self.progress_value)
                 if not (0.95 * self.fs < check < 1.05 * self.fs):
@@ -1119,7 +1133,6 @@ class AppWindow(QtWidgets.QMainWindow):
     def save_image(self):
         self.logger.debug("Save image")
         for i in range(self.GYRO_NUMBER):
-            # print(333)
             # if (len(self.processing_thr.save_file_name[i])
                 # and self.plot_check_box_list[i].isChecked()):
             if self.plot_check_box_list[i].isChecked():
@@ -1152,11 +1165,20 @@ class AppWindow(QtWidgets.QMainWindow):
         self.start_all_button.setDisabled(flag_running)
         self.stop_button.setDisabled(not flag_running)
         self.choose_file.setDisabled(flag_running)
+        self.start_full_measurement_action.setDisabled(flag_running)
+        self.stop_action.setDisabled(not flag_running)
         self.measurement_action.setDisabled(flag_running)
         self.stop_with_no_save_action.setDisabled(not flag_running) 
         self.save_action.setDisabled(flag_running)
         self.com_param_groupbox.setDisabled(flag_running)
         self.fs_groupbox.setDisabled(flag_running)
+        # self.table_widget.horizontalHeader().setSectionsClickable(False)
+        # self.table_widget.verticalHeader().setSectionsClickable(False)
+        # self.table_widget.horizontalHeader().sectionPressed.disconnect()
+        # self.table_widget.itemClicked.disconnect(self.table_widget.selectColumn) 
+        # self.table_widget.itemPressed.disconnect(self.table_widget.selectColumn)
+        # self.table_widget.itemClicked.connect(self.check_table) 
+        # self.table_widget.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
         if self.GYRO_NUMBER == 1:
             self.gyro1_4_action.setDisabled(flag_running)  # !
         # for groupbox in self.saving_measurements_groupbox_list:
@@ -1164,6 +1186,10 @@ class AppWindow(QtWidgets.QMainWindow):
         # saving_measurements_groupbox_list можно редактировать,
         # т.к. путь отправляется в поток перед окончанием цикла
 
+    # def check_table(self):
+    #     if self.processing_thr.flag_full_measurement_start:
+    #         self.table_widget.selectRow(self.count)
+            
     def get_avaliable_com(self):
         """Append avaliable COM ports names to combo box widget."""
         port_name_list = [ports.portName() 
@@ -1303,9 +1329,9 @@ class AppWindow(QtWidgets.QMainWindow):
         try:
             self.logger.warning("Wait Excel to close...")
             self.custom_tab_plot_widget.close_excel_com_object()  # !
-            self.logger.debug("Close COM object")
+            self.logger.debug("Close COM object\n\n\n")
         except Exception as e:
-            self.logger.debug(f"Can't close COM object! {e}")
+            self.logger.debug(f"Can't close COM object! {e}\n\n\n")
 
 # ------ settings --------------------------------------------------------------------
     def save_all_settings(self):

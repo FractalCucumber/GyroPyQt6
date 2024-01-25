@@ -12,7 +12,7 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=['setuptools', 'PyQt5.QtSvg',
-    'PyQt5.QtOpenGL', 'PyQt5.QtTest',
+    'PyQt5.QtOpenGL', 'PyQt5.QtTest', 'PyQt5.Qt5Quick',
     'pyqtgraph.opengl', 'PyQt5.QtOpenGLWidgets',
     'hooks', 'hook', 'flask'],
     win_no_prefer_redirects=False,
@@ -22,23 +22,24 @@ a = Analysis(
 )
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-a.datas += [('res/StyleSheets.css', 'res/StyleSheets.css', 'DATA'),]
-a.datas += [('res/StyleSheets2.css', 'res/StyleSheets2.css', 'DATA'),]
-a.datas += [('res/icon_16.png', 'res/icon_16.png', 'DATA'),]
-a.datas += [('res/icon_24.png', 'res/icon_24.png', 'DATA'),]
-a.datas += [('res/icon_32.png', 'res/icon_32.png', 'DATA'),]
-a.datas += [('res/icon_48.png', 'res/icon_48.png', 'DATA'),]
-a.datas += [('res/icon.ico', 'res/icon.ico', 'DATA'),]
-a.datas += [('res/add.png', 'res/add.png', 'DATA'),]
-a.datas += [('res/edit.png', 'res/edit.png', 'DATA'),]
-a.datas += [('res/open_folder.png', 'res/open_folder.png', 'DATA'),]
-a.datas += [('res/open_folder_blue.png', 'res/open_folder_blue.png', 'DATA'),]
-a.datas += [('res/open_folder_red.png', 'res/open_folder_red.png', 'DATA'),]
-a.datas += [('res/open_folder_green.png', 'res/open_folder_green.png', 'DATA'),]
-a.datas += [('res/red.png', 'res/red.png', 'DATA'),]
-a.datas += [('res/green.png', 'res/green.png', 'DATA'),]
-a.datas += [('res/blue.png', 'res/blue.png', 'DATA')]
-a.datas += [('res/G.png', 'res/G.png', 'DATA')]
+subfolder = 'res/'
+a.datas += [(subfolder + 'StyleSheets.css', subfolder + 'StyleSheets.css', 'DATA'),]
+a.datas += [(subfolder + 'StyleSheets2.css', subfolder + 'StyleSheets2.css', 'DATA'),]
+a.datas += [(subfolder + 'icon_16.png', subfolder + 'icon_16.png', 'DATA'),]
+a.datas += [(subfolder + 'icon_24.png', subfolder + 'icon_24.png', 'DATA'),]
+a.datas += [(subfolder + 'icon_32.png', subfolder + 'icon_32.png', 'DATA'),]
+a.datas += [(subfolder + 'icon_48.png', subfolder + 'icon_48.png', 'DATA'),]
+a.datas += [(subfolder + 'icon.ico', subfolder + 'icon.ico', 'DATA'),]
+a.datas += [(subfolder + 'add.png', subfolder + 'add.png', 'DATA'),]
+a.datas += [(subfolder + 'edit.png', subfolder + 'edit.png', 'DATA'),]
+a.datas += [(subfolder + 'open_folder.png', subfolder + 'open_folder.png', 'DATA'),]
+a.datas += [(subfolder + 'open_folder_blue.png', subfolder + 'open_folder_blue.png', 'DATA'),]
+a.datas += [(subfolder + 'open_folder_red.png', subfolder + 'open_folder_red.png', 'DATA'),]
+a.datas += [(subfolder + 'open_folder_green.png', subfolder + 'open_folder_green.png', 'DATA'),]
+a.datas += [(subfolder + 'red.png', subfolder + 'red.png', 'DATA'),]
+a.datas += [(subfolder + 'green.png', subfolder + 'green.png', 'DATA'),]
+a.datas += [(subfolder + 'blue.png', subfolder + 'blue.png', 'DATA')]
+a.datas += [(subfolder + 'G.png', subfolder + 'G.png', 'DATA')]
 a.datas += [('settings/config.ini', 'PyQt_ConfigDeafault.ini', 'DATA')]
 a.datas += [('settings/projects.json', 'settings/projects.json', 'DATA')]
 
@@ -50,7 +51,7 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name='GyroVibroTest',
-    icon='res/icon.ico',
+    icon=subfolder + 'icon.ico',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -75,4 +76,22 @@ coll = COLLECT(
     name='GyroVibroTest',
 )
 
-# надо удалить лишние dll
+print('Delete useless files')
+import os
+path = os.getcwd() + '/dist' + '/GyroVibroTest/'
+os.mkdir(path + 'logs')
+if os.path.isfile(path + 'opengl32sw.dll'):
+    os.remove(path + 'opengl32sw.dll') 
+if os.path.isfile(path + 'Qt5Network.dll'):
+    os.remove(path + 'Qt5Network.dll')
+if os.path.isfile(path + 'Qt5Quick.dll'):
+    os.remove(path + 'Qt5Quick.dll')
+if os.path.isfile(path + 'Qt5DBus.dll'):
+    os.remove(path + 'Qt5DBus.dll')
+if os.path.isfile(path + 'Qt5Qml.dll'):
+    os.remove(path + 'Qt5Qml.dll')
+if os.path.isfile(path + 'Qt5QmlModels.dll'):
+    os.remove(path + 'Qt5QmlModels.dll')
+if os.path.isfile(path + 'Qt5WebSockets.dll'):
+    os.remove(path + 'Qt5WebSockets.dll')
+print('Finished')

@@ -1,7 +1,7 @@
 import logging
 import sys
 from PyQt5.QtWidgets import QTextEdit
-from PyQt5 import QtCore,QtWidgets, QtGui
+from PyQt5 import QtCore, QtWidgets, QtGui
 
 
 class QTextEditLogger():
@@ -25,10 +25,14 @@ class QTextEditLogger():
         sys.excepthook = handle_exception  # главное
 
         if file_log:
+            from logging.handlers import RotatingFileHandler
             file_formatter = logging.Formatter(
                 ('#%(levelname)-s,\t%(pathname)s:%(lineno)d,\t%(asctime)s, %(message)s'))
-            file_handler = logging.FileHandler('PyQt_VibroGyroTest.log',
-                                               mode='w', encoding="utf-8")
+            # file_handler = logging.FileHandler('PyQt_VibroGyroTest.log',
+                                            #    mode='w', encoding="utf-8")
+            file_handler = RotatingFileHandler(
+                'logs\PyQt_VibroGyroTest.log', mode='w', encoding="utf-8", maxBytes=3_000_000, backupCount=5)
+                # 'PyQt_VibroGyroTest.log', mode='w', encoding="utf-8", maxBytes=5120, backupCount=5)
             file_handler.setLevel(logging.DEBUG)
             file_handler.setFormatter(file_formatter)
             logger.addHandler(file_handler)
