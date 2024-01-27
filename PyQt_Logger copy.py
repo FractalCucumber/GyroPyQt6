@@ -14,8 +14,7 @@ __Version__ = 1.0
 
 class QTextEditLogger():
     def __init__(self, parent, file_log=True, debug_enable=True):
-        super().__init__()
-
+        # super().__init__()
         # def create_logger(path, widget: QTextEdit):
         # logging.disable(logging.INFO) # disable logging for certain level
 
@@ -29,9 +28,8 @@ class QTextEditLogger():
             if issubclass(exc_type, KeyboardInterrupt):
                 sys.__excepthook__(exc_type, exc_value, exc_traceback)
                 return
-            # logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
             self.logger.error('Uncaught exception',
-                         exc_info=(exc_type, exc_value, exc_traceback))
+                              exc_info=(exc_type, exc_value, exc_traceback))
         sys.excepthook = handle_exception  # главное
         # sys.unraisablehook
 
@@ -63,7 +61,8 @@ class QTextEditLogger():
         # fmt = '<br/>>>> <font color="green">%(asctime)s</font> %(message)s'
             # ('>>> %(asctime)s %(message)s\n'), datefmt='%H:%M:%S')
         self.log_window_handler = logging.Handler()
-        self.widget = QTextEdit(parent, readOnly=True, objectName="logger")
+        self.widget = QTextEdit(parent, readOnly=True,
+                                objectName="logger")
         self.log_window_handler.emit = self.record
         self.log_window_handler.setLevel(logging.INFO)
         self.log_window_handler.setFormatter(CustomFormatter())
@@ -73,7 +72,7 @@ class QTextEditLogger():
         # log_window_handler.emit = lambda record: self.widget.insertPlainText(
             # log_window_handler.format(record)
         # )
-    
+
     def record(self, record):
         # print(record.levelno)
         cur = self.widget.textCursor()
@@ -81,7 +80,8 @@ class QTextEditLogger():
         # так пользователь сможет выделять текст,
         # но новые записи не будут перекрывать старые
         self.widget.setTextCursor(cur)
-        self.widget.insertHtml(self.log_window_handler.format(record))
+        self.widget.insertHtml(
+            self.log_window_handler.format(record))
         # self.widget.insertPlainText(self.log_window_handler.format(record))
         self.widget.verticalScrollBar().setValue(
             self.widget.verticalScrollBar().maximum())
@@ -95,13 +95,12 @@ class CustomFormatter():
     def __init__(self):
         # super().__init__()
         self.FORMATS = {
-            logging.DEBUG: '<br/>>>> <font color="white">%(asctime)s</font> %(message)s',
-            logging.INFO: '<br/>>>> <font color="white">%(asctime)s</font> %(message)s',
-            logging.WARNING: '<br/>>>> <font color="green">%(asctime)s</font> %(message)s',
-            logging.ERROR: '<br/>>>> <font color="green">%(asctime)s</font><font color="red"> %(message)s</font>',
-            logging.CRITICAL: '<br/>>>> <font color="green">%(asctime)s</font><font color="red"> %(message)s</font>'
+            logging.DEBUG: '>>> <font color="white">%(asctime)s</font> %(message)s<br />',
+            logging.INFO: '>>> <font color="white">%(asctime)s</font> %(message)s<br />',
+            logging.WARNING: '>>> <font color="green">%(asctime)s</font> %(message)s<br />',
+            logging.ERROR: '>>> <font color="green">%(asctime)s</font><font color="red"> %(message)s</font><br />',
+            logging.CRITICAL: '>>> <font color="green">%(asctime)s</font><font color="red"> %(message)s</font><br />'
         }
-        # self.datefmt = '%H:%M:%S'
 
     def format(self, record):
         log_fmt = self.FORMATS.get(record.levelno)
@@ -109,3 +108,11 @@ class CustomFormatter():
         formatter = logging.Formatter(log_fmt, datefmt = '%H:%M:%S')
         # formatter = logging.Formatter(log_fmt, datefmt = '%H:%M:%S')
         return formatter.format(record)
+
+
+if __name__ == "__main__":
+    import PyQt_ApplicationClass
+    from PyQt5 import QtWidgets
+    app = QtWidgets.QApplication(sys.argv)
+    window = PyQt_ApplicationClass.AppWindow()
+    sys.exit(app.exec())
