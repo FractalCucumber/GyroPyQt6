@@ -39,7 +39,7 @@ a.datas += [(subfolder + 'open_folder_green.png', subfolder + 'open_folder_green
 a.datas += [(subfolder + 'red.png', subfolder + 'red.png', 'DATA'),]
 a.datas += [(subfolder + 'green.png', subfolder + 'green.png', 'DATA'),]
 a.datas += [(subfolder + 'blue.png', subfolder + 'blue.png', 'DATA')]
-a.datas += [(subfolder + 'G.png', subfolder + 'G.png', 'DATA')]
+a.datas += [(subfolder + 'load_icon.png', subfolder + 'load_icon.png', 'DATA')]
 a.datas += [('settings/config.ini', 'PyQt_ConfigDeafault.ini', 'DATA')]
 a.datas += [('settings/projects.json', 'settings/projects.json', 'DATA')]
 

@@ -139,7 +139,7 @@ class AppWindowTest(AppWindow):
                      skiprows=2000))
         # self.get_gyro_count()  # !!!!!!!!!!! #################################################
         self.progress_bar.setMaximum(-1)
-        self.custom_tab_plot_widget.clear_plots()
+        self.tab_plot_widget.clear_plots()
         self.set_avaliable_butttons(flag_running=True)  # disable widgets
 
         self.logger.debug(f"{self.com_port_name_combobox.currentText()} open")
@@ -149,7 +149,7 @@ class AppWindowTest(AppWindow):
         self.timer_recieve.start()
         self.fs = int(self.fs_combo_box.currentText())
         # Copy variables to another classes and start thread
-        self.custom_tab_plot_widget.fs = self.fs
+        self.tab_plot_widget.fs = self.fs
         self.processing_thr.pack_len = 2
         self.processing_thr.fs = self.fs
         self.processing_thr.flag_measurement_start = True
@@ -175,8 +175,8 @@ class AppWindowTest(AppWindow):
         self.set_avaliable_butttons(True)  # disable widgets
         self.logger.debug(f"self.cycle_num = {self.total_cycle_num}")
         self.logger.warning("Start")
-        self.custom_tab_plot_widget.clear_plots()
-        self.custom_tab_plot_widget.append_fft_plot_tab() 
+        self.tab_plot_widget.clear_plots()
+        self.tab_plot_widget.append_fft_plot_tab() 
         from pandas import read_csv, DataFrame
         # filename = 'прежнее/6884_139_6.2_4.txt'
         # filename = 'прежнее/6884_139_6.2_4.txt'
@@ -211,7 +211,7 @@ class AppWindowTest(AppWindow):
         self.timer_send_com.start()
         self.timer_recieve.start()
         self.fs = int(self.fs_combo_box.currentText())
-        self.custom_tab_plot_widget.fs = self.fs
+        self.tab_plot_widget.fs = self.fs
         self.processing_thr.fs = self.fs
         self.processing_thr.flag_full_measurement_start = True
         self.processing_thr.total_time = self.table_widget.total_time * 5 # !!!
@@ -250,9 +250,9 @@ class AppWindowTest(AppWindow):
             for i in range(self.READ_INTERVAL_MS):
                 data += int.to_bytes(0x72, length=1, byteorder='big')
                 for j in range(3):
-                    data += int.to_bytes(int((j+1)*self.time_data_test[package_num + i, 0]),
+                    data += int.to_bytes(int((j+1)*self.time_data_test[package_num + i + 200*j, 0]),
                                         length=3, byteorder='big', signed=True)
-                    data += int.to_bytes(int((j+1)*self.time_data_test[package_num + i, 1]),
+                    data += int.to_bytes(int((j+1)*self.time_data_test[package_num + i + 200*j, 1]),
                                         length=3, byteorder='big', signed=True)
                 data += int.to_bytes(0x27, length=1, byteorder='big')
         self.processing_thr.rx = data
