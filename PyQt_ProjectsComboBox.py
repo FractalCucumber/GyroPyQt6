@@ -6,9 +6,9 @@ from PyQt_Functions import get_icon_by_name, get_res_path
 
 # по идее не влияет на основную программу, так что проблем при открытии во время цикла быть не должно
 class CustomDialog(QtWidgets.QDialog):
-    def __init__(self):
-        super().__init__()
-        STYLE_SHEETS_FILENAME = 'res\StyleSheets2.css'
+    def __init__(self, parent=None):
+        super(CustomDialog, self).__init__(parent)
+        STYLE_SHEETS_FILENAME = 'res\StyleSheetsDialog.css'
         with open(get_res_path(STYLE_SHEETS_FILENAME), "r") as style_sheets:
             self.setStyleSheet(style_sheets.read())
         app_icon = QtGui.QIcon()
@@ -52,9 +52,11 @@ class CustomDialog(QtWidgets.QDialog):
         if os.path.exists(self.path.text()) and len(self.name.text()):
             self.button_box.button(
                 QtWidgets.QDialogButtonBox.Ok).setEnabled(True)
+            self.path.setStyleSheet("color: white;")
         else:
             self.button_box.button(
                 QtWidgets.QDialogButtonBox.Ok).setEnabled(False)
+            self.path.setStyleSheet("color: grey;")
 
     # def closeEvent(self, a0):
 

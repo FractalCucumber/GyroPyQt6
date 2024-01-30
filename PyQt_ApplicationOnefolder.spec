@@ -11,8 +11,8 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['setuptools', 'PyQt5.QtSvg',
-    'PyQt5.QtOpenGL', 'PyQt5.QtTest', 'PyQt5.Qt5Quick',
+    excludes=['setuptools', 'PyQt5.QtSvg', 'PyQt5.Qt5Qml', 'PyQt5.Qt5QmlModels',
+    'PyQt5.QtOpenGL', 'PyQt5.QtTest', 'PyQt5.Qt5Quick', 'PyQt5.Qt5WebSockets',
     'pyqtgraph.opengl', 'PyQt5.QtOpenGLWidgets',
     'hooks', 'hook', 'flask'],
     win_no_prefer_redirects=False,
@@ -24,7 +24,7 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 subfolder = 'res/'
 a.datas += [(subfolder + 'StyleSheets.css', subfolder + 'StyleSheets.css', 'DATA'),]
-a.datas += [(subfolder + 'StyleSheets2.css', subfolder + 'StyleSheets2.css', 'DATA'),]
+a.datas += [(subfolder + 'StyleSheetsDialog.css', subfolder + 'StyleSheetsDialog.css', 'DATA'),]
 a.datas += [(subfolder + 'icon_16.png', subfolder + 'icon_16.png', 'DATA'),]
 a.datas += [(subfolder + 'icon_24.png', subfolder + 'icon_24.png', 'DATA'),]
 a.datas += [(subfolder + 'icon_32.png', subfolder + 'icon_32.png', 'DATA'),]
@@ -76,7 +76,7 @@ coll = COLLECT(
     name='GyroVibroTest',
 )
 
-print('Delete useless files')
+print('\nDelete useless files')
 import os
 path = os.getcwd() + '/dist' + '/GyroVibroTest/'
 os.mkdir(path + 'logs')
@@ -96,4 +96,4 @@ if os.path.isfile(path + 'Qt5WebSockets.dll'):
     os.remove(path + 'Qt5WebSockets.dll')
 if os.path.isfile(path + 'Qt5Svg.dll'):
     os.remove(path + 'Qt5Svg.dll')
-print('Finished')
+print('Finished!')

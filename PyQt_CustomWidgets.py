@@ -216,21 +216,22 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     # @overload
     def plot_time_graph(self, time: np.ndarray,
                         enc_data: np.ndarray, gyro_data: np.ndarray):
+        """Adds points to time curves."""
         self.time_curves[0].setData(time, enc_data)
         for i in range(self.GYRO_NUMBER):
             self.time_curves[i + 1].setData(time, gyro_data[:, i])
 
     def set_fft_data(self, freq_data: np.ndarray, frame: list):
         """Adds points to frequency graphs."""
+        ind = self.GYRO_NUMBER * (self.count() - 2)
         for i in range(self.GYRO_NUMBER):
             # self.amp_plot_list[-1].getPlotItem().curves[i].setData(freq_data[:, 0, i],
                                         # freq_data[:, 1, i])
             # self.phase_plot_list[-1].getPlotItem().curves[i].setData(freq_data[:, 0, i],
                                         # freq_data[:, 2, i])
-            # ind = self.GYRO_NUMBER * (self.count() - 2) + i
-            self.amp_curves[-1 - i].setData(freq_data[:, 0, i],
+            self.amp_curves[ind + i].setData(freq_data[:, 0, i],
                                             freq_data[:, 1, i])
-            self.phase_curves[-1 - i].setData(freq_data[:, 0, i],
+            self.phase_curves[ind + i].setData(freq_data[:, 0, i],
                                               freq_data[:, 2, i])
             #                                np.copy(freq_data[:, 2, i]))
         self.region.setRegion([frame[0]/self.fs, frame[1]/self.fs])
@@ -245,6 +246,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         if np.isnan(freq_data[:, -4, :]).all():
             self.logger.debug("Only NaN in fft")
             return False
+        self.setCurrentIndex(1)
         for i in range(2):
             self.infinite_x_line_list[i].setVisible(True)
         temp = np.empty(
@@ -503,6 +505,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 
     def clear_plots(self):
         self.freq_data = np.array([])  # лучше пустой массив создавать
+        self.point_label.setText('')
         self.region.setRegion([0, 0])
         for i in range(2):
             self.infinite_x_line_list[i].setVisible(False)
@@ -656,7 +659,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.amp_plot_list.append(pg.PlotWidget(plotItem=amp_plot_item))
         self.amp_plot_list[-1].getAxis('left').setWidth(60)
         self.amp_plot_list[-1].setLimits(
-            xMin=-4, xMax=int(self.fs * 0.53), yMin=-0.08)
+            xMin=-4, xMax=int(self.fs * 0.53), yMin=-0.08, yMax=5000)
             # xMin=-4, xMax=int(self.fs * 0.53), yMin=-0.08, yMax=100)
     
     def append_phase_plot(self):
@@ -690,7 +693,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             objectName='small'))
             # checkable=True, objectName='small'))
         self.groupbox_layout = QtWidgets.QGridLayout(spacing=2)
-        self.groupbox_layout.setContentsMargins(5, 5, 5, 5)
+        self.groupbox_layout.setContentsMargins(5, 5, 5, 2)
         # self.groupbox_list[-1].clicked.connect(self.groupbox_clicked)
         # self.median_plot_groupbox_layout.setRowStretch(4, 0)
         self.groupbox_list[-1].setLayout(self.groupbox_layout)
@@ -716,7 +719,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             self.rez_freq_line_edit_list[-1], 1, 1, 1, 2)
 
         sensor_name_label = QtWidgets.QLabel(
-            "номер:", maximumHeight=40)
+            "номер", maximumHeight=40)
         self.groupbox_layout.addWidget(
             sensor_name_label, 2, 0, 1, 1)
         self.sensor_name_line_edit_list.append(QtWidgets.QLineEdit())

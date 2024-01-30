@@ -1,4 +1,5 @@
 import logging
+from logging.handlers import RotatingFileHandler
 import sys
 from PyQt5.QtWidgets import QTextEdit
 from PyQt5 import QtWidgets, QtGui, QtCore
@@ -13,31 +14,25 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 class QTextEditLogger(QTextEdit):
     # def __init__(self, parent, file_log=True, debug_enable=True):
     def __init__(self, parent, file_log=True):
-        super(QTextEditLogger, self).__init__(parent)
+        super(QTextEditLogger, self).__init__(
+            parent,readOnly=True, objectName="logger")
 
         # def create_logger(path, widget: QTextEdit):
         # logging.disable(logging.INFO) # disable logging for certain level
 
         logger = logging.getLogger('main')
-        # if debug_enable:
-        #     logger.setLevel(logging.DEBUG)
-        # else:
-        #     logger.setLevel(logging.INFO)
-
         def handle_exception(exc_type, exc_value, exc_traceback):
             if issubclass(exc_type, KeyboardInterrupt):
                 sys.__excepthook__(exc_type, exc_value, exc_traceback)
                 return
             logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
-        sys.excepthook = handle_exception  # главное
+            # logger.error(f"Uncaught exception {exc_type}, {exc_value}, {exc_traceback}")
+        sys.excepthook = handle_exception
         # sys.unraisablehook
 
         if file_log:
-            from logging.handlers import RotatingFileHandler
             file_formatter = logging.Formatter(
                 ('#%(levelname)-s,\t%(pathname)s:%(lineno)d,\t%(asctime)s, %(message)s'))
-            # file_handler = logging.FileHandler('PyQt_VibroGyroTest.log',
-                                            #    mode='w', encoding="utf-8")
             file_handler = RotatingFileHandler(
                 'logs\PyQt_VibroGyroTest.log', mode='w', encoding="utf-8", maxBytes=2_000_000, backupCount=10)
                 # 'PyQt_VibroGyroTest.log', mode='w', encoding="utf-8", maxBytes=5120, backupCount=5)
@@ -57,15 +52,13 @@ class QTextEditLogger(QTextEdit):
         #                                     'line %(lineno)d: %(message)s'))
         console_handler = logging.StreamHandler(stream=sys.stdout)
         console_handler.setLevel(logging.ERROR)
-        # console_handler.setFormatter(console_formatter)
         logger.addHandler(console_handler)
+        # console_handler.setFormatter(console_formatter)
 
         # log_window_formatter = logging.Formatter(
             # ('>>> %(asctime)s %(message)s\n'), datefmt='%H:%M:%S')
         self.log_window_handler = logging.Handler()
         # self.log_text_edit = QTextEdit(parent, readOnly=True, objectName="logger")
-        self.setObjectName("logger")
-        self.setReadOnly(True)
         # self.widget.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.NoTextInteraction)
         self.log_window_handler.emit = self.insert_text
         # log_window_handler.emit = lambda record: self.widget.insertPlainText(
@@ -89,8 +82,6 @@ class QTextEditLogger(QTextEdit):
     def insert_text(self, record):
         cur = self.textCursor()
         cur.movePosition(QtGui.QTextCursor.End)
-        # так пользователь сможет выделять текст,
-        # но новые записи не будут перекрывать старые
         self.setTextCursor(cur)
         self.insertHtml(
             self.log_window_handler.format(record))
@@ -114,6 +105,8 @@ class QTextEditLogger(QTextEdit):
             logger.setLevel(logging.DEBUG)
         else:
             logger.setLevel(logging.INFO)
+# -------------------------------------------------------------------------------------------------
+
 
 class CustomFormatter():
     """Logging colored formatter"""
@@ -129,10 +122,12 @@ class CustomFormatter():
 
     def format(self, record):
         log_fmt = self.FORMATS.get(record.levelno)
-        # self.fmt = log_fmt
         formatter = logging.Formatter(log_fmt, datefmt = '%H:%M:%S')
-        # formatter = logging.Formatter(log_fmt, datefmt = '%H:%M:%S')
         return formatter.format(record)
+
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
 
 
 if __name__ == "__main__":
