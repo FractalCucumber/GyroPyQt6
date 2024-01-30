@@ -111,7 +111,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 
         page = QtWidgets.QWidget(self)
         layout = QtWidgets.QVBoxLayout(spacing=0)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(5, 10, 5, 10)
 
         layout.addWidget(self.time_plot)
         self.spectrum_button = QtWidgets.QPushButton("От времени")  # Time plot
@@ -130,7 +130,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 
 # -----------------------------------------------------------------------------
         self.groupbox = QtWidgets.QGroupBox(
-            '', maximumWidth=190, minimumWidth=140)
+            '', maximumWidth=180, minimumWidth=120)
         self.median_plot_groupbox_layout = QtWidgets.QGridLayout(spacing=6)
         self.median_plot_groupbox_layout.setContentsMargins(5, 5, 5, 5)
         # self.median_plot_groupbox_layout.setRowStretch(4, 0)
@@ -570,10 +570,10 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     def plot_fft_median(self):
         self.freq_data = np.array([])
         last_tab_layout = QtWidgets.QGridLayout(spacing=0)
-        last_tab_layout.setContentsMargins(10, 10, 10, 10)
+        last_tab_layout.setContentsMargins(5, 10, 5, 10)
         last_tab_layout.addWidget(self.groupbox, 0, 1, 3, 1) 
 
-        self.tab_widget_page_list.append(QtWidgets.QWidget(self, minimumWidth=200))
+        self.tab_widget_page_list.append(QtWidgets.QWidget(self))
         self.append_amp_plot()
         last_tab_layout.addWidget(self.amp_plot_list[0], 0, 0, 1, 1)
         self.point_label = QtWidgets.QLabel()
@@ -627,7 +627,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # index = 
         self.tab_widget_page_list.append(QtWidgets.QWidget())
         layout = QtWidgets.QVBoxLayout(spacing=0)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(5, 10, 5, 10)
         self.append_amp_plot()
         # layout.addWidget(self.amp_plot_list[index])
         layout.addWidget(self.amp_plot_list[-1])
@@ -689,7 +689,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     def append_gyro_groupbox(self):
         ind = len(self.groupbox_list)
         self.groupbox_list.append(QtWidgets.QGroupBox(
-            f'gyro {ind + 1}', maximumWidth=190, minimumWidth=140, maximumHeight=250,
+            f'gyro {ind + 1}', maximumWidth=190, maximumHeight=250,
             objectName='small'))
             # checkable=True, objectName='small'))
         self.groupbox_layout = QtWidgets.QGridLayout(spacing=2)

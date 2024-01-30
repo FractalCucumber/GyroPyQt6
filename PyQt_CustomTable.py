@@ -17,6 +17,7 @@ class CustomTableWidget(QtWidgets.QTableWidget):
             QtWidgets.QHeaderView.ResizeMode.Stretch)
         self.verticalHeader().setSectionResizeMode(
             QtWidgets.QHeaderView.ResizeMode.Stretch)
+        # self.tabKeyNavigation(True)
         self.total_time = 0
 
     def set_table(self, file):

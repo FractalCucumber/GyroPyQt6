@@ -274,9 +274,9 @@ class AppWindow(QtWidgets.QMainWindow):
         Block with button to open and edit measurement file
         """
         self.measurements_groupbox = QtWidgets.QGroupBox(
-            'Измерения', maximumWidth=self.MAX_WIGTH_FIRST_COL)
+            'Измерения', maximumWidth=self.MAX_WIGTH_FIRST_COL) #,objectName='small')
         measurements_groupbox_layout = QtWidgets.QGridLayout()
-        measurements_groupbox_layout.setContentsMargins(5, 5, 5, 5)
+        measurements_groupbox_layout.setContentsMargins(5, 5, 5, 3)
         self.measurements_groupbox.setLayout(measurements_groupbox_layout)
 
         # measurements_groupbox_layout.addWidget(
@@ -295,7 +295,7 @@ class AppWindow(QtWidgets.QMainWindow):
             QtWidgets.QLabel('Путь:'), 0, 0, 3, 1)  # Filepath
 
         self.filename_and_path_textedit = QtWidgets.QTextEdit(
-            objectName="with_bourder")
+            objectName="with_bourder", minimumHeight=22)
         self.filename_and_path_textedit.setTabChangesFocus(True)
         self.filename_and_path_textedit.setVerticalScrollBarPolicy(
             QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff) 
@@ -318,7 +318,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self.saving_measurements_groupbox = QtWidgets.QGroupBox(
             maximumWidth=self.MAX_WIGTH_FIRST_COL)
         saving_measurements_groupbox_layout = QtWidgets.QGridLayout()
-        saving_measurements_groupbox_layout.setContentsMargins(5, 5, 5, 5)
+        saving_measurements_groupbox_layout.setContentsMargins(5, 0, 5, 3)
         self.saving_measurements_groupbox.setLayout(
             saving_measurements_groupbox_layout)
         
@@ -329,9 +329,9 @@ class AppWindow(QtWidgets.QMainWindow):
 # ------ Output logs and data from file ---------------------------------------
 
         self.text_output_groupbox = QtWidgets.QGroupBox(
-            'Содержимое файла', maximumWidth=350, minimumWidth=140)
+            'Содержимое файла', maximumWidth=350, minimumWidth=145)
         text_output_groupbox_layout = QtWidgets.QGridLayout()
-        text_output_groupbox_layout.setContentsMargins(5, 5, 5, 5)
+        text_output_groupbox_layout.setContentsMargins(3, 5, 3, 3)
         self.text_output_groupbox.setLayout(text_output_groupbox_layout)
 
         self.table_widget = PyQt_CustomTable.CustomTableWidget()
@@ -344,7 +344,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self.logs_groupbox = QtWidgets.QGroupBox(
             'Лог', maximumWidth=350)  # Logs
         logs_groupbox_layout = QtWidgets.QVBoxLayout()
-        logs_groupbox_layout.setContentsMargins(5, 5, 5, 5)
+        logs_groupbox_layout.setContentsMargins(3, 5, 3, 5)
         self.logs_groupbox.setLayout(logs_groupbox_layout)
 
         logs_groupbox_layout.addWidget(self.log_text_box)
@@ -359,7 +359,7 @@ class AppWindow(QtWidgets.QMainWindow):
             'Стоп', enabled=False, objectName="stop_button")  # STOP
         self.stop_button.installEventFilter(self)
 # ------ Others ------------------------------------------------------------
-        self.plot_groupbox = QtWidgets.QGroupBox(minimumWidth=160)
+        self.plot_groupbox = QtWidgets.QGroupBox(minimumWidth=180)
         plot_groupbox_layout = QtWidgets.QGridLayout()
         plot_groupbox_layout.setContentsMargins(10, 10, 10, 10)
         self.plot_groupbox.setLayout(plot_groupbox_layout)
@@ -1019,8 +1019,26 @@ class AppWindow(QtWidgets.QMainWindow):
                          length=2, byteorder='little', signed=False)
         A = int.to_bytes(self.table_widget.get_current_A(),
                          length=2, byteorder='little', signed=False)
-        self.serial_port.write(
-            bytes([77, 0, F[0], F[1], A[0], A[1], 0, 0]))
+        # print(np.frombuffer(bytes([77, 0, F[0], F[1], A[0], A[1], 0, 0]), dtype=np.uint8))
+        import subprocess
+        FNULL = open(os.devnull, 'w')    #use this if you want to suppress output to stdout from the subprocess
+        # filename = "C://Users/zinkevichav/source/repos/ConsoleApplication1/x64/Release/ConsoleApplication1"
+        print(FNULL)
+        filename = r'send.exe'
+        print(os.path.isfile(filename))
+        # filename = r'C:\Users\zinkevichav\source\repos\ConsoleApplication1\x64\Release\ConsoleApplication1'
+        args = filename + "1 111"
+        # print(subprocess.call(args, stdout=FNULL, stderr=FNULL, shell=False))
+        self.serial_port.close()
+        sleep(0.01)
+        t = time()
+        # subprocess.call([filename, "SetVel", "1", "100"], stdout=FNULL)
+        subprocess.Popen([filename, "SetVel", "1", "100"], stdout=FNULL)
+        print(time()-t)
+        sleep(0.01)
+        self.serial_port.open(QtCore.QIODevice.OpenModeFlag.ReadWrite)
+        # self.serial_port.write(
+            # bytes([77, 0, F[0], F[1], A[0], A[1], 0, 0]))
         self.logger.debug(
             f"--- vibro command {self.count} was send, time: {time() - self.check_time}")
         self.count += 1
@@ -1280,7 +1298,7 @@ class AppWindow(QtWidgets.QMainWindow):
         if not os.path.exists(self.saving_result_folder_label_list[i].toPlainText()):
             self.saving_result_folder_label_list[i].setStyleSheet("color: grey;")
         else:
-            self.saving_result_folder_label_list[i].setStyleSheet("color: white;")
+            self.saving_result_folder_label_list[i].setStyleSheet("color: #FFFFF1;")
         self.folder_name_list[i] = self.saving_result_folder_label_list[i].toPlainText() + '/'   
 
     @QtCore.pyqtSlot()
@@ -1312,7 +1330,7 @@ class AppWindow(QtWidgets.QMainWindow):
             return False
         if len(self.filename_and_path_textedit.toPlainText()):
             self.file_watcher.removePath(self.filename_path_watcher)
-        self.filename_and_path_textedit.setStyleSheet("color: white;")
+        self.filename_and_path_textedit.setStyleSheet("color: #FFFFF1;")
         self.filename_path_watcher = self.filename_and_path_textedit.toPlainText()  # os.path.basename(filename)
         self.file_watcher.addPath(self.filename_path_watcher)
         return self.get_data_from_file(self.filename_path_watcher)
