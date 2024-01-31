@@ -13,7 +13,7 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 
 class QTextEditLogger(QTextEdit):
     # def __init__(self, parent, file_log=True, debug_enable=True):
-    def __init__(self, parent, file_log=True):
+    def __init__(self, parent=None, file_log=True):
         super(QTextEditLogger, self).__init__(
             parent,readOnly=True, objectName="logger")
 
