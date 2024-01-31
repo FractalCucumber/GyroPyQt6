@@ -19,6 +19,11 @@ class CustomTableWidget(QtWidgets.QTableWidget):
             QtWidgets.QHeaderView.ResizeMode.Stretch)
         # self.tabKeyNavigation(True)
         self.total_time = 0
+        # self.setContentsMargins(0,0,0,0)
+        # self.setViewportMargins(50,50,50,50)
+        # self.setAutoScrollMargin(55)
+        # self.setSpan
+        # self.setAutoScrollMargin(40)
 
     def set_table(self, file):
         self.setRowCount(0)
