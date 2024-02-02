@@ -51,7 +51,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.visibility_flags_list = [True] * (self.GYRO_NUMBER + 1)
         self.LABEL_STYLE = {'color': '#FFF', 'font-size': '16px'}
         self.COLOR_LIST = ['r', 'g', '#006bf7']
-        self.COLOR_LIST2 = ['#FF0000', '#00FF00', '#0000FF'] #'' blue
+        self.COLOR_LIST2 = ['#FF0000', '#00FF00', '#006bf7'] #'' blue
         self.fs = fs
         self.selected_files_to_fft = []
         self.pt = 12
@@ -134,7 +134,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 
 # -----------------------------------------------------------------------------
         self.groupbox = QtWidgets.QGroupBox(
-            '', maximumWidth=180, minimumWidth=112)
+            '', maximumWidth=180, minimumWidth=120)
         median_plot_groupbox_layout = QtWidgets.QGridLayout(spacing=6)
         median_plot_groupbox_layout.setContentsMargins(3, 5, 3, 5)
         # self.median_plot_groupbox_layout.setRowStretch(4, 0)
@@ -222,7 +222,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                         enc_data: np.ndarray, gyro_data: np.ndarray):
         """Adds points to time curves."""
         self.time_curves[0].setData(time, enc_data)
-        for i in range(self.GYRO_NUMBER):
+        for i in range(gyro_data.shape[1]):
             self.time_curves[i + 1].setData(time, gyro_data[:, i])
 
     def set_fft_data(self, freq_data: np.ndarray, frame: list):

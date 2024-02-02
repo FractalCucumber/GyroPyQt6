@@ -36,17 +36,12 @@ class AppWindow(QtWidgets.QMainWindow):
         self.settings = QtCore.QSettings(
             get_res_path('settings/config.ini'), QtCore.QSettings.Format.IniFormat)
         self.settings.setIniCodec("UTF-8")
-        if self.settings.contains("GYRO_NUMBER"):
-            self.GYRO_NUMBER = int(self.settings.value("GYRO_NUMBER"))
-        else:
-            self.GYRO_NUMBER = GYRO_NUMBER
+        self.GYRO_NUMBER = self.get_settings("GYRO_NUMBER", GYRO_NUMBER)
 # ------ Init vars ------------------------------------------------------------
-        self.restart_flag = False
         self.MAX_WIGTH_FIRST_COL = 315  # не расширяется
         self.PLOT_TIME_INTERVAL_SEC = 10
-        # self.PAUSE_INTERVAL_MS = 750
-        self.PAUSE_INTERVAL_MS = 500
-        self.READ_INTERVAL_MS = 75 * 2  #  75 * 2  100 * 2 # 125 * 2
+        self.PAUSE_INTERVAL_MS = self.get_settings("PAUSE_INTERVAL_MS", 500)
+        self.READ_INTERVAL_MS = self.get_settings("READ_INTERVAL_MS", 75 * 2)  #  75 * 2  100 * 2 # 125 * 2
         self.folder_name_list = [''] * self.GYRO_NUMBER  # [os.getcwd() + '/'] 
         self.count: int = 0
         self.progress_value = 0  # убрать?
@@ -59,7 +54,6 @@ class AppWindow(QtWidgets.QMainWindow):
         FILE_LOG_FLAG = True
         # FILE_LOG_FLAG = False
         # DEBUG_ENABLE_FLAG = True
-        # DEBUG_ENABLE_FLAG = False
         # self.PROJECT_FILE_NAME = get_res_path('settings/projects.json')  # get_res_path не нужен по идее
         self.PROJECT_FILE_NAME = 'settings/projects.json'
         LOGGER_NAME = 'main'
@@ -112,7 +106,8 @@ class AppWindow(QtWidgets.QMainWindow):
         self.processing_thr = PyQt_Thread.SecondThread(
             gyro_number=self.GYRO_NUMBER,
             READ_INTERVAL_MS=self.READ_INTERVAL_MS,
-            logger_name=LOGGER_NAME)
+            logger_name=LOGGER_NAME,
+            WAIT_TIME_SEC=self.get_settings("WAIT_TIME_SEC", 0.45))
         self.processing_thr.package_num_signal.connect(self.get_and_show_data_from_thread)
         self.processing_thr.fft_data_signal.connect(self.plot_fft)
         self.processing_thr.median_data_ready_signal.connect(
@@ -121,7 +116,6 @@ class AppWindow(QtWidgets.QMainWindow):
             lambda text: self.logger.info(text))
         self.processing_thr.warning_signal.connect(
             lambda text: self.logger.warning(text))
-        # self.custom_tab_plot_widget.filenames_list_emit.connect(
 # ------ Plots in tab widget --------------------------------------------------
         # долго грузится (0.5 секунды)
         self.tab_plot_widget = PyQt_CustomTabWidget.CustomTabWidget(
@@ -161,17 +155,11 @@ class AppWindow(QtWidgets.QMainWindow):
         # load_ini_action.triggered.connect(self.load_ini)
         # options_menu.addSeparator()
         # options_menu.addAction(load_ini_action)
-
-        # gyro_count_action = QtWidgets.QAction("&Check gyro count", self)
-        # # exit_action.setShortcut("Ctrl+Q")
-        # # exit_action.setStatusTip("Exit application")  # ???
-        # gyro_count_action.triggered.connect(self.get_gyro_count)
-        # options_menu.addSeparator()
-        # options_menu.addAction(gyro_count_action)
         options_menu.addSeparator()
 
         self.start_full_measurement_action = QtWidgets.QAction("&Старт", self)
-        self.start_full_measurement_action.setShortcut("Ctrl+Return")
+        # self.start_full_measurement_action.setShortcut("Ctrl+Return")
+        self.start_full_measurement_action.setShortcuts(["Return", "Ctrl+Return"])
         self.start_full_measurement_action.triggered.connect(self.full_measurement_start)
         options_menu.addAction(self.start_full_measurement_action)
 
@@ -189,7 +177,8 @@ class AppWindow(QtWidgets.QMainWindow):
 
         self.stop_with_no_save_action = QtWidgets.QAction('Стоп без сохранения',
                                                           self, enabled=False)
-        self.stop_with_no_save_action.setShortcut("Ctrl+Space")
+        # self.stop_with_no_save_action.setShortcut("Ctrl+Space")
+        self.stop_with_no_save_action.setShortcuts(["Esc", "Ctrl+Space"])
         self.stop_with_no_save_action.triggered.connect(self.stop_no_save)
         options_menu.addAction(self.stop_with_no_save_action)
         exit_action = QtWidgets.QAction("&Exit", self)
@@ -199,7 +188,6 @@ class AppWindow(QtWidgets.QMainWindow):
         options_menu.addSeparator()
         options_menu.addAction(exit_action)
 
-        # меню будет видно 
         mode_menu = menu_bar.addMenu("&Mode")  # !!!!!!
         self.enable_crc_action = QtWidgets.QAction(
             "CRC8", self, checkable=True)
@@ -212,11 +200,11 @@ class AppWindow(QtWidgets.QMainWindow):
         self.gyro1_4_action = QtWidgets.QAction(
             "Получать все данные по RboxV1", self, checkable=True)
         if self.GYRO_NUMBER == 1:
-            self.gyro1_4_action.triggered.connect(self.gyro1_4)
+            self.gyro1_4_action.triggered.connect(self.gyro_full_data_or_not)
             mode_menu.addAction(self.gyro1_4_action)
 # ------ Com Settings ---------------------------------------------------------
         """
-        Block with COM port settings and sampling frequency selection
+        Block with COM port settings and sampling frequency selection.
         """
         self.com_param_groupbox = QtWidgets.QGroupBox(
             'Настройки COM порта', maximumWidth=self.MAX_WIGTH_FIRST_COL)
@@ -226,7 +214,7 @@ class AppWindow(QtWidgets.QMainWindow):
 
         self.com_port_name_combobox = PyQt_CustomComboBox.CustomComboBox(
             settings=self.settings,
-            settings_name="COM_name_settings",
+            settings_name=f"COM_name_settings{self.GYRO_NUMBER}",
             editable_flag=False, uint_validator_enable=False)
         self.get_avaliable_com()
         self.com_port_name_combobox.get_ind()
@@ -241,7 +229,7 @@ class AppWindow(QtWidgets.QMainWindow):
 
         self.com_boderate_combo_box = PyQt_CustomComboBox.CustomComboBox(
             settings=self.settings,
-            settings_name="COM_speed_settings",
+            settings_name=f"COM_speed_settings{self.GYRO_NUMBER}",
             default_items_list=['921600', '115200', '0'])
         # com_param_groupbox_layout.addWidget(QtWidgets.QLabel('Скорость:'),
                                                 #  1, 0, 1, 1)  # Speed
@@ -255,7 +243,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self.fs_groupbox.setLayout(fs_groupbox_layout)
         self.fs_combo_box = PyQt_CustomComboBox.CustomComboBox(
             settings=self.settings,
-            settings_name="fs_settings",
+            settings_name=f"fs_settings{self.GYRO_NUMBER}",
             default_items_list=['741', '1000', '2000'])
         self.fs = int(self.fs_combo_box.currentText())
         fs_groupbox_layout.addWidget(self.fs_combo_box)
@@ -295,7 +283,6 @@ class AppWindow(QtWidgets.QMainWindow):
 
         measurements_groupbox_layout.addWidget(
             QtWidgets.QLabel('Путь:'), 0, 0, 3, 1)  # Filepath
-
         self.filename_and_path_textedit = QtWidgets.QTextEdit(
             objectName="with_bourder", minimumHeight=22)
         self.filename_and_path_textedit.setTabChangesFocus(True)
@@ -308,7 +295,6 @@ class AppWindow(QtWidgets.QMainWindow):
             self.filename_and_path_textedit, 0, 1, 3, 3)
         # measurements_groupbox_layout.setSizeConstraint(
         # QtWidgets.QLayout.SizeConstraint.SetNoConstraint)
-
 # ------ Saving results -------------------------------------------------------
       
         self.saving_measurements_groupbox_list: list[QtWidgets.QGroupBox] = []
@@ -465,7 +451,7 @@ class AppWindow(QtWidgets.QMainWindow):
 # ----------------------------------------------------------------------------------------------
 #
         
-    def gyro1_4(self):
+    def gyro_full_data_or_not(self):
         self.processing_thr.pack_len = (4 if self.gyro1_4_action.isChecked() else 2)  # !
         if self.processing_thr.pack_len == 2 and self.GYRO_NUMBER == 1:
             self.enable_crc_action.setChecked(False)
@@ -485,19 +471,18 @@ class AppWindow(QtWidgets.QMainWindow):
             self.enable_crc_action.setChecked(False)
         self.processing_thr.crc_flag = self.enable_crc_action.isChecked()
 
+    @QtCore.pyqtSlot()
     def change_gyro_num(self):
         msg = QtWidgets.QMessageBox(parent=self, text="Перезапустить программу?")
         msg.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
         if msg.exec() == msg.Ok:
-            self.save_settings()
-            self.GYRO_NUMBER = (3 if self.GYRO_NUMBER == 1 else 1)  # !
-            self.settings.setValue("GYRO_NUMBER", self.GYRO_NUMBER)
-            self.restart()
-
-    def restart(self):
-        QtCore.QCoreApplication.quit()
-        status = QtCore.QProcess.startDetached(sys.executable, sys.argv)
-        self.logger.debug(status)
+            # self.save_settings()
+            # QtCore.QCoreApplication.quit()
+            # self.restart()
+            self.settings.setValue("GYRO_NUMBER", (3 if self.GYRO_NUMBER == 1 else 1))
+            self.close()
+            status = QtCore.QProcess.startDetached(sys.executable, sys.argv)
+            self.logger.debug(status)
 
     @QtCore.pyqtSlot()
     def __contextMenu(self):
@@ -697,6 +682,8 @@ class AppWindow(QtWidgets.QMainWindow):
 # ----------------------------------------------------------------------------------------------
 #
 ################################################################################################
+
+    @QtCore.pyqtSlot()
     def save_results(self):
         if self.processing_thr.isRunning():
             self.logger.warning("Thread still work")
@@ -752,11 +739,11 @@ class AppWindow(QtWidgets.QMainWindow):
         # Check COM port
         self.logger.debug(F"\nPORT: {self.com_port_name_combobox.currentText()}\n")
         if not len(self.com_port_name_combobox.currentText()):
-            self.get_avaliable_com()
-            self.logger.warning(
-                "Can't find avaliable COM port")
+            # self.logger.warning(
+                # "Can't find avaliable COM port")
             QtWidgets.QMessageBox.critical(
                 self, "Error", "Can't find avaliable COM port")
+            self.get_avaliable_com()
             return False
         self.serial_port.setBaudRate(
             int(self.com_boderate_combo_box.currentText()))
@@ -835,11 +822,9 @@ class AppWindow(QtWidgets.QMainWindow):
         # Check COM port
         self.logger.debug(F"PORT: {self.com_port_name_combobox.currentText()}\n")
         if not len(self.com_port_name_combobox.currentText()):
-            self.get_avaliable_com()
-            self.logger.debug(
-                f"PORT: {(self.com_port_name_combobox.currentText())}\n")
             QtWidgets.QMessageBox.critical(
-                None, "Error", "Can't find COM port!")
+                self, "Error", "Can't find COM port!")
+            self.get_avaliable_com()
             return False
         self.serial_port.setBaudRate(
             int(self.com_boderate_combo_box.currentText()))
@@ -917,7 +902,9 @@ class AppWindow(QtWidgets.QMainWindow):
             self.flag_send = True
             # self.timer_event_send_com()
             self.timer_send_com.setInterval(self.PAUSE_INTERVAL_MS)
+            # print(f"timer_event_send_com {self.timer_send_com.interval()}") # +
             self.timer_send_com.start()
+            # print(f"timer_event_send_com {self.timer_send_com.interval()}") # +
             self.logger.debug('start full measurements')
             # self.logger.warning(f"Shift: {self.processing_thr.amp_shift}")
 # ------ Timer Recieve --------------------------------------------------------
@@ -987,7 +974,7 @@ class AppWindow(QtWidgets.QMainWindow):
         if self.flag_send:
             if self.count >= self.table_widget.rowCount():
                 self.logger.debug(
-                    f"end cycle = {self.count}")
+                    f"end cycle = {self.current_cylce}")
                 if self.current_cylce < self.total_cycle_num:
                     self.new_cycle_event()
                     self.send_stop_vibro_command()
@@ -999,6 +986,7 @@ class AppWindow(QtWidgets.QMainWindow):
             self.send_stop_vibro_command()
         self.flag_send = not self.flag_send
         self.processing_thr.flag_send = self.flag_send  # так все-таки лучше 
+        self.processing_thr.data_recieved_event.set()
         # self.check_time = time()
 
     def send_stop_vibro_command(self):
@@ -1010,6 +998,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self.timer_send_com.setInterval(self.PAUSE_INTERVAL_MS - control)
         self.serial_port.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
         # self.timer_send_com.setInterval(self.PAUSE_INTERVAL_MS)
+        self.logger.debug("---stop vibro command was send") # +
 
     def send_vibro_command(self):
         """Send command to stop vibration."""
@@ -1044,12 +1033,10 @@ class AppWindow(QtWidgets.QMainWindow):
         self.count += 1
 
         # --- time regulator ---
-        self.logger.debug(
-            f"---stop vibro command was send, time: {time() - self.check_time} ") # +
         # self.time_error += 1 * ((time() - self.check_time) * 1000 - \
         #     (self.table_widget.get_current_T() + self.PAUSE_INTERVAL_MS))
         self.logger.debug(
-            f"time_error: {self.time_error}, check_time: {self.check_time}")
+            f"time_error: {self.time_error}")
         self.check_time = time()
         # ---  ---
 
@@ -1096,7 +1083,7 @@ class AppWindow(QtWidgets.QMainWindow):
                 check = int(int(self.package_num_label.text()) / self.progress_value)
                 if not (0.95 * self.fs < check < 1.05 * self.fs):
                     QtWidgets.QMessageBox.critical(
-                        None, "Warning",
+                        self, "Warning",
                         f"You set fs = {self.fs} Hz," +
                         f"but in fact it's close to {check} Hz")
         self.set_avaliable_butttons(False)
@@ -1113,13 +1100,13 @@ class AppWindow(QtWidgets.QMainWindow):
     def get_and_show_data_from_thread(self, package_num_signal, plot_data):
         """Receiving the processed measurement data
             (package num, time data to graph)."""
+        self.logger.debug("start plot")
         self.package_num_label.setText(str(package_num_signal))
         self.progress_value = time() - self.start_time
         self.progress_bar.setValue(int(round(self.progress_value)))
         self.logger.debug(f"real progress_value: {self.progress_value}," +
                           f"thr_stop, count = {self.count}, " +
                           f"package_num = {package_num_signal} ")
-        self.logger.debug("start plot")
         # if self.count == 0:
         #     self.custom_tab_plot_widget.plot_time_graph(
         #         self.processing_thr.to_plot[:, 0],
@@ -1139,27 +1126,24 @@ class AppWindow(QtWidgets.QMainWindow):
             return False
         if int(self.package_num_label.text()):
             time = 0
-            self.logger.debug(self.table_widget.currentRow())
-            self.logger.debug(self.current_cylce)
             # time += self.PAUSE_INTERVAL_MS / 1000
             for i in range(self.table_widget.currentRow()):
                 time += int(self.table_widget.item(i, 2).data(
                     QtCore.Qt.ItemDataRole.EditRole)) + self.PAUSE_INTERVAL_MS / 1000
-            self.logger.debug(time)
+            self.logger.debug(f"{self.table_widget.currentRow()} {self.current_cylce} {time}")
             start = time * self.fs #- self.processing_thr.points_shown / 4
             start += self.processing_thr.package_num_list[-2]
-            self.logger.debug(f"package_num_list: {self.processing_thr.package_num_list}")
-            self.logger.debug(start)
-            if start > int(self.package_num_label.text()):
+            self.logger.debug(f"package_num_list: {self.processing_thr.package_num_list} {start}")
+            if start > int(self.package_num_label.text()) or start > self.processing_thr.time_data.shape[0]:
                 self.logger.warning("Out of range")
                 return False
-            if start < 0: 
-                start = 0
+            # if start < 0:  # start = 0
             start = int(start)
             end = start + self.processing_thr.to_plot.shape[0]
             if end > int(self.package_num_label.text()):
                 end = int(self.package_num_label.text())
-            end = int(end)
+            else:
+                end = int(end)
             self.logger.debug(f"start={start}, end={end}")
             self.tab_plot_widget.plot_time_graph(
                 self.processing_thr.time_data[start:end, 0] / self.fs,
@@ -1182,6 +1166,8 @@ class AppWindow(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot(list)
     def plot_fft_final(self, name: list):
+        self.package_num_label.setText(str(self.processing_thr.pack_num))
+        # здесь число пакетов получать, чтобы можно было прежние записи просматривать
         self.logger.debug(f"Final median plot {name}")
         self.tab_plot_widget.set_fft_median_data(
             self.processing_thr.all_fft_data[:, -4:],
@@ -1268,13 +1254,15 @@ class AppWindow(QtWidgets.QMainWindow):
     def make_filename(self, i: int):
         """Check conditions and create filename and path."""
         # подправить if
-        if not len(self.file_name_line_edit_list[i].text()) or not len(self.folder_name_list[i]): # or not len():
+        if (not len(self.file_name_line_edit_list[i].text()) or
+            not len(self.folder_name_list[i]) or
+            not len(self.saving_result_folder_label_list[i].toPlainText())): # or not len():
             self.processing_thr.save_file_name[i] = ''
-            return
+            return False
         if not os.path.isdir(self.folder_name_list[i]):
             self.processing_thr.save_file_name[i] = ''
             self.logger.warning(f"Path {self.folder_name_list[i]} doesn't exist!")
-            return
+            return False
         if self.create_folder_checkbox_list[i].isChecked():
             folder = re.split("_", self.file_name_line_edit_list[i].text())[0]
             if not os.path.isdir(self.folder_name_list[i] + folder):
@@ -1285,12 +1273,14 @@ class AppWindow(QtWidgets.QMainWindow):
         self.processing_thr.save_file_name[i] = \
             self.folder_name_list[i] + folder + self.file_name_line_edit_list[i].text()
         self.logger.debug(f"name {self.processing_thr.save_file_name[i]}")
+        return True
 
     # @QtCore.pyqtSlot()
     # def directory_changed(self, path):
     #     self.logger.debug(f'Directory Changed: {path}')
     #     print(f'Directory Changed: {path}')
 
+    @QtCore.pyqtSlot()
     def folder_change_event(self):
         for i in range(len(self.saving_result_folder_label_list)):
             if self.sender() == self.saving_result_folder_label_list[i]:
@@ -1322,7 +1312,7 @@ class AppWindow(QtWidgets.QMainWindow):
     @QtCore.pyqtSlot()
     def filename_and_path_text_change(self):
         """Вызывается при изменении пути к файлу измерений."""
-        if not os.path.exists(self.filename_and_path_textedit.toPlainText()):  # text
+        if not os.path.isfile(self.filename_and_path_textedit.toPlainText()):  # text
             # self.logger.debug("The file path does not exist!")  # !
             self.filename_and_path_textedit.setStyleSheet("color: grey;")
             return False
@@ -1396,9 +1386,10 @@ class AppWindow(QtWidgets.QMainWindow):
     def save_settings(self):
         """Check condition and write settings in .ini and .json files."""
         self.tab_plot_widget.projects_combo_box.save_json(self.PROJECT_FILE_NAME)
-        self.settings.setValue("GYRO_NUMBER", self.GYRO_NUMBER)
+        self.settings.setValue(f'GYRO_NUMBER{self.GYRO_NUMBER}',
+                               self.GYRO_NUMBER)
         # --- ---
-        self.settings.setValue("autosave" + str(self.GYRO_NUMBER),
+        self.settings.setValue(f'autosave{self.GYRO_NUMBER}',
                                int(self.settings_autosave_action.isChecked()))
         if self.settings_autosave_action.isChecked():
             self.save_all_settings()
@@ -1408,25 +1399,25 @@ class AppWindow(QtWidgets.QMainWindow):
         self.com_boderate_combo_box.save_all()
         self.fs_combo_box.save_all()
         self.com_port_name_combobox.save_current_text()
-        self.settings.setValue("cycle_num" + str(self.GYRO_NUMBER),
+        self.settings.setValue(f'cycle_num{self.GYRO_NUMBER}',
                                 self.cycle_num_spinbox.value())
-        self.settings.setValue("filename" + str(self.GYRO_NUMBER),
+        self.settings.setValue(f'filename{self.GYRO_NUMBER}',
                                 self.filename_and_path_textedit.toPlainText())
-        self.settings.setValue("current_folders" + str(self.GYRO_NUMBER),
+        self.settings.setValue(f'current_folders{self.GYRO_NUMBER}',
                                self.folder_name_list)
-        self.settings.setValue('create_folder_flag' + str(self.GYRO_NUMBER),
+        self.settings.setValue(f'create_folder_flag{self.GYRO_NUMBER}',
                                [int(checkbox.isChecked()) 
                                 for checkbox in self.create_folder_checkbox_list])
-        self.settings.setValue('enable_debug_in_file' + str(self.GYRO_NUMBER),
+        self.settings.setValue(f'enable_debug_in_file{self.GYRO_NUMBER}',
                                int(self.log_text_box.enable_debug_in_file.isChecked()))
         # лучше сохранять и распаковывать эти настройки в отдельном файле в классе комбобокса
         # или, как максимум, одну функцию оставить
         # self.settings.setValue(self.enable_crc_action
             # 'dict', self.custom_tab_plot_widget.projects_combo_box.projects_dict)
         self.settings.setValue(
-            'dict_curr_project' + str(self.GYRO_NUMBER),
+            f'dict_curr_project{self.GYRO_NUMBER}',
             self.tab_plot_widget.projects_combo_box.currentText())
-        self.settings.setValue('crc_enable' + str(self.GYRO_NUMBER),
+        self.settings.setValue(f'crc_enable{self.GYRO_NUMBER}',
                                int(self.enable_crc_action.isChecked()))
         if self.GYRO_NUMBER == 1:
             self.settings.setValue(
@@ -1434,22 +1425,19 @@ class AppWindow(QtWidgets.QMainWindow):
 
     def load_previous_settings(self, settings: QtCore.QSettings):
         """Get previous settings from .ini and .json files."""
-        if self.settings.contains('enable_debug_in_file' + str(self.GYRO_NUMBER)):
-            self.log_text_box.enable_debug_in_file.setChecked(
-                int(self.settings.value('enable_debug_in_file' + str(self.GYRO_NUMBER))))
-        if self.settings.contains('crc_enable' + str(self.GYRO_NUMBER)):
-            self.enable_crc_action.setChecked(
-                int(self.settings.value('crc_enable' + str(self.GYRO_NUMBER))))
-            self.change_crc_mode()
+        self.log_text_box.enable_debug_in_file.setChecked(
+            self.get_settings("enable_debug_in_file" + str(self.GYRO_NUMBER), True))
+        self.enable_crc_action.setChecked(
+            self.get_settings("crc_enable" + str(self.GYRO_NUMBER),
+                              (False if self.GYRO_NUMBER == 1 else True)))
+        self.settings_autosave_action.setChecked(
+            self.get_settings("autosave" + str(self.GYRO_NUMBER), True))
+        self.cycle_num_spinbox.setValue(
+            self.get_settings("cycle_num" + str(self.GYRO_NUMBER), 1))
+        self.change_crc_mode()
         if self.settings.contains("full_data_flag") and self.GYRO_NUMBER == 1:
             self.gyro1_4_action.setChecked(int(self.settings.value("full_data_flag")))
-            self.gyro1_4()
-        if self.settings.contains("autosave" + str(self.GYRO_NUMBER)):
-            self.settings_autosave_action.setChecked(
-                int(self.settings.value("autosave" + str(self.GYRO_NUMBER))))
-        if settings.contains("cycle_num" + str(self.GYRO_NUMBER)):
-            self.cycle_num_spinbox.setValue(
-                int(settings.value("cycle_num" + str(self.GYRO_NUMBER))))
+            self.gyro_full_data_or_not()
         if settings.contains("filename" + str(self.GYRO_NUMBER)):
             name = settings.value("filename" + str(self.GYRO_NUMBER))
             if os.path.exists(name):
@@ -1472,7 +1460,6 @@ class AppWindow(QtWidgets.QMainWindow):
                         settings.value("current_folders" + str(self.GYRO_NUMBER))[i])
                     self.folder_name_list[i] = settings.value(
                         "current_folders" + str(self.GYRO_NUMBER))[i]
-        # лучше сохранять и распаковывать эти настройки в отдельном файле в классе комбобокса
         # попробовать сохранить в json или вместо словаря использовать dataFrame pandas
         # можно будет добавить пункт открыть исходник, чтобы вручную редактировать
         if not os.path.isfile(self.PROJECT_FILE_NAME):
@@ -1490,6 +1477,13 @@ class AppWindow(QtWidgets.QMainWindow):
                 if self.tab_plot_widget.projects_combo_box.itemText(i) == \
                     self.settings.value('dict_curr_project' + str(self.GYRO_NUMBER)):
                     self.tab_plot_widget.projects_combo_box.setCurrentIndex(i)
+
+    def get_settings(self, name, otherwise_val):
+        """Get settings or set deafault value"""
+        if self.settings.contains(name):
+            return int(self.settings.value(name))
+        else:
+            return otherwise_val
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 #

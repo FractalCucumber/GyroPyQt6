@@ -1,6 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-options = [('O','','OPTION')]
 block_cipher = None
 
 a = Analysis(
@@ -47,7 +46,6 @@ a.datas += [('settings/projects.json', 'settings/projects.json', 'DATA')]
 exe = EXE(
     pyz,
     a.scripts,
-    options,
     [],
     exclude_binaries=True,
     name='GyroVibroTest',
