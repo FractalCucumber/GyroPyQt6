@@ -1,15 +1,21 @@
-from PyQt5 import QtWidgets, QtCore
 import os
+import json
+from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt_Functions import get_icon_by_name, get_res_path
 
 
 # по идее не влияет на основную программу, так что проблем при открытии во время цикла быть не должно
 class CustomDialog(QtWidgets.QDialog):
-    def __init__(self):
-        super().__init__()
-        STYLE_SHEETS_FILENAME = 'res\StyleSheets2.css'
+    def __init__(self, parent=None):
+        super(CustomDialog, self).__init__(parent)
+        STYLE_SHEETS_FILENAME = 'res\StyleSheetsDialog.css'
         with open(get_res_path(STYLE_SHEETS_FILENAME), "r") as style_sheets:
             self.setStyleSheet(style_sheets.read())
+        app_icon = QtGui.QIcon()
+        for i in [16, 24, 32, 48]:
+            app_icon.addFile(
+                get_res_path(f'res\icon_{i}.png'), QtCore.QSize(i, i))
+        self.setWindowIcon(app_icon)
         self.setMaximumSize(500, 175)
         self.setWindowTitle("Окно редактирования проектов")
         self.setWindowFlags(QtCore.Qt.WindowType.CustomizeWindowHint |
@@ -46,9 +52,11 @@ class CustomDialog(QtWidgets.QDialog):
         if os.path.exists(self.path.text()) and len(self.name.text()):
             self.button_box.button(
                 QtWidgets.QDialogButtonBox.Ok).setEnabled(True)
+            self.path.setStyleSheet("color: white;")
         else:
             self.button_box.button(
                 QtWidgets.QDialogButtonBox.Ok).setEnabled(False)
+            self.path.setStyleSheet("color: grey;")
 
     # def closeEvent(self, a0):
 
@@ -114,7 +122,32 @@ class ProjectsComboBox(QtWidgets.QComboBox):
             menu.exec_(event.globalPos())
             return True
         return False
-    
+
+    def save_json(self, PROJECT_FILE_NAME):
+        with open(PROJECT_FILE_NAME, 'w', encoding='utf-8') as f:
+            json.dump(
+                self.projects_dict,
+                f, ensure_ascii=False, indent=4)
+        #     d = {"dict": self.custom_tab_plot_widget.projects_combo_box.projects_dict, "ddd22": False, "2ddd22": "f"}
+        #     json.dump(
+        #         d,
+        #         f, ensure_ascii=False, indent=4)
+
+    def load_json(self, PROJECT_FILE_NAME):
+        with open(PROJECT_FILE_NAME, 'r', encoding='utf-8') as f:
+            self.projects_dict = json.load(f)
+        if self.projects_dict:  # keys сортируются автоматически
+            self.addItems(self.projects_dict.keys())
+            for i in range(self.count()):
+                self.setItemData(
+                    i, self.projects_dict.get(self.itemText(i)),
+                    QtCore.Qt.ItemDataRole.ToolTipRole)    
+# ----------------------------------------------------------------------------------------------
+#
+# ----------------------------------------------------------------------------------------------
+#
+# ----------------------------------------------------------------------------------------------
+
 
 if __name__ == "__main__":
     import sys

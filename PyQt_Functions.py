@@ -96,3 +96,56 @@ def get_fft_data(gyro: np.ndarray, encoder: np.ndarray, fs: int):
     amp = Mg/Me
     #  amp = std(gyro)/std(encoder)% пошуму (метод —урова)
     return [freq, amp, d_phase]
+
+def get_fft_data_median_frame(gyro: np.ndarray, encoder: np.ndarray, fs: int):
+    """
+    Detailed explanation goes here:
+    amp [безразмерная] - соотношение амплитуд воздействия (encoder)
+    и реакции гироскопа(gyro) = gyro/encoder
+    d_phase [degrees] - разница фаз = gyro - encoder
+    freq [Hz] - частота гармоники (воздействия)
+    gyro [degrees/sec] - показания гироскопа во время гармонического воздействия
+    encoder [degrees/sec] - показания энкодера, задающего гармоническое воздействие
+    FS [Hz] - частота дискретизации
+    """
+    freq_list = np.array([0,0,0], dtype=np.float32)
+    amp_list = np.array([0,0,0], dtype=np.float32)
+    phase_list = np.array([0,0,0], dtype=np.float32)
+    for i in range(3):
+        k = int(gyro.size * 0.5 * (2**(-1+i)))
+        # print(k)
+        gyro_ = np.copy(gyro[:k])
+        encoder_ = np.copy(encoder[:k])
+        L = gyro_.size  # длина записи
+        next_power = np.ceil(np.log2(L))  # показатель степени 2 для числа длины записи
+        NFFT = np.int32(np.power(2, next_power))
+        HALF = np.int32(NFFT / 2)
+
+        # Yg = np.fft.fft(gyro, NFFT) / L
+        Yg = (np.fft.rfft(gyro_, NFFT)/L).astype(np.complex64)  # преобразование Фурье сигнала гироскопа
+        # Ye = np.fft.fft(encoder, NFFT) / L
+        Ye = (np.fft.rfft(encoder_, NFFT)/L).astype(np.complex64)  # преобразование Фурье сигнала энкодера
+        f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=True)  # получение вектора частот
+        #  delta_phase = asin(2*np.mean(encoder1.*gyro1)/(np.mean(abs(encoder1))*np.mean(abs(gyro1))*pi^2/4))*180/pi
+        ng = np.argmax(np.abs(Yg[0:HALF]))
+        Mg = 2 * np.abs(Yg[ng])
+        freq = f[ng]  # !  у гироскопопв меньше помехи обычно
+        # если с гироскопа придет постоянное число, то частота будет нулевой
+        # freq = f[ne]  # make sence?
+        # print(f[ng])
+        ne = np.argmax(np.abs(Ye[0:HALF]))
+        Me = 2 * np.abs(Ye[ne])
+        if freq == 0:  # !!!
+            freq = f[ne]
+        # print(f[ne])
+
+        d_phase = np.angle(Yg[ng], deg=True) - np.angle(Ye[ne], deg=True)
+        amp = Mg/Me
+        freq_list[i] = freq
+        amp_list[i] = amp
+        phase_list[i] = d_phase
+    # print("-------------------------------------")
+    # print(freq_list)
+    # print(amp_list)
+    # print(phase_list)
+    return [np.nanmedian(freq_list), np.nanmedian(amp_list), np.nanmedian(phase_list)]

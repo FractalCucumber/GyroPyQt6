@@ -51,7 +51,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.visibility_flags_list = [True] * (self.GYRO_NUMBER + 1)
         self.LABEL_STYLE = {'color': '#FFF', 'font-size': '16px'}
         self.COLOR_LIST = ['r', 'g', '#006bf7']
-        self.COLOR_LIST2 = ['#FF0000', '#00FF00', '#0000FF'] #'' blue
+        self.COLOR_LIST2 = ['#FF0000', '#00FF00', '#006bf7'] #'' blue
         self.fs = fs
         self.selected_files_to_fft = []
         self.pt = 12
@@ -94,6 +94,10 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.time_plot_item.addItem(self.region)
         self.logger.debug("2")
 
+        # self.y1 = [108, 116, 131, 147, 148, 146, 141, 141, 139, 130, 123, 120, 115, 113, 114, 122, 120, 131, 147, 165,
+        # 188, 198, 227, 224, 246, 384, 399, 423, 462, 521, 542, 565, 636, 685, 726, 830, 960, 1070, 1060, 1173, 1409, 1584, 2270, 4619, 4876, 5524]
+        # self.x1 = [1, 5, 10, 15, 20, 25, 33, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130,
+        #            135, 140, 150, 156, 162, 170, 180, 190, 200, 210, 220, 230, 240, 260, 270, 290, 310, 320, 325]
         # self.x1 = np.array([1, 5, 10, 15, 20, 25, 33, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 102, 105,
         #                     107, 110, 115, 118, 120, 122, 125, 130, 135, 140, 150, 156, 162, 170, 180, 190, 200, 205, 210,
         #                     215, 220, 225, 230, 235, 240, 243, 247, 250, 255, 260, 265, 270, 275, 280, 285, 290, 295, 300, 305, 310, 315])
@@ -105,13 +109,13 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # from time import time
         # t = time()
         # for i in range(1000):
-        #     self.time_curves[0].setData(x=self.x1, y=self.y1)
+        # self.time_curves[0].setData(x=self.x1, y=self.y1)
         # print(time() - t)
 # ------ Tab widget -----------------------------------------------------------
 
         page = QtWidgets.QWidget(self)
         layout = QtWidgets.QVBoxLayout(spacing=0)
-        layout.setContentsMargins(5, 10, 5, 10)
+        layout.setContentsMargins(5, 10, 5, 5)
 
         layout.addWidget(self.time_plot)
         self.spectrum_button = QtWidgets.QPushButton("От времени")  # Time plot
@@ -131,11 +135,11 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 # -----------------------------------------------------------------------------
         self.groupbox = QtWidgets.QGroupBox(
             '', maximumWidth=180, minimumWidth=120)
-        self.median_plot_groupbox_layout = QtWidgets.QGridLayout(spacing=6)
-        self.median_plot_groupbox_layout.setContentsMargins(5, 5, 5, 5)
+        median_plot_groupbox_layout = QtWidgets.QGridLayout(spacing=6)
+        median_plot_groupbox_layout.setContentsMargins(3, 5, 3, 5)
         # self.median_plot_groupbox_layout.setRowStretch(4, 0)
         # self.median_plot_groupbox_layout.setSpacing(0)
-        self.groupbox.setLayout(self.median_plot_groupbox_layout)
+        self.groupbox.setLayout(median_plot_groupbox_layout)
 
         self.groupbox_list: list[QtWidgets.QGroupBox] = []
         self.max_amp_line_edit_list: list[QtWidgets.QLineEdit] = []
@@ -144,16 +148,16 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 
         for i in range(self.GYRO_NUMBER):
             self.append_gyro_groupbox()
-            self.median_plot_groupbox_layout.addWidget(
+            median_plot_groupbox_layout.addWidget(
                 self.groupbox_list[-1], 2 + i, 0, 1, 3)
         self.logger.debug("3")
 
         self.projects_combo_box = PyQt_ProjectsComboBox.ProjectsComboBox(self)
-        self.median_plot_groupbox_layout.addWidget(
+        median_plot_groupbox_layout.addWidget(
             self.projects_combo_box, 0, 0, 1, 3)
 
         self.ok_btn = QtWidgets.QPushButton("Запись в Excel")
-        self.median_plot_groupbox_layout.addWidget(self.ok_btn, 1, 0, 1, 3)
+        median_plot_groupbox_layout.addWidget(self.ok_btn, 1, 0, 1, 3)
         self.ok_btn.clicked.connect(self.write_xlsx)
 
         self.get_filenames_btn = QtWidgets.QPushButton("АФЧХ для файла")
@@ -161,7 +165,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             # QtCore.Qt.CustomContextMenu)
         # self.get_filenames_btn.customContextMenuRequested.connect(
             # self.__contextMenu)
-        self.median_plot_groupbox_layout.addWidget(
+        median_plot_groupbox_layout.addWidget(
             self.get_filenames_btn, 7, 0, 1, 3)
         self.get_filenames_btn.clicked.connect(self.get_filenames_to_fft)
 
@@ -218,7 +222,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                         enc_data: np.ndarray, gyro_data: np.ndarray):
         """Adds points to time curves."""
         self.time_curves[0].setData(time, enc_data)
-        for i in range(self.GYRO_NUMBER):
+        for i in range(gyro_data.shape[1]):
             self.time_curves[i + 1].setData(time, gyro_data[:, i])
 
     def set_fft_data(self, freq_data: np.ndarray, frame: list):
@@ -570,7 +574,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     def plot_fft_median(self):
         self.freq_data = np.array([])
         last_tab_layout = QtWidgets.QGridLayout(spacing=0)
-        last_tab_layout.setContentsMargins(5, 10, 5, 10)
+        last_tab_layout.setContentsMargins(5, 10, 5, 5)
         last_tab_layout.addWidget(self.groupbox, 0, 1, 3, 1) 
 
         self.tab_widget_page_list.append(QtWidgets.QWidget(self))
@@ -627,7 +631,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # index = 
         self.tab_widget_page_list.append(QtWidgets.QWidget())
         layout = QtWidgets.QVBoxLayout(spacing=0)
-        layout.setContentsMargins(5, 10, 5, 10)
+        layout.setContentsMargins(5, 10, 5, 5)
         self.append_amp_plot()
         # layout.addWidget(self.amp_plot_list[index])
         layout.addWidget(self.amp_plot_list[-1])
@@ -692,38 +696,38 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             f'gyro {ind + 1}', maximumWidth=190, maximumHeight=250,
             objectName='small'))
             # checkable=True, objectName='small'))
-        self.groupbox_layout = QtWidgets.QGridLayout(spacing=2)
-        self.groupbox_layout.setContentsMargins(5, 5, 5, 2)
+        groupbox_layout = QtWidgets.QGridLayout(spacing=2)
+        groupbox_layout.setContentsMargins(5, 5, 5, 2)
         # self.groupbox_list[-1].clicked.connect(self.groupbox_clicked)
         # self.median_plot_groupbox_layout.setRowStretch(4, 0)
-        self.groupbox_list[-1].setLayout(self.groupbox_layout)
+        self.groupbox_list[-1].setLayout(groupbox_layout)
         # QToolButton # есть wordWrap
         msx_amp_label = QtWidgets.QLabel("amp")
-        self.groupbox_layout.addWidget(
+        groupbox_layout.addWidget(
             msx_amp_label, 0, 0, 1, 1)
         self.max_amp_line_edit_list.append(QtWidgets.QLineEdit())
         double_validator = QtGui.QDoubleValidator(bottom=0)
         double_validator.setLocale(QtCore.QLocale("en_US"))
         self.max_amp_line_edit_list[-1].setValidator(double_validator)
-        self.groupbox_layout.addWidget(
+        groupbox_layout.addWidget(
             self.max_amp_line_edit_list[-1], 0, 1, 1, 2)
 
         rez_freq_label = QtWidgets.QLabel("f, Hz")
-        self.groupbox_layout.addWidget(
+        groupbox_layout.addWidget(
             rez_freq_label, 1, 0, 1, 1)
         self.rez_freq_line_edit_list.append(QtWidgets.QLineEdit())
         double_validator = QtGui.QDoubleValidator(bottom=0)
         double_validator.setLocale(QtCore.QLocale("en_US"))
         self.rez_freq_line_edit_list[-1].setValidator(double_validator)
-        self.groupbox_layout.addWidget(
+        groupbox_layout.addWidget(
             self.rez_freq_line_edit_list[-1], 1, 1, 1, 2)
 
         sensor_name_label = QtWidgets.QLabel(
             "номер", maximumHeight=40)
-        self.groupbox_layout.addWidget(
+        groupbox_layout.addWidget(
             sensor_name_label, 2, 0, 1, 1)
         self.sensor_name_line_edit_list.append(QtWidgets.QLineEdit())
-        self.groupbox_layout.addWidget(
+        groupbox_layout.addWidget(
             self.sensor_name_line_edit_list[-1], 2, 1, 1, 2)
 
 # -----------------------------------------------------------------------------
