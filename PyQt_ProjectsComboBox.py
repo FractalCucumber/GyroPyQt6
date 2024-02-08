@@ -1,3 +1,6 @@
+# cSpell:includeRegExp #.*
+# cSpell:includeRegExp /(["]{3}|[']{3})[^\1]*?\1/g
+
 import os
 import json
 from PyQt5 import QtWidgets, QtCore, QtGui
@@ -16,7 +19,7 @@ class CustomDialog(QtWidgets.QDialog):
             app_icon.addFile(
                 get_res_path(f'res\icon_{i}.png'), QtCore.QSize(i, i))
         self.setWindowIcon(app_icon)
-        self.setMaximumSize(500, 175)
+        self.setMaximumSize(500, 150)
         self.setWindowTitle("Окно редактирования проектов")
         self.setWindowFlags(QtCore.Qt.WindowType.CustomizeWindowHint |
                             QtCore.Qt.WindowType.WindowCloseButtonHint)
@@ -49,23 +52,24 @@ class CustomDialog(QtWidgets.QDialog):
         self.setLayout(layout)
 
     def check(self):
-        if os.path.exists(self.path.text()) and len(self.name.text()):
-            self.button_box.button(
-                QtWidgets.QDialogButtonBox.Ok).setEnabled(True)
+        if os.path.isdir(self.path.text()):
+            # self.button_box.button(
+                # QtWidgets.QDialogButtonBox.Ok).setEnabled(True)
             self.path.setStyleSheet("color: white;")
         else:
             self.button_box.button(
                 QtWidgets.QDialogButtonBox.Ok).setEnabled(False)
             self.path.setStyleSheet("color: grey;")
-
-    # def closeEvent(self, a0):
+        if os.path.isdir(self.path.text()) and len(self.name.text()):
+            self.button_box.button(
+                QtWidgets.QDialogButtonBox.Ok).setEnabled(True)
 
     def get_path(self):
         folder = QtWidgets.QFileDialog.getExistingDirectory(
             self, "Выбрать папку", os.path.dirname(self.path.text()))
             # self, "Выбрать папку", self.path.text())
         if folder:
-            self.path.setText(str(folder))
+            self.path.setText(folder)
 
 
 class ProjectsComboBox(QtWidgets.QComboBox):
@@ -86,7 +90,7 @@ class ProjectsComboBox(QtWidgets.QComboBox):
         self.dlg.path.setText(
             self.projects_dict[self.currentText()])
         self.dlg.name.setText(self.currentText())
-        if self.dlg.exec(): # сделать запуск с open(), потом принять сигнал завершения вместе с флагом
+        if self.dlg.exec():  # сделать запуск с open(), потом принять сигнал завершения вместе с флагом
             self.projects_dict.pop(self.currentText(), None)
             self.apply_changes()
 
@@ -119,15 +123,14 @@ class ProjectsComboBox(QtWidgets.QComboBox):
                 change_action.setDisabled(True)
                 delete_action.setDisabled(True)
             menu.addAction(delete_action)
-            menu.exec_(event.globalPos())
+            menu.exec(event.globalPos())
             return True
         return False
 
     def save_json(self, PROJECT_FILE_NAME):
         with open(PROJECT_FILE_NAME, 'w', encoding='utf-8') as f:
-            json.dump(
-                self.projects_dict,
-                f, ensure_ascii=False, indent=4)
+            json.dump(self.projects_dict,
+                      f, ensure_ascii=False, indent=4)
         #     d = {"dict": self.custom_tab_plot_widget.projects_combo_box.projects_dict, "ddd22": False, "2ddd22": "f"}
         #     json.dump(
         #         d,
@@ -152,6 +155,7 @@ class ProjectsComboBox(QtWidgets.QComboBox):
 if __name__ == "__main__":
     import sys
     import PyQt_ApplicationClass
+    import PyQt_ApplicationClassTest
     from PyQt5 import QtWidgets, QtGui
     app = QtWidgets.QApplication(sys.argv)
     splash = QtWidgets.QSplashScreen(QtGui.QPixmap(get_res_path('res/G.png')))
@@ -161,7 +165,7 @@ if __name__ == "__main__":
     test = True
     test = False
     if test:
-        window = PyQt_ApplicationClass.AppWindowTest()
+        window = PyQt_ApplicationClassTest.AppWindowTest()
         pass
     else:
         window = PyQt_ApplicationClass.AppWindow()

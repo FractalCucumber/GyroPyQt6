@@ -1,5 +1,7 @@
+# cSpell:includeRegExp #.*
+# cSpell:includeRegExp /(["]{3}|[']{3})[^\1]*?\1/g
+
 import logging
-import sys
 import os
 import numpy as np
 import win32com.client as win32
@@ -10,21 +12,46 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 # from typing import overload
 # from PyQt_Functions import get_icon_by_name, get_res_path
 import PyQt_ProjectsComboBox
-from PyQt_Functions import check_name_simple
+from PyQt_Functions import check_name_simple, get_icon_by_name
 
 
 class CustomViewBox(pg.ViewBox):
     def __init__(self, *args, **kwds):
         # kwds['enableMenu'] = True
         # kwds['enableMenu'] = False
+        # pg.ViewBoxMenu
         pg.ViewBox.__init__(self, *args, **kwds)
         # self.setMouseMode(self.RectMode)
+        menu = self.getMenu(None)  # !
+        STYLE_SHEETS_FILENAME = 'res\StyleSheets.css'
+        with open(STYLE_SHEETS_FILENAME, "r") as style_sheets_css_file:
+            menu.setStyleSheet(style_sheets_css_file.read())
+            # print(menu.findChildren())
+            # menu.actions()[0].setParent(menu)
+            # menu.actions()[1].setParent(menu)
+            # menu.actions()[1].setStyleSheet(style_sheets_css_file.read())
+            # menu.actions()[1].setParent(menu)
+            # menu.actions()[2].setStyleSheet(style_sheets_css_file.read())
+        # menu.setStyleSheet("""""")
+        # print(self.menu.parent())
+        # print(self.parent())
+        # print(self)
+        # print(menu)
+        # gotoAction = QtWidgets.QAction('action-to-add', menu)
+        # menu.insertAction(menu.actions(), gotoAction)
 
     def mouseDoubleClickEvent(self, e):
         if (e.buttons() & QtCore.Qt.LeftButton):
             self.autoRange()
             self.enableAutoRange()  # так действительно возвращает в режим автоматического масштабирования
 
+    # def contextMenuEvent(self, event):
+        # menu = self.getMenu(None)
+        # print(menu)
+        # gotoAction = QtWidgets.QAction('action-to-add', menu)
+        # menu.insertAction(menu.actions()[0], gotoAction)
+        # res = menu.exec(event.globalPos())
+        # print(1)
     #  reimplement right-click to zoom out
     # def mouseClickEvent(self, ev):
     #     if ev.button() == QtCore.Qt.MouseButton.RightButton:
@@ -52,6 +79,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.LABEL_STYLE = {'color': '#FFF', 'font-size': '16px'}
         self.COLOR_LIST = ['r', 'g', '#006bf7']
         self.COLOR_LIST2 = ['#FF0000', '#00FF00', '#006bf7'] #'' blue
+        self.ICON_COLOR_LIST = ['red', 'green', 'blue']
         self.fs = fs
         self.selected_files_to_fft = []
         self.pt = 12
@@ -68,19 +96,45 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # with open(get_res_path(STYLE_SHEETS_FILENAME),
         #           "r") as style_sheets_css_file:
         #     self.setStyleSheet(style_sheets_css_file.read())
-
+# ------ ------------------------------------------------------------
+        self.plot_check_box_list: list[QtWidgets.QCheckBox] = []
+        self.plot_check_box_list.append(
+            QtWidgets.QCheckBox("encoder",
+                                objectName="0", checked=True,
+                                icon=get_icon_by_name('white')))
+        for i in range(self.GYRO_NUMBER):
+            self.plot_check_box_list.append(
+                QtWidgets.QCheckBox(
+                    f"gyro {i + 1}", objectName=f"{i + 1}", checked=True,
+                    icon=get_icon_by_name(self.ICON_COLOR_LIST[i])))
+        for i in range(self.GYRO_NUMBER + 1):
+            self.plot_check_box_list[i].stateChanged.connect(
+                self.change_curve_visibility)
 # ------ time plot ------------------------------------------------------------
         self.logger.debug("1")
         self.time_plot_item = pg.PlotItem(viewBox=CustomViewBox())
         self.logger.debug("1.25")
         self.time_plot = pg.PlotWidget(plotItem=self.time_plot_item)
+        # menu = self.time_plot.getContextMenus(None)
+        # menu.setParent(self.time_plot)
+        # print(self.time_plot_item.vb)
+        self.time_plot_item.setParent(self.time_plot)
+        self.time_plot_item.vb.setParent(self.time_plot_item)
+        # print(self.time_plot_item.vb.menu.setParent(self))
+        # print(self.time_plot_item.vb.parent())
+        # print(self.time_plot_item.parent())
+        # self.time_plot_item.getMenu()
+        # self.time_plot_item.setContextMenuPolicy(
+            # QtCore.Qt.CustomContextMenu)
+        # self.time_plot_item.customContextMenuRequested(self.__contextMenu)
+        
         self.logger.debug("1.5")
         self.time_plot.setLimits(xMin=-0.01)
-        # self.time_plot_item.setTitle('Угловая скорость', size=f'{self.pt}pt')  # Velosity Graph
+        # self.time_plot_item.setTitle('Угловая скорость', size=f'{self.pt}pt')  # Velocity Graph
         self.time_plot_item.showGrid(x=True, y=True)
         self.time_plot_item.addLegend(offset=(-1, 1), labelTextSize=f'{self.pt}pt',
                                       labelTextColor=pg.mkColor('w'))
-        self.time_plot_item.setLabel('left', 'Velosity',
+        self.time_plot_item.setLabel('left', 'Velocity',
                                      units='\u00b0/second', **self.LABEL_STYLE)
         self.time_plot_item.setLabel('bottom', 'Time',
                                      units='seconds', **self.LABEL_STYLE)
@@ -130,14 +184,14 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.amp_plot_list: list[pg.PlotWidget] = []
 
         self.bytes_widget = QtWidgets.QTextEdit(visible=False)
-        layout.addWidget(self.bytes_widget)  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        layout.addWidget(self.bytes_widget)  # !!!
 
 # -----------------------------------------------------------------------------
         self.groupbox = QtWidgets.QGroupBox(
             '', maximumWidth=180, minimumWidth=120)
         median_plot_groupbox_layout = QtWidgets.QGridLayout(spacing=6)
         median_plot_groupbox_layout.setContentsMargins(3, 5, 3, 5)
-        # self.median_plot_groupbox_layout.setRowStretch(4, 0)
+        # self.median_plot_groupbox_layout.setRowStretch(4, 0) # 
         # self.median_plot_groupbox_layout.setSpacing(0)
         self.groupbox.setLayout(median_plot_groupbox_layout)
 
@@ -156,9 +210,9 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         median_plot_groupbox_layout.addWidget(
             self.projects_combo_box, 0, 0, 1, 3)
 
-        self.ok_btn = QtWidgets.QPushButton("Запись в Excel")
-        median_plot_groupbox_layout.addWidget(self.ok_btn, 1, 0, 1, 3)
-        self.ok_btn.clicked.connect(self.write_xlsx)
+        self.write_xlsx_btn = QtWidgets.QPushButton("Запись в Excel")
+        median_plot_groupbox_layout.addWidget(self.write_xlsx_btn, 1, 0, 1, 3)
+        self.write_xlsx_btn.clicked.connect(self.write_xlsx)
 
         self.get_filenames_btn = QtWidgets.QPushButton("АФЧХ для файла")
         # self.get_filenames_btn.setContextMenuPolicy(
@@ -198,13 +252,13 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # self._normalMenu = self.combo_box_name.visibleRegion().createStandardContextMenu()
         # self._normalMenu = self.combo_box_name.layoutDirection().createStandardContextMenu()
         self._addCustomMenuItems(self._normalMenu)
-        self._normalMenu.exec_(QtGui.QCursor.pos())
+        self._normalMenu.exec(QtGui.QCursor.pos())
 
     def _addCustomMenuItems(self, menu: QtWidgets.QMenu):
         # menu.addSeparator()
         # action = QtWidgets.QAction("Обновить", self, shortcut="Ctrl+U")
         # action.setShortcut("Ctrl+U")
-        # action.triggered.connect(self.get_avaliable_com)        
+        # action.triggered.connect(self.get_available_com)        
         # menu.addAction(action)
         menu.addAction('Посмотреть без сохранения', self.get_filenames_to_fft) # теперь и так без сохранения
 
@@ -234,9 +288,9 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             # self.phase_plot_list[-1].getPlotItem().curves[i].setData(freq_data[:, 0, i],
                                         # freq_data[:, 2, i])
             self.amp_curves[ind + i].setData(freq_data[:, 0, i],
-                                            freq_data[:, 1, i])
+                                             freq_data[:, 1, i])
             self.phase_curves[ind + i].setData(freq_data[:, 0, i],
-                                              freq_data[:, 2, i])
+                                               freq_data[:, 2, i])
             #                                np.copy(freq_data[:, 2, i]))
         self.region.setRegion([frame[0]/self.fs, frame[1]/self.fs])
         self.amp_plot_list[-1].autoRange()
@@ -291,7 +345,10 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # print(self.amp_plot_list[0].plotItem.vb.mapSceneToView(pos))
         # print(self.amp_plot_list[0].plotItem.vb.mapViewToScene())
         # print(self.amp_plot_list[0].plotItem.vb.viewRect())
+        # mouse_point = self.amp_plot_list[0].plotItem.vb.mapSceneToView(pos)
+        # QtWidgets.QToolTip.showText(mouse_point.toPoint(), f"{self.plot_index}")
         # print(self.selected_curve)
+        # print(self.amp_plot_list[0].plotItem.sceneBoundingRect().contains(pos))
         if (self.amp_plot_list[0].plotItem.sceneBoundingRect().contains(pos)
             and self.freq_data.size and any(self.visibility_flags_list[1:])):
             mouse_point = self.amp_plot_list[0].plotItem.vb.mapSceneToView(pos)
@@ -306,9 +363,11 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                 # np.abs(self.freq_data[:, -4, 0] - mouse_point.x()))
                 # np.abs(self.freq_data[:, -4, self.selected_curve] - np.power(10, mouse_point.x())))
             if 0 <= self.plot_index < len(self.freq_data[:, -4, self.selected_curve]):  # index >= 0 and
+                # p = self.amp_plot_list[0].mapToGlobal(pos.toPoint())
+                # QtWidgets.QToolTip.showText(p, f"{self.plot_index}")
                 message = []
                 for i in range(self.freq_data.shape[2]):
-                    if self.visibility_flags_list[i+1]:
+                    if self.visibility_flags_list[i + 1]:
                         message.append(
                             f'\t\t\t\t\t\t\t<font color={self.COLOR_LIST2[i]}>gyro{i + 1}</font>: \
                                 f {self.freq_data[self.plot_index, -4, i]:.2f}, \
@@ -387,17 +446,17 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             if not (self.sensor_name_line_edit_list[i].text() and self.groupbox_list[i].isVisible()):
                 self.logger.debug(f"skip {i}")
                 continue
-            currnt_xlsx_path = \
+            current_xlsx_path = \
                 self.projects_combo_box.projects_dict[
                     self.projects_combo_box.currentText()] + '/' +\
                         self.sensor_name_line_edit_list[i].text() + '.xlsm'
-            self.logger.debug(f"path {currnt_xlsx_path}")
-            if not os.path.exists(currnt_xlsx_path):
+            self.logger.debug(f"path {current_xlsx_path}")
+            if not os.path.exists(current_xlsx_path):
                 self.warning_signal.emit(
                     f"File {self.sensor_name_line_edit_list[i].text() + '.xlsm'} not found!")
                 continue
             try: # удобная проверка на открытие файла
-                os.rename(currnt_xlsx_path, currnt_xlsx_path)
+                os.rename(current_xlsx_path, current_xlsx_path)
                 self.logger.debug("File is closed")
                 self.info_signal.emit("Start saving")
                 excel_com_object = self.excel_com_object  # !
@@ -408,8 +467,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                 self.logger.debug("Saving to an open file")
                 self.info_signal.emit("Start saving to an open file")
                 # Excel = win32.GetActiveObject('Excel.Application')  # ! GetActiveObject ?
-                # excel_com_object = win32.GetActiveObject(currnt_xlsx_path)
-                excel_com_object = win32.GetObject(currnt_xlsx_path).Application
+                # excel_com_object = win32.GetActiveObject(current_xlsx_path)
+                excel_com_object = win32.GetObject(current_xlsx_path).Application
                 self.logger.debug(type(excel_com_object))
                 self.logger.debug(f"{excel_com_object}, {excel_com_object.ActiveWorkbook}")
                 if excel_com_object.ActiveWorkbook is None:  # проверить!
@@ -419,8 +478,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                     continue
                 self.logger.debug(f"{excel_com_object.ActiveWorkbook.FullName}")
                 close_flag = False
-            self.ok_btn.setDisabled(True)  # !
-            wb = excel_com_object.Workbooks.Open(currnt_xlsx_path)
+            self.write_xlsx_btn.setDisabled(True)  # !
+            wb = excel_com_object.Workbooks.Open(current_xlsx_path)
             if not close_flag:
                 wb.Save()  # если файл открыт, в нем сохраняются прежние изменения
             wb.Worksheets(u'Настройка КП').Cells(11, "I").Value = \
@@ -428,14 +487,14 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             wb.Worksheets(u'Настройка КП').Cells(11, "K").Value = \
                 float(self.max_amp_line_edit_list[i].text())
             wb.Save()
-            self.ok_btn.setDisabled(False)  # !
+            self.write_xlsx_btn.setDisabled(False)  # !
             if close_flag:
                 wb.Close()
                 del wb  # excel_com_object.Quit()  # !
             else:
                 excel_com_object.Goto(wb.Worksheets(u'Настройка КП').Range("I10:K10"), True)
-            self.logger.debug(f"Successfully save in {currnt_xlsx_path}")
-            self.info_signal.emit(f"Successfully save in {currnt_xlsx_path}")
+            self.logger.debug(f"Successfully save in {current_xlsx_path}")
+            self.info_signal.emit(f"Successfully save in {current_xlsx_path}")
         # self.ok_btn.setEnabled(True)
         return True
 
@@ -445,13 +504,13 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     #     self.logger.debug(f"Get Excel")
     #     if not len(self.sensor_name_line_edit_list[self.selected_curve].text()):
     #         return
-    #     currnt_xlsx_path = \
+    #     current_xlsx_path = \
     #         self.projects_combo_box.projects_dict[
     #             self.projects_combo_box.currentText()] + \
     #                 '/' + self.sensor_name_line_edit_list[self.selected_curve].text() + '.xlsm'
-    #     self.logger.debug(currnt_xlsx_path)
+    #     self.logger.debug(current_xlsx_path)
     #     try:
-    #         wb = load_workbook(currnt_xlsx_path,
+    #         wb = load_workbook(current_xlsx_path,
     #                            read_only=False, keep_vba=True)
     #     except FileNotFoundError:
     #         self.warning_signal.emit("File not found!")
@@ -461,12 +520,12 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     #     ws['I11'] = float(self.freq_info_line_edit_list[self.selected_curve].text())
     #     ws['K11'] = float(self.amp_info_line_edit_list[self.selected_curve].text())
     #     try:
-    #         wb.save(currnt_xlsx_path)
+    #         wb.save(current_xlsx_path)
     #     except IOError:
     #         self.warning_signal.emit("File was open! Close and try again")
     #         return
-    #     self.logger.debug(f"Successfully save in {currnt_xlsx_path}")
-    #     self.warning_signal.emit(f"Successfully save in {currnt_xlsx_path}")
+    #     self.logger.debug(f"Successfully save in {current_xlsx_path}")
+    #     self.warning_signal.emit(f"Successfully save in {current_xlsx_path}")
 
 # ----- plot change -----------------------------------------------------------
 
@@ -493,19 +552,19 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     @QtCore.pyqtSlot()
     def change_curve_visibility(self):
         ind = int(self.sender().objectName())
-        # self.flag_visibility[num] = self.check_box_list[num].checkState()
-        self.visibility_flags_list[ind] = not self.visibility_flags_list[ind]
+        self.visibility_flags_list[ind] = self.plot_check_box_list[ind].isChecked()
         self.time_curves[ind].setVisible(self.visibility_flags_list[ind])
         if ind == 0:
             return
         for i in range(self.count() - 1):
-            self.phase_curves[i*self.GYRO_NUMBER - 1 + ind].setVisible(
+            self.phase_curves[i * self.GYRO_NUMBER - 1 + ind].setVisible(
                 self.visibility_flags_list[ind])
-            self.amp_curves[i*self.GYRO_NUMBER - 1 + ind].setVisible(
+            self.amp_curves[i * self.GYRO_NUMBER - 1 + ind].setVisible(
                 self.visibility_flags_list[ind])
         if any(self.visibility_flags_list[1:]):
             for j in range(2):
-                self.infinite_x_line_list[j].setPen(pg.mkPen(self.COLOR_LIST[self.visibility_flags_list[1:].index(True)]))
+                self.infinite_x_line_list[j].setPen(
+                    pg.mkPen(self.COLOR_LIST[self.visibility_flags_list[1:].index(True)]))
 
     def clear_plots(self):
         self.freq_data = np.array([])  # лучше пустой массив создавать
@@ -531,15 +590,9 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             self.time_curves[i + 1].setData([])
             self.amp_curves[i].setData([])
             self.phase_curves[i].setData([])
-        # self.phase_curves: list[pg.PlotCurveItem] = []
-        # self.amp_curves: list[pg.PlotCurveItem] = []
-        # self.phase_plot_list: list[pg.PlotWidget] = []
-        # self.amp_plot_list: list[pg.PlotWidget] = []
-        # self.tab_widget_page_list: list[QtWidgets.QWidget] = []
 
     @QtCore.pyqtSlot()
-    def switch_plot_x_axis(self):
-        # меню добавить
+    def switch_plot_x_axis(self):  # меню добавить
         """Switching between time plot and spectrum."""
         if self.spectrum_button.text() == "Спектр":  # Frequency plot
             self.spectrum_button.setText("От времени")  # Time plot
@@ -557,7 +610,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     @QtCore.pyqtSlot(str)
     def save_plot_image(self, path: str):
         if not os.path.isdir(os.path.dirname(path)):
-            self.warning_signal.emit(f"Folder {os.path.dirname(path)} doesn't exist!")
+            self.warning_signal.emit(
+                f"Folder {os.path.dirname(path)} doesn't exist!")
             return False
         pyqtgraph.exporters.ImageExporter(
             self.time_plot_item).export(
@@ -606,10 +660,12 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                 pos=np.sqrt(0.5), angle=0, movable=False,
                 pen=pg.mkPen((205, 205, 205), dash=[15, 3], width=0.75)),
                 ignoreBounds=True)  # полоса пропускания
-        self.phase_plot_list[0].addItem(
-            pg.InfiniteLine(
+        line = pg.InfiniteLine(
                 pos=-180, angle=0, movable=False,
-                pen=pg.mkPen((205, 205, 205), dash=[10, 2], width=0.75)),
+                pen=pg.mkPen((205, 205, 205), dash=[10, 2], width=0.75))
+        line.setToolTip('This is a red line.')
+        self.phase_plot_list[0].addItem(
+            line,
                 ignoreBounds=True)  # -180 degrees
         # self.cursor_label = pg.TextItem()
         # self.cursor_label.setPos(3, 0.8)
@@ -625,9 +681,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.amp_plot_list[0].autoRange()
 
     def append_fft_plot_tab(self):
-        """
-        Create new tab and append amplitude and grequency graphs.
-        """
+        """Create new tab and append amplitude and frequency graphs."""
         # index = 
         self.tab_widget_page_list.append(QtWidgets.QWidget())
         layout = QtWidgets.QVBoxLayout(spacing=0)
@@ -655,12 +709,15 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # amp_plot_item.setLabel('bottom', 'Frequency',
         #                             units='Hz', **self.LABEL_STYLE)
         # self.SYMBOL_SIZE = 6
+        self.amp_plot_list.append(pg.PlotWidget(plotItem=amp_plot_item))
         for i in range(self.GYRO_NUMBER):
             self.amp_curves.append(amp_plot_item.plot(
                 pen=self.COLOR_LIST[i], name=f"gyro {i + 1}", symbol="o",
                 symbolSize=6, symbolBrush=self.COLOR_LIST[i]))
-            self.amp_curves[-1].setVisible(self.visibility_flags_list[i+1])  
-        self.amp_plot_list.append(pg.PlotWidget(plotItem=amp_plot_item))
+            self.amp_curves[-1].setVisible(self.visibility_flags_list[i+1])
+        amp_plot_item.setParent(self.amp_plot_list[-1])
+        amp_plot_item.vb.setParent(amp_plot_item)
+
         self.amp_plot_list[-1].getAxis('left').setWidth(60)
         self.amp_plot_list[-1].setLimits(
             xMin=-4, xMax=int(self.fs * 0.53), yMin=-0.08, yMax=5000)
@@ -678,13 +735,16 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                                  units='degrees', **self.LABEL_STYLE)  # rad
         phase_plot_item.setLabel('bottom', 'Frequency',
                                  units='Hz', **self.LABEL_STYLE) # \u00b0
+        self.phase_plot_list.append(
+            pg.PlotWidget(plotItem=phase_plot_item))
         for i in range(self.GYRO_NUMBER):
             self.phase_curves.append(phase_plot_item.plot(
                 pen=self.COLOR_LIST[i], name=f"gyro {i + 1}", symbol="o",
                 symbolSize=6, symbolBrush=self.COLOR_LIST[i]))
             self.phase_curves[-1].setVisible(self.visibility_flags_list[i+1])  
-        self.phase_plot_list.append(
-            pg.PlotWidget(plotItem=phase_plot_item))
+        phase_plot_item.setParent(self.phase_plot_list[-1])
+        phase_plot_item.vb.setParent(phase_plot_item)
+    
         self.phase_plot_list[-1].getAxis('left').setWidth(60)
         self.phase_plot_list[-1].setLimits(
             xMin=-4, xMax=int(self.fs * 0.53), yMin=-720, yMax=20)
@@ -695,10 +755,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.groupbox_list.append(QtWidgets.QGroupBox(
             f'gyro {ind + 1}', maximumWidth=190, maximumHeight=250,
             objectName='small'))
-            # checkable=True, objectName='small'))
         groupbox_layout = QtWidgets.QGridLayout(spacing=2)
         groupbox_layout.setContentsMargins(5, 5, 5, 2)
-        # self.groupbox_list[-1].clicked.connect(self.groupbox_clicked)
         # self.median_plot_groupbox_layout.setRowStretch(4, 0)
         self.groupbox_list[-1].setLayout(groupbox_layout)
         # QToolButton # есть wordWrap
@@ -741,6 +799,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 
 if __name__ == "__main__":
     import PyQt_ApplicationClass
+    import sys
     app = QtWidgets.QApplication(sys.argv)
     window = PyQt_ApplicationClass.AppWindow()
     sys.exit(app.exec())
@@ -761,7 +820,7 @@ if __name__ == "__main__":
 #         self.tab_widget_page_list[-1].setLayout(self.last_tab_layout)
 #         self.addTab(
 #             self.tab_widget_page_list[-1], f"ЧХ &{index + 1}")  # FC 
-#         self.setTabText(self.count() - 1, "&АФЧХ (средний)")  # FC average
+#         self.setTabText(self.count() - 1, "АФЧХ (средний)")  # FC average
 #         self.setCurrentIndex(self.count() - 1)
   
 #         # self.del_btn.clicked.connect(
@@ -780,7 +839,7 @@ if __name__ == "__main__":
 #         # self.amp_plot_list[-1].addItem(self.infinite_line_x, ignoreBounds=True)
 #         # self.amp_plot_list[-1].addItem(self.infinite_line_y, ignoreBounds=True)
     
-#         # self.amp_plot_list[-1].addItem(self.cursorlabel)#################################
+#         # self.amp_plot_list[-1].addItem(self.cursor_label)#################################
 #         # self.proxy = pg.SignalProxy(
 #         #     self.amp_plot_list[-1].scene().sigMouseMoved, delay=0.15,##############################
 #         #     rateLimit=15, slot=self.update_crosshair)

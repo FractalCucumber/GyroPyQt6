@@ -1,22 +1,18 @@
+# cSpell:includeRegExp #.*
+# cSpell:includeRegExp /(["]{3}|[']{3})[^\1]*?\1/g
+
 import logging
 from logging.handlers import RotatingFileHandler
 import sys
 from PyQt5.QtWidgets import QTextEdit
 from PyQt5 import QtWidgets, QtGui, QtCore
 
-# description:
-# __Author__ = """By: _
-# Email: _"""
-# __Copyright__ = 'Copyright (c) 2023 _'
-# __Version__ = 1.0
-
 
 class QTextEditLogger(QTextEdit):
     # def __init__(self, parent, file_log=True, debug_enable=True):
     def __init__(self, parent=None, file_log=True):
         super(QTextEditLogger, self).__init__(
-            parent,readOnly=True, objectName="logger")
-
+            parent, readOnly=True, objectName="logger")
         # def create_logger(path, widget: QTextEdit):
         # logging.disable(logging.INFO) # disable logging for certain level
 
@@ -40,7 +36,7 @@ class QTextEditLogger(QTextEdit):
             file_handler.setFormatter(file_formatter)
             logger.addHandler(file_handler)
             logger.handlers[0].doRollover()
-            # logging.basicConfig(  # не выводит сообщния на русском
+            # logging.basicConfig(  # не выводит сообщения на русском
             #     filename='GyroTestPyQt.log',
             #     filemode='w',
             #     format=('#%(levelname)-s,\t%(pathname)s:%(lineno)d,\t%(asctime)s, %(message)s'),
@@ -67,6 +63,7 @@ class QTextEditLogger(QTextEdit):
         self.log_window_handler.setLevel(logging.INFO)
         self.log_window_handler.setFormatter(CustomFormatter())
         # self.log_window_handler.setFormatter(log_window_formatter)
+        # print(sys.getsizeof(CustomFormatter()))
         logger.addHandler(self.log_window_handler)
         self.setContextMenuPolicy(
             QtCore.Qt.CustomContextMenu)
@@ -105,10 +102,14 @@ class QTextEditLogger(QTextEdit):
             logger.setLevel(logging.DEBUG)
         else:
             logger.setLevel(logging.INFO)
+
+    def getLogger(self):
+        return logging.getLogger('main')
 # -------------------------------------------------------------------------------------------------
 
 
 class CustomFormatter():
+    __slots__ = ("FORMATS")
     """Logging colored formatter"""
     # лучше не делать отдельным классом
     def __init__(self):
