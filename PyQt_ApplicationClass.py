@@ -60,15 +60,16 @@ class AppWindow(QtWidgets.QMainWindow):
         self.progress_value = 0  # убрать?
         self.total_cycle_num: int = 1
         self.current_cycle: int = 0
+        self.check_time = 0
         self.flag_send = False
+        FILE_LOG_FLAG = True
+        LOGGER_NAME = 'main'
         self.filename_path_watcher = ""
         # STYLE_SHEETS_FILENAME = get_res_path('res\StyleSheets.css')
-        STYLE_SHEETS_FILENAME = 'res\StyleSheets.css'
-        FILE_LOG_FLAG = True
+        STYLE_SHEETS_FILENAME = 'res/StyleSheets.css'
         # FILE_LOG_FLAG = False
         # self.PROJECT_FILE_NAME = get_res_path('settings/projects.json')  # get_res_path не нужен по идее
         self.PROJECT_FILE_NAME = 'settings/projects.json'
-        LOGGER_NAME = 'main'
         self.ICON_COLOR_LIST = ['red', 'green', 'blue']
 # ------ Logger ---------------------------------------------------------------
         self.log_text_box = PyQt_Logger.QTextEditLogger(
@@ -118,9 +119,9 @@ class AppWindow(QtWidgets.QMainWindow):
 # ------ Thread ---------------------------------------------------------------
         self.processing_thr = PyQt_Thread.SecondThread(
             gyro_number=self.GYRO_NUMBER,
-            READ_INTERVAL_MS=self.READ_INTERVAL_MS,
+            read_interval_ms=self.READ_INTERVAL_MS,
             logger_name=LOGGER_NAME,
-            WAIT_TIME_SEC=self.get_settings("WAIT_TIME_SEC", 0.45))
+            wait_time_sec=self.get_settings("WAIT_TIME_SEC", 0.5))
         self.processing_thr.package_num_signal.connect(self.get_and_show_data_from_thread)
         self.processing_thr.fft_data_signal.connect(self.plot_fft)
         self.processing_thr.median_data_ready_signal.connect(
@@ -266,7 +267,7 @@ class AppWindow(QtWidgets.QMainWindow):
                                                 #  1, 0, 1, 1)  # Speed
         com_param_groupbox_layout.addWidget(self.com_boderate_combo_box,
                                                  0, 1, 1, 1)
-# ------  fs  -----------------------------------------------------
+# ------  fs  ----------------------------------------------------------
         self.fs_groupbox = QtWidgets.QGroupBox(
             'Fs, Гц', maximumWidth=self.MAX_WIDTH_FIRST_COL / 2)
         fs_groupbox_layout = QtWidgets.QHBoxLayout()
@@ -385,9 +386,11 @@ class AppWindow(QtWidgets.QMainWindow):
         plot_groupbox_layout.setContentsMargins(5, 5, 5, 5)
         self.plot_groupbox.setLayout(plot_groupbox_layout)
 
-        for i in range(self.GYRO_NUMBER + 1):
-            plot_groupbox_layout.addWidget(
-                self.tab_plot_widget.plot_check_box_list[i], 0, 5 * i, 1, 4)
+        for i, plot_check_box in enumerate(self.tab_plot_widget.plot_check_box_list):
+            plot_groupbox_layout.addWidget(plot_check_box, 0, 5 * i, 1, 4)
+        # for i in range(self.GYRO_NUMBER + 1):
+            # plot_groupbox_layout.addWidget(
+                # self.tab_plot_widget.plot_check_box_list[i], 0, 5 * i, 1, 4)
 
         self.progress_bar = QtWidgets.QProgressBar(
             format='%v/%m сек', maximum=1, value=self.progress_value)  # sec
@@ -427,7 +430,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self.main_grid_layout.addWidget(self.plot_groupbox,
                                         17, 3, 3, 2)
 
-# ------ Set settings --------------------------------------------------------------------------
+# ------ Load settings -------------------------------------------------------------------------
 
         self.load_previous_settings(self.settings)
 # ------ Signal Connect --------------------------------------------------------------------
@@ -444,12 +447,10 @@ class AppWindow(QtWidgets.QMainWindow):
         self.edit_file_button.clicked.connect(self.open_file)
         self.logs_clear_button.clicked.connect(
             lambda: self.log_text_box.clear())
-        for i in range(self.GYRO_NUMBER):
-            self.choose_path_button_list[i].clicked.connect(
-                self.choose_result_saving_path)
-            self.saving_result_folder_label_list[i].textChanged.connect(
-                self.folder_change_event)
-        
+        for (choose_path_btn, saving_result_folder) in zip(
+            self.choose_path_button_list, self.saving_result_folder_label_list):
+            choose_path_btn.clicked.connect(self.choose_result_saving_path)
+            saving_result_folder.textChanged.connect(self.folder_change_event)
         self.tab_plot_widget.create_excel_com_object()  # !
         self.show()
         self.logger.debug("Программа запущена")
@@ -460,14 +461,14 @@ class AppWindow(QtWidgets.QMainWindow):
         # self.shortcut.activated.connect(self.on_open)
         self.open_folder_action = QtWidgets.QAction("Open folder", self)
         self.open_folder_action.setShortcut('Ctrl+O')
-        for label in self.saving_result_folder_label_list:
-            label.addAction(self.open_folder_action)
+        for saving_result_folder_label in self.saving_result_folder_label_list:
+            saving_result_folder_label.addAction(self.open_folder_action)
             # print(self.open_folder_action.parent())
-        # self.open_folder_action.setShortcut = QtWidgets.QShortcut(QtGui.QKeySequence('Ctrl+O'), self.saving_result_folder_label_list[0])
+        # self.open_folder_action.setShortcut = QtWidgets.QShortcut(
+            # QtGui.QKeySequence('Ctrl+O'), self.saving_result_folder_label_list[0])
         # self.open_folder_action.setShortcut.activated.connect(self.open_folder)
         self.open_folder_action.triggered.connect(self.open_folder) 
         # print(self.findChild(QtWidgets.QTextEdit, 'with_border').setText('fffffff'))
-        self.check_time = 0
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
 #
@@ -546,32 +547,29 @@ class AppWindow(QtWidgets.QMainWindow):
     def open_folder(self):  # не открываются папки с пробелами!
         self.logger.debug(f"open folder event")
         # правильнее было бы определить родителя и по нему обратиться к нужному виджету
-        for i in range(len(self.saving_result_folder_label_list)):
-            # if self.saving_result_folder_label_list[i] == self.sender().parent():
-            if self.saving_result_folder_label_list[i].hasFocus() or self.file_name_line_edit_list[i].hasFocus():
-                # только если есть галочка создавать папку
+        for i, (saving_result_folder_label,
+                file_name_line_edit) in enumerate(
+                    zip(self.saving_result_folder_label_list,
+                        self.file_name_line_edit_list)):
+            # if saving_result_folder_label == self.sender().parent():
+            if saving_result_folder_label.hasFocus() or file_name_line_edit.hasFocus():
                 path_to_sensor = os.path.realpath(
-                    self.saving_result_folder_label_list[i].toPlainText())
+                    saving_result_folder_label.toPlainText())
                 if not (path_to_sensor.find(' ') == -1):
                     self.logger.warning("Path contain space and cannot be open!")
                     return False
-                if self.create_folder_checkbox_list[i].isChecked(): # re.split("_", self.file_name_line_edit_list[i].text())[0]
-                    if os.path.isdir(path_to_sensor + '/' + re.split("_", self.file_name_line_edit_list[i].text())[0]):
-                        path_to_sensor = path_to_sensor + '/' + re.split("_", self.file_name_line_edit_list[i].text())[0]
+                # только если есть галочка создавать папку
+                if self.create_folder_checkbox_list[i].isChecked(): # re.split("_", file_name_line_edit.text())[0]
+                    if os.path.isdir(path_to_sensor + '/' + re.split("_", file_name_line_edit.text())[0]):
+                        path_to_sensor = path_to_sensor + '/' + re.split("_", file_name_line_edit.text())[0]
                     else:
                         self.logger.warning("Sensor folder doesn't exist!")
                 # path_to_sensor = path_to_sensor.replace(' ', '\\ ')
                 # print(path_to_sensor)
                 # path_to_sensor = path_to_sensor.replace('\\', '//')
                 # path_to_sensor = path_to_sensor[2:]
-                # print(path_to_sensor)
-                # print(path_to_sensor[2:])
-                # print(repr(path_to_sensor))
                 # print(path_to_sensor.find(' '))
                 parent_text = r'start ' + path_to_sensor
-                # parent_text = path_to_sensor
-                # print(parent_text)
-                # print("repr(parent_text)")
                 # print(repr(parent_text))
                 os.system((parent_text))
                 return True
@@ -581,13 +579,8 @@ class AppWindow(QtWidgets.QMainWindow):
                 # os.system(py_path + ' ' + cmdline)
                 # os.popen('%s %s' % (py_path, cmdline))
                 # os.system(repr(parent_text))
-        self.logger.warning("Select widget with path")
+        self.logger.warning("You must select widget with path")
         return False
-        # print(self.sender().parent().parent())
-        # path = os.path.realpath(self.sender().parent().parent().toPlainText())
-        # parent_text = r"start " + path
-        # print(self.sender().parent().parent().toPlainText())
-        # print(self.sender().objectName())
 
     def append_gyro_widgets(self):
         """Append groupbox with widgets for gyroscope."""
@@ -1167,21 +1160,20 @@ class AppWindow(QtWidgets.QMainWindow):
             # time += self.PAUSE_INTERVAL_MS / 1000
             for i in range(self.table_widget.currentRow()):
                 time += int(self.table_widget.item(i, 2).data(
-                    QtCore.Qt.ItemDataRole.EditRole)) + self.PAUSE_INTERVAL_MS / 1000
-            self.logger.debug(f"{self.table_widget.currentRow()} {self.current_cycle} {time}")
-            start = time * self.fs #- self.processing_thr.points_shown / 4
+                    QtCore.Qt.ItemDataRole.EditRole))  # + self.PAUSE_INTERVAL_MS / 1000
+            time += self.PAUSE_INTERVAL_MS / 1000 * self.table_widget.currentRow()
+            self.logger.debug(f"currentRow:{self.table_widget.currentRow()} current_cycle:{self.current_cycle} time:{time}")
+            # self.fs = int(self.fs_combo_box.currentText())  # !
+            start = int(time) * int(self.fs_combo_box.currentText())  # - self.processing_thr.points_shown / 4
             start += self.processing_thr.package_num_list[-2]
             self.logger.debug(f"package_num_list: {self.processing_thr.package_num_list} {start}")
             if start > int(self.package_num_label.text()) or start > self.processing_thr.time_data.shape[0]:
-                self.logger.warning("Out of range")
+                self.logger.warning("Selected row out of range")
                 return False
             # if start < 0:  # start = 0
-            start = int(start)
             end = start + self.processing_thr.to_plot.shape[0]
             if end > int(self.package_num_label.text()):
                 end = int(self.package_num_label.text())
-            else:
-                end = int(end)
             self.logger.debug(f"start={start}, end={end}")
             self.tab_plot_widget.plot_time_graph(
                 self.processing_thr.time_data[start:end, 0] / self.fs,
@@ -1189,7 +1181,7 @@ class AppWindow(QtWidgets.QMainWindow):
                 self.processing_thr.time_data[start:end, 1::self.processing_thr.pack_len] / 1000 / self.processing_thr.k_amp)
             self.tab_plot_widget.region.setVisible(False)
             self.tab_plot_widget.time_plot.autoRange()
-            self.tab_plot_widget.region.setVisible(True)
+            # self.tab_plot_widget.region.setVisible(True)
 
     @QtCore.pyqtSlot(bool)
     def plot_fft(self, _):
@@ -1197,6 +1189,9 @@ class AppWindow(QtWidgets.QMainWindow):
         self.logger.debug("start plot_fft")
         # if self.count == 1:  # можно установить ссылку на массив, тогда при его заполнении график будет меняться автоматически (не будет)
         # print(self.processing_thr.all_fft_data[:, (self.current_cycle-1)*4:self.current_cycle*4, :])
+        # print(self.processing_thr.all_fft_data.shape)
+        # print((self.current_cycle))
+        # print(self.processing_thr.all_fft_data[:, (self.current_cycle-1)*4:self.current_cycle*4, :].shape)
         self.tab_plot_widget.set_fft_data(
             self.processing_thr.all_fft_data[:, (self.current_cycle-1)*4:self.current_cycle*4, :],
             self.processing_thr.border)
@@ -1214,10 +1209,10 @@ class AppWindow(QtWidgets.QMainWindow):
     @QtCore.pyqtSlot()
     def save_image(self):
         self.logger.debug("Save image")
-        for i in range(self.GYRO_NUMBER):
+        for i, plot_check_box in enumerate(self.tab_plot_widget.plot_check_box_list):
             # if (len(self.processing_thr.save_file_name[i])
                 # and self.plot_check_box_list[i].isChecked()):
-            if self.tab_plot_widget.plot_check_box_list[i].isChecked():
+            if plot_check_box.isChecked():
                 # if self.processing_thr.flag_full_measurement_start:  # !
                 self.make_filename(i)  # !
                 self.tab_plot_widget.save_plot_image(
@@ -1319,39 +1314,37 @@ class AppWindow(QtWidgets.QMainWindow):
     #     print(f'Directory Changed: {path}')
 
     @QtCore.pyqtSlot()
-    def folder_change_event(self):
-        for i in range(len(self.saving_result_folder_label_list)):
-            if self.sender() == self.saving_result_folder_label_list[i]:
+    def folder_change_event(self): 
+        for i, saving_result_folder_label in enumerate(self.saving_result_folder_label_list):
+            if self.sender() is saving_result_folder_label:
                 break
         else:
             return
-        if not os.path.exists(self.saving_result_folder_label_list[i].toPlainText()):
-            self.saving_result_folder_label_list[i].setStyleSheet("color: grey;")
+        if not os.path.isdir(saving_result_folder_label.toPlainText()):
+            saving_result_folder_label.setStyleSheet("color: grey;")
         else:
-            self.saving_result_folder_label_list[i].setStyleSheet("color: #FFFFF1;")
-        self.folder_name_list[i] = self.saving_result_folder_label_list[i].toPlainText() + '/'   
+            saving_result_folder_label.setStyleSheet("color: #FFFFF1;")
+        self.folder_name_list[i] = saving_result_folder_label.toPlainText() + '/' 
 
     @QtCore.pyqtSlot()
     def choose_result_saving_path(self):
         """Folder selection dialog."""
-        for i in range(len(self.choose_path_button_list)):
-            if self.sender() == self.choose_path_button_list[i]:
+        for i, choose_path_button in enumerate(self.choose_path_button_list):
+            if self.sender() is choose_path_button:
                 break
         else:
             return
         folder = QtWidgets.QFileDialog.getExistingDirectory(
             self, "Выбрать папку", self.folder_name_list[i])
-        if not len(folder):
-            return
-        self.folder_name_list[i] = folder + '/'
-        self.saving_result_folder_label_list[i].setText(
-            self.folder_name_list[i])
+        if folder:
+            self.folder_name_list[i] = folder + '/'
+            self.saving_result_folder_label_list[i].setText(
+                self.folder_name_list[i])
 
     @QtCore.pyqtSlot()
     def filename_and_path_text_change(self):
         """Вызывается при изменении пути к файлу измерений."""
         if not os.path.isfile(self.filename_and_path_textedit.toPlainText()):  # text
-            # self.logger.debug("The file path does not exist!")  # !
             self.filename_and_path_textedit.setStyleSheet("color: grey;")
             return False
         if len(self.filename_and_path_textedit.toPlainText()):
@@ -1367,7 +1360,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self.logger.debug(
             f'measurement File Changed, {path},' +
             f'thr run? {self.processing_thr.flag_full_measurement_start}')
-        if not self.processing_thr.flag_full_measurement_start and os.path.exists(path):
+        if not self.processing_thr.flag_full_measurement_start and os.path.isfile(path):
             self.get_data_from_file(path)
 
     @QtCore.pyqtSlot()
@@ -1398,7 +1391,7 @@ class AppWindow(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot()
     def open_file(self):
-        """Open .txt file."""
+        """Open txt file."""
         self.logger.debug('start file')
         if os.path.isfile(self.filename_and_path_textedit.toPlainText()):
             os.startfile(self.filename_and_path_textedit.toPlainText())
@@ -1489,19 +1482,14 @@ class AppWindow(QtWidgets.QMainWindow):
                 self.filename_path_watcher = self.filename_and_path_textedit.toPlainText()  # os.path.basename(filename)
                 self.file_watcher.addPath(self.filename_path_watcher)
         if settings.contains(f"create_folder_flag_{self.GYRO_NUMBER}"):
-            for i in range(min(len(settings.value(f"create_folder_flag_{self.GYRO_NUMBER}")),
-                               len(self.create_folder_checkbox_list))):
-                self.create_folder_checkbox_list[i].setChecked(
-                    int(settings.value(f"create_folder_flag_{self.GYRO_NUMBER}")[i]))
+            for i, create_flag in enumerate(settings.value(f"create_folder_flag_{self.GYRO_NUMBER}")):
+                self.create_folder_checkbox_list[i].setChecked(int(create_flag))
         if settings.contains(f"current_folders_{self.GYRO_NUMBER}"):
-            for i in range(min(len(settings.value(f"current_folders_{self.GYRO_NUMBER}")),
-                               len(self.saving_result_folder_label_list))):
-                if (os.path.isdir(settings.value(f"current_folders_{self.GYRO_NUMBER}")[i])
-                    or len(settings.value(f"current_folders_{self.GYRO_NUMBER}")[i]) == 0):
-                    self.saving_result_folder_label_list[i].setText(
-                        settings.value(f"current_folders_{self.GYRO_NUMBER}")[i])
-                    self.folder_name_list[i] = settings.value(
-                        f"current_folders_{self.GYRO_NUMBER}")[i]
+            for i, current_folder\
+                in enumerate(settings.value(f"current_folders_{self.GYRO_NUMBER}")):
+                if os.path.isdir(current_folder):
+                    self.saving_result_folder_label_list[i].setText(current_folder)
+                    self.folder_name_list[i] = current_folder
         # попробовать сохранить в json или вместо словаря использовать dataFrame pandas
         # можно будет добавить пункт открыть исходник, чтобы вручную редактировать
         if not os.path.isfile(self.PROJECT_FILE_NAME):

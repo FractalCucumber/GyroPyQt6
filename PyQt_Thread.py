@@ -32,55 +32,54 @@ class SecondThread(QtCore.QThread):
     warning_signal = QtCore.pyqtSignal(str)
     info_signal = QtCore.pyqtSignal(str)
 
-    def __init__(self, gyro_number, READ_INTERVAL_MS, logger_name: str = '', WAIT_TIME_SEC = 0.5):
+    def __init__(self, gyro_number: int, read_interval_ms: int,
+                 logger_name='', wait_time_sec=0.5):
         # QtCore.QThread.__init__(self)
         super(SecondThread, self).__init__()
         self.data_received_event = Event()
         self.logger = logging.getLogger(logger_name)
         self.GYRO_NUMBER = gyro_number
-        self.READ_INTERVAL_MS = READ_INTERVAL_MS
+        self.READ_INTERVAL_MS = read_interval_ms
+        self.WAIT_TIME_SEC = wait_time_sec
+        # self.WAIT_TIME_SEC = 0.2
+        # self.WAIT_TIME_SEC = 0
         self.rx: bytes = b''
         self.all_fft_data: np.ndarray = np.array([], dtype=np.float32)
         self.time_data: np.ndarray = np.array([], dtype=np.int32)
         self.special_points: np.ndarray = np.empty((5, self.GYRO_NUMBER))
-        self.k_amp = np.ones(self.GYRO_NUMBER, dtype=np.float32)
-        self.amp_shift = np.zeros(self.GYRO_NUMBER, dtype=np.float32)
+        self.k_amp: np.ndarray = np.ones(self.GYRO_NUMBER, dtype=np.float32)
+        self.amp_shift: np.ndarray = np.zeros(self.GYRO_NUMBER, dtype=np.float32)
         self.border: np.ndarray = np.zeros(2, dtype=np.uint32)
-        self.WAIT_TIME_SEC = WAIT_TIME_SEC
-        # self.WAIT_TIME_SEC = 0.2
-        # self.WAIT_TIME_SEC = 0
+        self.to_plot: np.ndarray = np.array([], dtype=np.float32)  # !
         self.fs = 0
         self.flag_send: bool = True
         self.total_time: int = 0
-        self.total_cycle_num = 0  # !!!
+        self.total_cycle_num = 0  # !
         self.cycle_count = 1
         self.num_measurement_rows = 0
         self.pack_num = 0
         self.package_num_list: list = [0]
-        self.flag_full_measurement_start: bool = False  # лучше все эти флаги загнать в словарь dsfdddd
-        self.flag_measurement_start = False
-        self.flag_big_processing = False
-        self.flag_by_name = False
-        self.flag_do_not_save = False
-        self.selected_files_to_fft: list[str] = []
-
-        self.save_file_name = [''] * self.GYRO_NUMBER
-        self.POWERS14_4 = np.matrix(
-            [(256 ** np.arange(4)[::-1])] * 4)  # !
-        self.POWERS14_2 = np.matrix(
-            [(256 ** np.arange(4)[::-1])] * 2)  # !!
-        self.POWERS20_6 = np.matrix(
-            [(256 ** np.arange(4)[::-1])] * 6)  # !!
-        # import sys
-        # print(sys.getsizeof(self.time_data))
         self.pack_len = 2
         self.received_pack_len = 0
+        self.flag_full_measurement_start, self.flag_measurement_start = False, False  # лучше все эти флаги загнать в словарь dsfdddd
+        # self.flag_measurement_start = False
+        self.flag_big_processing, self.flag_by_name = False, False
+        # self.flag_by_name = False
+        self.flag_do_not_save, self.save_again = False, False
+        # self.save_again = False
+        self.crc_flag = False
+        self.flag_by_name_ = False
+
+        self.selected_files_to_fft: list[str] = []
+        self.save_file_name = [''] * self.GYRO_NUMBER
+        self.POWERS14_4 = np.matrix([(256 ** np.arange(4)[::-1])] * 4)  # !
+        self.POWERS14_2 = np.matrix([(256 ** np.arange(4)[::-1])] * 2)  # !!
+        self.POWERS20_6 = np.matrix([(256 ** np.arange(4)[::-1])] * 6)  # !!
+        # import sys
+        # print(sys.getsizeof(self.time_data))
         # print(get_fft_data(np.array([1, 1, 1, 1, 1, 1, 1, 1, 1]),
         #   np.array([0, 1, 2, 1, 0, -1, -2, -1, 0]), 9))
-        self.to_plot = np.array([], dtype=np.float32)  # !
-        self.crc_flag = False
-        self.save_again = False
-        self.flag_by_name_ = False
+
 # -------------------------------------------------------------------------------------------------
 #   
 # -------------------------------------------------------------------------------------------------
@@ -116,8 +115,8 @@ class SecondThread(QtCore.QThread):
         self.GYRO_NUMBER = temp
         self.flag_by_name = False
         self.flag_do_not_save = False
-        self.logger.debug("Thread stop")
         self.save_again = True
+        self.logger.debug("Thread stop")
 # -------------------------------------------------------------------------------------------------
 #
 # -------------------------------------------------------------------------------------------------
@@ -643,7 +642,7 @@ class SecondThread(QtCore.QThread):
                                 gyro=(self.time_data[self.border[0]:self.border[1],
                                                     1 + i * self.pack_len] - self.amp_shift[i]),  # добавил сюда учет смещения
                                 encoder=self.time_data[self.border[0]:self.border[1],
-                                                       2 + i * self.pack_len + i * self.pack_len] * self.k_amp[i],
+                                                       2 + i * self.pack_len] * self.k_amp[i],
                                 fs=self.fs)
                         else:
                             [freq, amp, d_phase] = get_fft_data(
@@ -651,7 +650,7 @@ class SecondThread(QtCore.QThread):
                                 gyro=(self.time_data[self.border[0]:self.border[1],
                                                     1 + i * self.pack_len] - self.amp_shift[i]),  # добавил сюда учет смещения
                                 encoder=self.time_data[self.border[0]:self.border[1],
-                                                       2 + i * self.pack_len + i * self.pack_len] * self.k_amp[i],
+                                                       2 + i * self.pack_len] * self.k_amp[i],
                                 fs=self.fs)
                         freq, amp, d_phase, tau = fft_norm_gen.send((freq, amp, d_phase, i))
                         # [freq, amp, d_phase, tau] = self.fft_normalization(
@@ -669,14 +668,12 @@ class SecondThread(QtCore.QThread):
 # -------------------------------------------------------------------------------------------------
 
     def fft_median_filter(self, round_flag=True):
-        for i in range(self.all_fft_data.shape[2]):
-            # нужна проверка на то, что все частоты +- совпадают, проще при создании массива проверять
-            for k in range(self.all_fft_data.shape[0]):
-                for j in range(4):
-                    self.all_fft_data[k, j - 4, i] = np.nanmedian(self.all_fft_data[k, j::4, i])
-            if round_flag:
-                self.all_fft_data[:, -4, i] = np.round(self.all_fft_data[:, -4, i], 2)
-                self.all_fft_data[:, -3, i] = np.round(self.all_fft_data[:, -3, i], 4)
+        # нужна проверка на то, что все частоты +- совпадают, проще при создании массива проверять
+        for j in range(4):
+            self.all_fft_data[:, j - 4, :] = np.nanmedian(self.all_fft_data[:, j::4, :], axis=1)
+        if round_flag:
+            self.all_fft_data[:, -4, :] = np.round(self.all_fft_data[:, -4, :], 2)
+            self.all_fft_data[:, -3, :] = np.round(self.all_fft_data[:, -3, :], 4)
 # -------------------------------------------------------------------------------------------------
 
     def get_special_points(self):
@@ -723,7 +720,7 @@ class SecondThread(QtCore.QThread):
 
         if self.flag_do_not_save and self.flag_big_processing:  # лучше все эти флаги загнать в словарь
             self.logger.debug("do_not_save")  # добавить создание папки в текущей директории
-            self.get_fft_from_folders(folder=os.getcwd())
+            self.get_fft_from_folders(folder_to_save=os.getcwd())
 
         if self.flag_by_name:
             self.logger.debug("flag_by_name")
@@ -747,13 +744,13 @@ class SecondThread(QtCore.QThread):
                        (custom_g_filter(len=13, k=0.0075) * 1).astype(np.float32)]  # g_filter
         self.cycle_count = 1
         for file_for_fft in file_list:
-            with open(file_for_fft) as f:
-                line_len = len(f.readline().split("\t"))
+            with open(file_for_fft) as file:
+                line_len = len(file.readline().split("\t"))
                 if line_len == 4:
                     self.get_existing_fft_file(file_for_fft)
                     break
                 if line_len != 5 and line_len != 3:
-                    self.logger.debug(f"{f.readline()}")
+                    self.logger.debug(f"{file.readline()}")
                     self.warning_signal.emit(f"You choose wrong file!")
                     continue
             self.fft_for_file(file_for_fft, filter_list)
@@ -769,7 +766,7 @@ class SecondThread(QtCore.QThread):
             self.median_data_ready_signal.emit(filename_list_median)
 # -------------------------------------------------------------------------------------------------
 
-    def fft_for_file(self, filename: str, filter_list: list, threshold: int = 5300): # time_data заполнять!
+    def fft_for_file(self, filename: str, filter_list: list, threshold: int = 5300): # здесь не учитывается смещение по каналу гироскопа!
         """Open file, find borders and calculate fft data."""
         min_frame_len = 1.0 * self.fs  # сколько времени минимум длится вибрация + пауза, при 1 работало
         # min_frame_len = 1.5 * self.fs
@@ -787,15 +784,13 @@ class SecondThread(QtCore.QThread):
         start = np.where(
             (bool_arr[:-1] <= 0.5) & (bool_arr[1:] > 0.5))[0]
         start_arr = np.where(np.diff(start) > min_frame_len)[0]
-        start_arr = (np.insert(
-            start[start_arr + 1], 0, start[0]) + self.delays[0] / 2).astype(np.int32)
-        start_arr *= 2
+        start_arr = (2 * np.insert(
+            start[start_arr + 1], 0, start[0]) + self.delays[0]).astype(np.int32)
         end = np.where(
             (bool_arr[:-1] >= 0.5) & (bool_arr[1:] < 0.5))[0]
         end_arr = np.where(np.diff(end) > min_frame_len)[0]
-        end_arr = (np.insert(
-            end[end_arr], end[end_arr].size, end[-1]) + self.delays[1] / 2).astype(np.int32)
-        end_arr *= 2
+        end_arr = (2 * np.insert(
+            end[end_arr], end[end_arr].size, end[-1]) + self.delays[1]).astype(np.int32)
 
         # self.logger.debug(f"\nd start= {np.diff(start)}\nd  end = {np.diff(end)}")
         if start_arr.size != end_arr.size:
@@ -890,7 +885,6 @@ class SecondThread(QtCore.QThread):
             while not (-360 < d_phase_prev[i] <= 0 or np.isnan(d_phase_prev[i])):
                 d_phase_prev[i] += (360 if d_phase_prev[i] < -360 else -360)
                 self.logger.debug("Error!!!")
-            # print(f"d_phase {d_phase}, d_phase_prev {d_phase_prev}")
             if self.cycle_count == 1 and 1.5 > freq > 0.5 and amp > 0:
                 if -200 < d_phase < -160:
                     sign = -1
@@ -913,7 +907,7 @@ class SecondThread(QtCore.QThread):
                 f"wrap d_phase = {d_phase}, d_phase_prev = {d_phase_prev[i]}, freq={freq}")
             # if d_phase - d_phase_prev[i] > 135 and d_phase - d_phase_prev_prev[i] > 85:
             # if d_phase - d_phase_prev_prev[i] > 95 and d_phase_prev[i] - d_phase_prev_prev[i] > 95:  # может сработать из-за выброса
-            if d_phase - d_phase_prev[i] > 205 and d_phase - d_phase_prev_prev[i] > 165:  # может сработать из-за выброса
+            if d_phase - d_phase_prev[i] > 235 and d_phase - d_phase_prev_prev[i] > 195:  # может сработать из-за выброса
                 self.logger.debug("really wrap!")
                 # чтобы исключить выброс, нужно быть уверенным, что два значения подряд будут ниже -360
                 flag[i] = True
@@ -974,10 +968,10 @@ class SecondThread(QtCore.QThread):
         return result  # x
 # -------------------------------------------------------------------------------------------------
 
-    def get_fft_from_folders(self, folder):
-        path = 'sensors_nums — копия.txt'
+    def get_fft_from_folders(self, folder_to_save, file_name):
+        # file_name = 'sensors_nums — копия.txt'
         sensor_list = read_csv(
-            path, dtype=np.str, delimiter='\n', header=None)
+            file_name, dtype=np.str, delimiter='\n', header=None)
         for sensor_number in sensor_list[0]:
             check = list(filter(None, re.split("\.|\n", sensor_number)))
             if len(check[-1]) < 3:
@@ -995,7 +989,7 @@ class SecondThread(QtCore.QThread):
                     self.selected_files_to_fft.append(sensor_folder + '/' + file)
                     last_filename = split_filename
             # sensor_folder + '/' добавлять это, чтобы сохранять в той же папке
-            self.save_file_name[0] = folder + \
+            self.save_file_name[0] = folder_to_save + \
                 last_filename[0] + '_' + last_filename[1] + '_' +  last_filename[2]
             self.logger.debug(f"files in folder: {self.selected_files_to_fft}")
             self.fft_from_file_median(self.selected_files_to_fft) #, self.fft_filename)
@@ -1006,7 +1000,6 @@ class SecondThread(QtCore.QThread):
     def get_existing_fft_file(self, file_for_fft):
         """Show data from FRQ_AMP_dPh file."""
         self.logger.debug("plot existing fft")
-        # сразу вывести график афчх средний
         # можно сделать так, чтобы до трех разных датчиков можно было выбирать
         try:
             self.all_fft_data = np.array(
