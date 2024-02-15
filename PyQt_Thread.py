@@ -794,9 +794,9 @@ class SecondThread(QThread):
         self.amp_shift.fill(0)
         self.total_cycle_num = len(file_list)
         self.logger.debug(f"total_cycle_num={self.total_cycle_num}")
-        # n = 4
-        filter_len = int(self.fs * 0.26 / self.fft_opt['decimation']) * 2 + 1  # filter_len = int(self.fs * 0.1) * 2 + 1, 0.21 for n = 2
-        filter_list = [(np.ones(filter_len) / filter_len * 1.5).astype(np.float32), #] # const_filter
+        # n = 4  self.fft_opt['filter_width'] = 0.26
+        filter_len = int(self.fs * self.fft_opt['filter_width'] / self.fft_opt['decimation']) * 2 + 1  # filter_len = int(self.fs * 0.1) * 2 + 1, 0.21 for n = 2
+        filter_list = [(np.ones(filter_len) / filter_len * 1.5).astype(np.float32),  #] # const_filter
                        (custom_g_filter(len=int(35 / self.fft_opt['decimation']), k=0.008) * 1).astype(np.float32)]  # g_filter
         self.cycle_count = 1
         for file_for_fft in file_list:

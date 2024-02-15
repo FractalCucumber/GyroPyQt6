@@ -27,10 +27,10 @@ class CustomViewBox(pg.ViewBox):
         # pg.ViewBoxMenu
         pg.ViewBox.__init__(self, *args, **kwds)
         # self.setMouseMode(self.RectMode)
-        menu = self.getMenu(None)  # !
+        # menu = self.getMenu(None)  # !
         STYLE_SHEETS_FILENAME = 'res\StyleSheets.css'
         with open(STYLE_SHEETS_FILENAME, "r") as style_sheets_css_file:
-            menu.setStyleSheet(style_sheets_css_file.read())
+            self.menu.setStyleSheet(style_sheets_css_file.read())
             # print(menu.findChildren())
             # menu.actions()[0].setParent(menu)
             # menu.actions()[1].setParent(menu)
@@ -41,9 +41,9 @@ class CustomViewBox(pg.ViewBox):
         # print(self.parent())
         # print(self)
         # print(menu)
-        # hide_1 = QtWidgets.QAction('gyro 1', menu, objectName="1")
+        # hide_1 = QtWidgets.QAction('gyro 1', self.menu, objectName="1")
         # hide_1.triggered.connect(self.change_curve_visibility_signal.emit)
-        # menu.addAction(hide_1)
+        # self.menu.addAction(hide_1)
 
     # def contextMenuEvent(self, event):
     #     menu = self.getMenu(None)
@@ -133,6 +133,11 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 # ------ time plot ------------------------------------------------------------
         self.logger.debug("1")
         self.time_plot_item = pg.PlotItem(viewBox=CustomViewBox())
+        menu = self.time_plot_item.vb.menu
+        hide_1 = QtWidgets.QAction('Переключить ось Х', menu)
+        hide_1.triggered.connect(self.switch_plot_x_axis)
+        menu.insertAction(menu.actions()[0], hide_1)
+        menu.insertSeparator(menu.actions()[1])
         self.logger.debug("1.25")
         self.time_plot = pg.PlotWidget(plotItem=self.time_plot_item)
         # menu = self.time_plot.getContextMenus(None)
@@ -140,6 +145,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # print(self.time_plot_item.vb)
         self.time_plot_item.setParent(self.time_plot)
         self.time_plot_item.vb.setParent(self.time_plot_item)
+        # self.time_plot.setContextMenus(menu)
         # print(self.time_plot_item.vb.menu.setParent(self))
         # print(self.time_plot_item.vb.parent())
         # print(self.time_plot_item.parent())
@@ -147,7 +153,6 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # self.time_plot_item.setContextMenuPolicy(
             # QtCore.Qt.CustomContextMenu)
         # self.time_plot_item.customContextMenuRequested(self.__contextMenu)
-        
         self.logger.debug("1.5")
         self.time_plot.setLimits(xMin=-0.01)
         # self.time_plot_item.setTitle('Угловая скорость', size=f'{self.pt}pt')  # Velocity Graph
@@ -158,12 +163,10 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                                      units='\u00b0/second', **self.LABEL_STYLE)
         self.time_plot_item.setLabel('bottom', 'Time',
                                      units='seconds', **self.LABEL_STYLE)
-
         self.time_curves = [self.time_plot_item.plot(pen='w', name="encoder")]
         for i in range(self.GYRO_NUMBER):
             self.time_curves.append(self.time_plot_item.plot(
                 pen=self.COLOR_LIST[i], name=f"gyro {i + 1}", skipFiniteCheck=True))
-
         self.region = pg.LinearRegionItem([0, 0], movable=False)
         self.time_plot_item.addItem(self.region)
         self.logger.debug("2")
@@ -190,7 +193,6 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         page = QtWidgets.QWidget(self)
         layout = QtWidgets.QVBoxLayout(spacing=0)
         layout.setContentsMargins(5, 10, 5, 5)
-
         layout.addWidget(self.time_plot)
         self.spectrum_button = QtWidgets.QPushButton("От времени")  # Time plot
         layout.addWidget(self.spectrum_button)
