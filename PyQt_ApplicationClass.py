@@ -1119,6 +1119,7 @@ class AppWindow(QtWidgets.QMainWindow):
                          f"self.cycle_num = {self.total_cycle_num}")
 
         self.serial_port.clear()
+        self.serial_port.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))  # на всякий случай
         # Start timers
         self.start_time = time()  # !!!!!
         self.timer_receive.start()
