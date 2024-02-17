@@ -4,7 +4,7 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 class CustomComboBox(QtWidgets.QComboBox):
     def __init__(self,
                  settings: QtCore.QSettings,  # передавать сразу объект QtCore.QSettings, чтобы не создавать их
-                 settings_name: str = 'Deafault',
+                 settings_name: str = 'Default',
                  default_items_list = [''],
                  editable_flag=True,
                  uint_validator_enable=True,

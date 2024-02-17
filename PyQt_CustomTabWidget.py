@@ -14,36 +14,49 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 import PyQt_ProjectsComboBox
 from PyQt_Functions import check_name_simple, get_icon_by_name
 
+# pg.LegendItem.ItemSample.mouseClickEvent
+# C:\Users\zinkevichav\AppData\Local\Programs\Python\Python36\Lib\site-packages\pyqtgraph\graphicsItems\LegendItem.py
+# pg.LegendItem
+# сам подправлял LegendItem, чтобы работало нажатие на легенду
 
 class CustomViewBox(pg.ViewBox):
+    # change_curve_visibility_signal = QtCore.pyqtSignal(int)
     def __init__(self, *args, **kwds):
         # kwds['enableMenu'] = True
         # kwds['enableMenu'] = False
         # pg.ViewBoxMenu
         pg.ViewBox.__init__(self, *args, **kwds)
         # self.setMouseMode(self.RectMode)
-        menu = self.getMenu(None)  # !
+        # menu = self.getMenu(None)  # !
         STYLE_SHEETS_FILENAME = 'res\StyleSheets.css'
         with open(STYLE_SHEETS_FILENAME, "r") as style_sheets_css_file:
-            menu.setStyleSheet(style_sheets_css_file.read())
+            self.menu.setStyleSheet(style_sheets_css_file.read())
             # print(menu.findChildren())
             # menu.actions()[0].setParent(menu)
             # menu.actions()[1].setParent(menu)
             # menu.actions()[1].setStyleSheet(style_sheets_css_file.read())
             # menu.actions()[1].setParent(menu)
             # menu.actions()[2].setStyleSheet(style_sheets_css_file.read())
-        # menu.setStyleSheet("""""")
         # print(self.menu.parent())
         # print(self.parent())
         # print(self)
         # print(menu)
-        # gotoAction = QtWidgets.QAction('action-to-add', menu)
-        # menu.insertAction(menu.actions(), gotoAction)
+        # hide_1 = QtWidgets.QAction('gyro 1', self.menu, objectName="1")
+        # hide_1.triggered.connect(self.change_curve_visibility_signal.emit)
+        # self.menu.addAction(hide_1)
+
+    # def contextMenuEvent(self, event):
+    #     menu = self.getMenu(None)
+    #     someAction = menu.addAction('New_Item')
+
+    #     res = menu.exec()
+    #     if res == someAction:
+    #         print('Hello')
 
     def mouseDoubleClickEvent(self, e):
-        if (e.buttons() & QtCore.Qt.LeftButton):
+        if (e.buttons() & QtCore.Qt.MouseButton.LeftButton):
             self.autoRange()
-            self.enableAutoRange()  # так действительно возвращает в режим автоматического масштабирования
+            self.enableAutoRange()  # возвращает в режим автоматического масштабирования
 
     # def contextMenuEvent(self, event):
         # menu = self.getMenu(None)
@@ -74,6 +87,15 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     def __init__(self, GYRO_NUMBER, fs=1000, logger_name='', parent=None):
         # QtWidgets.QTabWidget.__init__(self)
         super(CustomTabWidget, self).__init__(parent)
+        shortcuts = [QtWidgets.QShortcut(
+            QtGui.QKeySequence(f"Ctrl+{i}"), self,
+            context=QtCore.Qt.ShortcutContext.ApplicationShortcut) for i in range(1, 10)]
+        [shortcut.activated.connect(self.switch_tab) for shortcut in shortcuts]
+        # h = self.count() - 1
+        # for i, shortcut in enumerate(shortcuts):
+            # shortcut.activated.connect(lambda: self.switch_tab(i))
+            # print(shortcut.key().toString())
+        # [shortcut.activated.connect(lambda: self.ffff(i)) for i, shortcut in enumerate(shortcuts)]
         self.GYRO_NUMBER = GYRO_NUMBER
         self.visibility_flags_list = [True] * (self.GYRO_NUMBER + 1)
         self.LABEL_STYLE = {'color': '#FFF', 'font-size': '16px'}
@@ -107,9 +129,15 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                 icon=get_icon_by_name(self.ICON_COLOR_LIST[i])))
         for plot_check_box in self.plot_check_box_list:
             plot_check_box.stateChanged.connect(self.change_curve_visibility)
+            # plot_check_box.doubleClicked.connect(lambda: print(1))
 # ------ time plot ------------------------------------------------------------
         self.logger.debug("1")
         self.time_plot_item = pg.PlotItem(viewBox=CustomViewBox())
+        menu = self.time_plot_item.vb.menu
+        hide_1 = QtWidgets.QAction('Переключить ось Х', menu)
+        hide_1.triggered.connect(self.switch_plot_x_axis)
+        menu.insertAction(menu.actions()[0], hide_1)
+        menu.insertSeparator(menu.actions()[1])
         self.logger.debug("1.25")
         self.time_plot = pg.PlotWidget(plotItem=self.time_plot_item)
         # menu = self.time_plot.getContextMenus(None)
@@ -117,6 +145,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # print(self.time_plot_item.vb)
         self.time_plot_item.setParent(self.time_plot)
         self.time_plot_item.vb.setParent(self.time_plot_item)
+        # self.time_plot.setContextMenus(menu)
         # print(self.time_plot_item.vb.menu.setParent(self))
         # print(self.time_plot_item.vb.parent())
         # print(self.time_plot_item.parent())
@@ -124,7 +153,6 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # self.time_plot_item.setContextMenuPolicy(
             # QtCore.Qt.CustomContextMenu)
         # self.time_plot_item.customContextMenuRequested(self.__contextMenu)
-        
         self.logger.debug("1.5")
         self.time_plot.setLimits(xMin=-0.01)
         # self.time_plot_item.setTitle('Угловая скорость', size=f'{self.pt}pt')  # Velocity Graph
@@ -135,12 +163,10 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                                      units='\u00b0/second', **self.LABEL_STYLE)
         self.time_plot_item.setLabel('bottom', 'Time',
                                      units='seconds', **self.LABEL_STYLE)
-
         self.time_curves = [self.time_plot_item.plot(pen='w', name="encoder")]
         for i in range(self.GYRO_NUMBER):
             self.time_curves.append(self.time_plot_item.plot(
                 pen=self.COLOR_LIST[i], name=f"gyro {i + 1}", skipFiniteCheck=True))
-
         self.region = pg.LinearRegionItem([0, 0], movable=False)
         self.time_plot_item.addItem(self.region)
         self.logger.debug("2")
@@ -167,20 +193,23 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         page = QtWidgets.QWidget(self)
         layout = QtWidgets.QVBoxLayout(spacing=0)
         layout.setContentsMargins(5, 10, 5, 5)
-
         layout.addWidget(self.time_plot)
         self.spectrum_button = QtWidgets.QPushButton("От времени")  # Time plot
         layout.addWidget(self.spectrum_button)
         self.spectrum_button.clicked.connect(self.switch_plot_x_axis)
         page.setLayout(layout)
         self.addTab(page, "\u03C9(t)")  # &Time plot От времени
+
         self.tab_widget_page_list: list[QtWidgets.QWidget] = []
         self.phase_curves: list[pg.PlotCurveItem] = []
         self.amp_curves: list[pg.PlotCurveItem] = []
         self.phase_plot_list: list[pg.PlotWidget] = []
         self.amp_plot_list: list[pg.PlotWidget] = []
-
+        self.proxy_phase: list[pg.SignalProxy]  = []
+        self.proxy_amp: list[pg.SignalProxy] = []
+        self.point_label_list: list[QtWidgets.QLabel] = []
         self.bytes_widget = QtWidgets.QTextEdit(visible=False)
+        self.inf_x_line_list: list[pg.InfiniteLine] = []
         layout.addWidget(self.bytes_widget)  # !!!
 
 # -----------------------------------------------------------------------------
@@ -204,6 +233,9 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.logger.debug("3")
 
         self.projects_combo_box = PyQt_ProjectsComboBox.ProjectsComboBox(self)
+        self.projects_combo_box.currentIndexChanged.connect(self.check_excel_file)
+        self.projects_combo_box.currentTextChanged.connect(self.check_excel_file)
+        # self.projects_combo_box.dlg.finished.connect(self.check_excel_file) 
         median_plot_groupbox_layout.addWidget(
             self.projects_combo_box, 0, 0, 1, 3)
 
@@ -220,15 +252,14 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             self.get_filenames_btn, 7, 0, 1, 3)
         self.get_filenames_btn.clicked.connect(self.get_filenames_to_fft)
 
-        self.plot_fft_median()
+        self.set_plot_fft_median_layout()
 
-        # !!!
-        # self.selected_curve = 0
+        self.selected_curve = 0
         # self.groupbox_list[self.selected_curve].setChecked(True)
         # for j in range(1, len(self.groupbox_list)):
         #     self.groupbox_list[j].setChecked(False)
-        # for infinite_x_line in self.infinite_x_line_list:
-        #     infinite_x_line.setPen(
+        # for inf_x_line in self.inf_x_line_list:
+        #     inf_x_line.setPen(
         #         pg.mkPen(self.COLOR_LIST[self.selected_curve]))
         # !!!
         # self.groupbox_clicked(self.groupbox_list[0])
@@ -237,11 +268,11 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.start_folder = "."  # !
         # self.log_mode()
         self.excel_com_object = None
-        self.plot_index = 0
+        self.plot_index = -2
 # ----------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
 #
-        
+    
     def __contextMenu(self):
         # self._normalMenu = self.combo_box_name.layout().createStandardContextMenu()
         # self._normalMenu = self.com_port_name_combobox.lineEdit().createStandardContextMenu()
@@ -324,154 +355,71 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             self.logger.debug("Only NaN in fft")
             return False
         self.setCurrentIndex(1)
-        for infinite_x_line_list in self.infinite_x_line_list:
-            infinite_x_line_list.setVisible(True)
         temp = np.empty(
             # (freq_data.shape[0] + 1, freq_data.shape[1], len(self.groupbox_list)))
             (freq_data.shape[0] + 1, freq_data.shape[1], freq_data.shape[2]))  # подправить! 
         # temp.fill(np.nan)
-        for groupbox in self.groupbox_list:
+        # map(self.inf_x_line_list, [pg.InfiniteLine.setVisible], [True])
+        for inf_x_line in self.inf_x_line_list:
+            inf_x_line.setVisible(True)
+        for groupbox in self.groupbox_list[1:]:
             groupbox.setVisible(False)
+            groupbox.setEnabled(False)
         # for i in range(len(folder)):
         for i in range(freq_data.shape[2]):  # !!!
-            self.groupbox_list[i].setVisible(True)
             temp[:, :, i] = np.insert(
                 freq_data[:, :, i],
                 int(special_points[-1, i]), special_points[:-1, i], axis=0)
-
-            self.amp_curves[i].setData(temp[:, -4, i],
-                                        temp[:, -3, i])
-            self.phase_curves[i].setData(temp[:, -4, i],
-                                        temp[:, -2, i])
+            self.amp_curves[i].setData(temp[:, -4, i], temp[:, -3, i])
+            self.phase_curves[i].setData(temp[:, -4, i], temp[:, -2, i])
             self.max_amp_line_edit_list[i].setText(
                 f"{np.max(freq_data[:, -3, i]):.3f}")
             self.rez_freq_line_edit_list[i].setText(
                 f"{freq_data[np.argmax(freq_data[:, -3, i]), -4, i]:.2f}")
+            # print(i)
+            # print(self.sensor_name_line_edit_list)
+            # print(folder)
             self.sensor_name_line_edit_list[i].setText(folder[i])
-        self.freq_data = temp
-        # self.logger.debug(self.freq_data[1, :, :])
+            self.groupbox_list[i].setVisible(True)
+            self.groupbox_list[i].setEnabled(True)
         self.amp_plot_list[0].autoRange()
         self.phase_plot_list[0].autoRange()
         self.logger.debug("Final median plot end")
-        # self.mouse_x = None
-        # self.mouse_y = None
+        self.info_signal.emit(
+            f"The graph for {', '.join([fld for fld in folder if len(fld)])} is shown")
 
 # ----- cursor ---------------------------------------------------------------------------------
-    def update_crosshair(self, e):  # упросить для 3 гироскопов, может, выводить сразу 3 числа
+
+    @QtCore.pyqtSlot(tuple)
+    def update_crosshair(self, e):
         """Move cursor to nearest frequency point and update label."""
         pos = e[0]
-        # self.setStyleSheet()
-        # print("-----")
-        # print(self.amp_plot_list[0].plotItem.sceneBoundingRect())
-        # # print(self.amp_plot_list[0].plotItem.scene.boundingRect())
-        # print(self.amp_plot_list[0].plotItem.vb.mapSceneToView(pos))
-        # print(self.amp_plot_list[0].plotItem.vb.mapViewToScene(pos))
-        # print(self.amp_plot_list[0].plotItem.vb.viewRect())
-        # # mouse_point = self.amp_plot_list[0].plotItem.vb.mapSceneToView(pos)
-        # # QtWidgets.QToolTip.showText(mouse_point.toPoint(), f"{self.plot_index}")
-        # # print(self.selected_curve)
-        # print(self.amp_plot_list[0].plotItem.vb.contains(pos))
-        # print(self.amp_plot_list[0].hasCursor())
-        # print(self.phase_plot_list[0].plotItem.vb.contains(pos))
-        # self.amp_plot_list[0].setToolTip(QtWidgets.QToolTip.showText(
-        #                 pos.toPoint(), "<feeee"))
-        # pos2 = 0.9 * pos
-        # self.phase_plot_list[0].setToolTip(QtWidgets.QToolTip.showText(
-        #                 pos2.toPoint(), "<ssss"))
-        if (self.amp_plot_list[0].plotItem.sceneBoundingRect().contains(pos)
-            and self.freq_data.size and any(self.visibility_flags_list[1:])):
-            mouse_point = self.amp_plot_list[0].plotItem.vb.mapSceneToView(pos)
-            # print(self.amp_plot_list[0].plotItem.vb.sceneTransform(pos))
-            # print(self.amp_plot_list[0].plotItem.vb.mapViewToScene(pos))
-            # print(mouse_point)
-            # print(pos)
-            # print(self.amp_plot_list[0].plotItem.vb.mapFromItemToView(pos))
+        _i = self.currentIndex() - 1
+        if (_i + 1) and (self.amp_plot_list[_i].plotItem.sceneBoundingRect().contains(pos)
+            and any(self.visibility_flags_list[1:])):
             self.selected_curve = self.visibility_flags_list[1:].index(True)
-            # print(self.selected_curve)
-            # print(self.freq_data.shape)
+            if isinstance(
+                self.amp_plot_list[_i].plotItem.curves[self.selected_curve].getData()[0], type(None)):
+                return False
+            mouse_point = self.amp_plot_list[_i].plotItem.vb.mapSceneToView(pos)  # узкое место в производительности
             prev_ind = self.plot_index
             self.plot_index = np.nanargmin(
-                np.abs(self.freq_data[:, -4, self.selected_curve] - mouse_point.x()))
-            if self.plot_index == prev_ind: # чтобы лишний раз не пересчитывать
-                pass
-                # return
-                # np.abs(self.freq_data[:, -4, 0] - mouse_point.x()))
-                # np.abs(self.freq_data[:, -4, self.selected_curve] - np.power(10, mouse_point.x())))
-            if 0 <= self.plot_index < len(self.freq_data[:, -4, self.selected_curve]):  # index >= 0 and
-                # --- ---
-                # print(pos.toPoint())
-                # p = self.amp_plot_list[0].mapToGlobal(pos.toPoint())
-                # p = QtCore.QPointF(self.freq_data[self.plot_index, -4, self.selected_curve],
-                #                    1.0 * self.freq_data[self.plot_index, -3, self.selected_curve])
-                # p = self.amp_plot_list[0].plotItem.vb.mapViewToScene(p)
-                # p = self.amp_plot_list[0].mapToGlobal(p.toPoint())
-                # plot_index2 = np.nanargmin(
-                #     np.abs(self.freq_data[self.plot_index, -3, :] - mouse_point.y()))
-                # self.setStyleSheet("""QToolTip { 
-                #                 background-color: #8ad4ff; 
-                #                 color: black; 
-                #                 border: #8ad4ff solid 1px
-                #                 }""")
-                # self.amp_plot_list[0].setStyleSheet("""QToolTip { 
-                #                 background-color: #8ad4ff; 
-                #                 color: black; 
-                #                 border: #8ad4ff solid 1px
-                #                 }""")
-                # self.amp_plot_list[0].setToolTip(
-                #     QtWidgets.QToolTip.showText(
-                #         p, f"<font color={self.COLOR_LIST2[plot_index2]}>\
-                #             A={self.freq_data[self.plot_index, -3, plot_index2]:.3f}<br />\
-                #                 f={self.freq_data[self.plot_index, -4, plot_index2]:.2f}</font>"))
-                # p = QtCore.QPointF(self.freq_data[self.plot_index, -4, self.selected_curve],
-                #                    1.0 * self.freq_data[self.plot_index, -2, self.selected_curve])
-                # --- ---
-                # p = self.phase_plot_list[0].plotItem.vb.mapViewToScene(p)
-                # p = self.phase_plot_list[0].mapToGlobal(p.toPoint())
-                #     QtWidgets.QToolTip.showText(
-                #         p, f"<font color={self.COLOR_LIST2[plot_index2]}>\
-                #             ph={self.freq_data[self.plot_index, -2, plot_index2]:.2f}<br />\
-                #                 f={self.freq_data[self.plot_index, -4, plot_index2]:.2f}</font>"))
+                np.abs(self.amp_plot_list[_i].plotItem.curves[self.selected_curve].getData()[0] - mouse_point.x()))
+            if self.plot_index == prev_ind:  # чтобы лишний раз не пересчитывать
+                return False
+            if 0 <= self.plot_index < len(self.amp_plot_list[_i].plotItem.curves[self.selected_curve].getData()[0]):
                 message = []
-                for i in range(self.freq_data.shape[2]):
-                    if self.visibility_flags_list[i + 1]:
+                for i in range(len(self.amp_plot_list[_i].plotItem.curves)):
+                    if self.visibility_flags_list[i + 1] and self.groupbox_list[i].isEnabled():
                         message.append(
                             f'\t\t\t\t\t\t\t<font color={self.COLOR_LIST2[i]}>gyro{i + 1}</font>: \
-                                f {self.freq_data[self.plot_index, -4, i]:.2f}, \
-                                \tA {self.freq_data[self.plot_index, -3, i]:.2f}, \
-                                \t\u03C6 {self.freq_data[self.plot_index, -2, i]:.1f}')
-                self.point_label.setText('; \t'.join(message))
-                for infinite_x_line in self.infinite_x_line_list:
-                    infinite_x_line.setPos(
-                        self.freq_data[self.plot_index, -4, self.selected_curve])  
-            # if 0 <= index < len(self.freq_data[:, -4, 0]):  # index >= 0 and 
-                # self.point_label.setText(
-                #     f"\t\t\t\t\t\t\tf {self.freq_data[index, -4, self.selected_curve]:.2f}" +
-                #     f"\tA {self.freq_data[index, -3, self.selected_curve]:.2f}" +
-                #     f"\t\u03C6 {self.freq_data[index, -2, self.selected_curve]:.1f}")
-                # self.mouse_x = (self.freq_data[index, -4, self.selected_curve]) # freq_data[:, -4]
-                # self.mouse_y = (self.freq_data[index, -3, self.selected_curve]) # freq_data[:, -3]
-            
-    # def mouseDoubleClickEvent(self, e):
-    #     if (e.buttons() & QtCore.Qt.LeftButton & (
-    #         self.amp_plot_list[0].underMouse() |
-    #         self.phase_plot_list[0].underMouse()
-    #         )) and self.freq_data.size:
-    #         # )) and self.freq_data[0, 0, 0] != -1:
-    #         # )) and self.freq_data.size:
-    #         pass
-            # self.amp_info_line_edit_list[self.selected_curve].setText(
-            #     f'{self.mouse_y:.3f}')
-            # self.freq_info_line_edit_list[self.selected_curve].setText(
-            #     f'{self.mouse_x:.2f}')
-            # self.cursor_label.setPos(self.mouse_x + 3, self.mouse_y + 0.3)
-
-            # print(self.amp_plot_list[0].plotItem.vb.viewRect())
-            # print(self.amp_plot_list[0].plotItem.vb.viewRect().width())
-            # print(self.amp_plot_list[0].plotItem.vb.viewRect().x())
-            # print(self.amp_plot_list[0].plotItem.vb.viewRect().y())
-            # self.cursor_label.setPos(
-            #     self.amp_plot_list[0].plotItem.vb.viewRect().x() + 0.02 * self.amp_plot_list[0].plotItem.vb.viewRect().width(),
-            #     self.amp_plot_list[0].plotItem.vb.viewRect().y() + 0.98 * self.amp_plot_list[0].plotItem.vb.viewRect().height())
+                                f {self.amp_plot_list[_i].plotItem.curves[i].getData()[0][self.plot_index]:.2f}, \
+                                \tA {self.amp_plot_list[_i].plotItem.curves[i].getData()[1][self.plot_index]:.2f}, \
+                                \t\u03C6 {self.phase_plot_list[_i].plotItem.curves[i].getData()[1][self.plot_index]:.1f}')
+                self.point_label_list[_i].setText('; \t'.join(message))
+                for inf_x_line in self.inf_x_line_list[_i * 2:_i * 2 + 2]:
+                    inf_x_line.setPos(
+                        self.amp_plot_list[_i].plotItem.curves[self.selected_curve].getData()[0][self.plot_index]) 
 # ----- Excel and file selecting ----------------------------------------------
 
     @QtCore.pyqtSlot()
@@ -489,12 +437,12 @@ class CustomTabWidget(QtWidgets.QTabWidget):
  
     def create_excel_com_object(self):
         self.logger.debug("Создаем COM объект")
-        # self.excel_com_object = win32.gencache.EnsureDispatch('Excel.Application')
+        self.excel_com_object = win32.gencache.EnsureDispatch('Excel.Application')
         # self.excel_com_object = win32.Dispatch('Excel.Application')
         # self.excel_com_object = win32.DispatchEx("Excel.Application")  # !
         # # self.excel_com_object.Interactive = False
-        # self.excel_com_object.DisplayAlerts = False
-        # self.logger.debug(f"excel.Visible: {self.excel_com_object.Visible}")
+        self.excel_com_object.DisplayAlerts = False
+        self.logger.debug(f"excel.Visible: {self.excel_com_object.Visible}")
         self.logger.debug("Продолжаем")
 
     def close_excel_com_object(self):
@@ -510,7 +458,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         # for i in range(len(self.groupbox_list)):
         for i, sensor_name_line_edit in enumerate(self.sensor_name_line_edit_list):
             # print(self.groupbox_list[i].isVisible())
-            if not (sensor_name_line_edit.text() and self.groupbox_list[i].isVisible()):
+            if not (sensor_name_line_edit.text() and self.groupbox_list[i].isEnabled()):
                 self.logger.debug(f"skip xlsm {i}")
                 continue
             current_xlsm_path = \
@@ -522,14 +470,13 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                 self.warning_signal.emit(
                     f"File {sensor_name_line_edit.text() + '.xlsm'} not found!")
                 continue
-            try:  # удобная проверка на открытие файла
-                os.rename(current_xlsm_path, current_xlsm_path)
+            try:
+                os.rename(current_xlsm_path, current_xlsm_path)  # удобная проверка на открытие файла
                 self.logger.debug("xlsm file is closed")
                 self.info_signal.emit("Start saving")
                 excel_com_object = self.excel_com_object  # !
-                # excel_com_object.Visible = False
                 close_flag = True
-                excel_com_object.DisplayAlerts = False   # !
+                # excel_com_object.DisplayAlerts = False   # ! 11111111111111111111111111111111111111111111111111111111111111
             except OSError:
                 self.logger.debug("Saving to an open file")
                 self.info_signal.emit("Start saving to an open file")
@@ -600,7 +547,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 # ----- plot change -----------------------------------------------------------
 
     @QtCore.pyqtSlot()
-    def log_mode(self):  # !
+    def log_mode(self):  # ! пока не использую
         self.amp_plot_list[0].setLogMode(True, True)
         self.phase_plot_list[0].setLogMode(True, False)
         # self.amp_plot_list[0].getAxis('left').setWidth(100)
@@ -632,21 +579,24 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             self.amp_curves[i * self.GYRO_NUMBER - 1 + ind].setVisible(
                 self.visibility_flags_list[ind])
         if any(self.visibility_flags_list[1:]):
-            for infinite_x_line in self.infinite_x_line_list:
-                infinite_x_line.setPen(
+            for inf_x_line in self.inf_x_line_list:
+                inf_x_line.setPen(
                     pg.mkPen(self.COLOR_LIST[self.visibility_flags_list[1:].index(True)]))
 
     def clear_plots(self):
-        self.freq_data = np.array([])  # лучше пустой массив создавать
-        self.point_label.setText('')
-        self.region.setRegion([0, 0])
-        for i in range(2):
-            self.infinite_x_line_list[i].setVisible(False)
+        # self.freq_data = np.array([])  # лучше пустой массив создавать
+        # self.point_label.setText('')
+        del self.inf_x_line_list[2:]
+        for inf_x_line in self.inf_x_line_list:
+            inf_x_line.setVisible(False)
+        del self.amp_curves[self.GYRO_NUMBER:]
+        del self.phase_curves[self.GYRO_NUMBER:]
         for i in range(self.count() - 2):
-            for _ in range(self.GYRO_NUMBER):
-                # self.amp_curves[-1].clear()  # self.phase_curves[-1].clear()
-                self.amp_curves.pop()
-                self.phase_curves.pop()
+            # for _ in range(self.GYRO_NUMBER):
+            #     # self.amp_curves[-1].clear()  # self.phase_curves[-1].clear()
+            #     self.amp_curves.pop()
+            #     self.phase_curves.pop()
+            self.point_label_list.pop()
             self.amp_plot_list.pop()
             self.phase_plot_list.pop()
             self.tab_widget_page_list.pop()
@@ -655,6 +605,8 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             self.removeTab(i)
         # так можно убирать вкладку без удаления:
         # self.custom_tab_plot_widget.setTabVisible(0, False)  
+        self.region.setRegion([0, 0])
+        self.point_label_list[0].setText('')
         self.time_curves[0].setData([])
         for i in range(self.GYRO_NUMBER):
             self.time_curves[i + 1].setData([])
@@ -695,65 +647,73 @@ class CustomTabWidget(QtWidgets.QTabWidget):
                     check_name_simple(path + f'_phase_plot_{i + 1}.png'))
         self.info_signal.emit("Save plots")
 
-    def plot_fft_median(self):
-        self.freq_data = np.array([])
+    def set_plot_fft_median_layout(self):
+        # self.freq_data = np.array([])
         last_tab_layout = QtWidgets.QGridLayout(spacing=0)
         last_tab_layout.setContentsMargins(5, 10, 5, 5)
         last_tab_layout.addWidget(self.groupbox, 0, 1, 3, 1) 
-
         self.tab_widget_page_list.append(QtWidgets.QWidget(self))
         self.append_amp_plot()
         last_tab_layout.addWidget(self.amp_plot_list[0], 0, 0, 1, 1)
-        self.point_label = QtWidgets.QLabel()
-        last_tab_layout.addWidget(self.point_label, 1, 0, 1, 1)
+        # self.point_label = QtWidgets.QLabel()
+        self.point_label_list.append(QtWidgets.QLabel())
+        last_tab_layout.addWidget(self.point_label_list[0], 1, 0, 1, 1)
+        # last_tab_layout.addWidget(self.point_label, 1, 0, 1, 1)
         self.append_phase_plot()
         last_tab_layout.addWidget(self.phase_plot_list[0], 2, 0, 1, 1)
         self.tab_widget_page_list[0].setLayout(last_tab_layout)
-        self.addTab(
-            self.tab_widget_page_list[0], "&АФЧХ (средний)")  # FC average
+        self.addTab(self.tab_widget_page_list[0], "&АФЧХ (средний)")  # FC average
   
         # # amp =np.array([96, 97, 108, 112, 113, 114, 121, 127, 136, 163, 166, 191, 219, 240, 258, 284, 400, 371, 450, 699, 791, 1154, 631, 697, 722, 743, 834, 823, 918, 995, 1022, 1125, 1220, 1244, 1373, 1468, 1618, 1851, 1865, 2166, 2548, 2539, 3409, 3521, 3514, 4220, 3473, 2573, 3081, 3028, 3028, 3230, 3056, 3132, 3102, 3621, 3669, 4561])/100
         # self.cursor = QtCore.Qt.BlankCursor
-        amp_plot_cursor = QtCore.Qt.CrossCursor
+        amp_plot_cursor = QtCore.Qt.CursorShape.CrossCursor
         self.amp_plot_list[0].setCursor(amp_plot_cursor)
-        phase_plot_cursor = QtCore.Qt.CrossCursor # was
+        phase_plot_cursor = QtCore.Qt.CursorShape.CrossCursor # was
         self.phase_plot_list[0].setCursor(phase_plot_cursor)  # self.cursor ##########################
 
-        self.infinite_x_line_list = [pg.InfiniteLine(angle=90, pen=pg.mkPen(self.COLOR_LIST[0]))
-                                     for _ in range(2)]
-        for line in self.infinite_x_line_list:
-            line.setVisible(False)
-        self.amp_plot_list[0].addItem(self.infinite_x_line_list[0], ignoreBounds=True)
-        self.phase_plot_list[0].addItem(self.infinite_x_line_list[1], ignoreBounds=True)
+        # self.inf_x_line_list = [pg.InfiniteLine(angle=90, pen=pg.mkPen(self.COLOR_LIST[0]))
+        #                              for _ in range(2)]
+        # for line in self.inf_x_line_list:
+        #     line.setVisible(False)
+        # self.amp_plot_list[0].addItem(self.inf_x_line_list[0], ignoreBounds=True)
+        # self.phase_plot_list[0].addItem(self.inf_x_line_list[1], ignoreBounds=True)
 
         # self.cursor_label = pg.TextItem()
         # self.cursor_label.setPos(3, 0.8)
         # self.cursor_label.setPos(10, 0)
-
         # self.amp_plot_list[0].addItem(self.cursor_label) #################################
-        self.proxy_amp = pg.SignalProxy(
-            self.amp_plot_list[0].scene().sigMouseMoved, delay=0,
-            rateLimit=12, slot=self.update_crosshair)
-        self.proxy_phase = pg.SignalProxy(
-            self.phase_plot_list[0].scene().sigMouseMoved, delay=0,
-            rateLimit=12, slot=self.update_crosshair)
+        # self.proxy_amp = pg.SignalProxy(
+        #     self.amp_plot_list[0].scene().sigMouseMoved, delay=0,
+        #     rateLimit=12, slot=self.update_crosshair)
+        # self.proxy_phase = pg.SignalProxy(
+        #     self.phase_plot_list[0].scene().sigMouseMoved, delay=0,
+        #     rateLimit=12, slot=self.update_crosshair)
         self.amp_plot_list[0].autoRange()
 
-    def append_fft_plot_tab(self):
+    def append_fft_cycle_plot_tab(self):
         """Create new tab and append amplitude and frequency graphs."""
         # index = 
         self.tab_widget_page_list.append(QtWidgets.QWidget())
         layout = QtWidgets.QVBoxLayout(spacing=0)
         layout.setContentsMargins(5, 10, 5, 5)
-        self.append_amp_plot()
-        # layout.addWidget(self.amp_plot_list[index])
+        self.append_amp_plot()  # layout.addWidget(self.amp_plot_list[index])
         layout.addWidget(self.amp_plot_list[-1])
-        self.append_phase_plot()
-        # layout.addWidget(self.phase_plot_list[index])
+        self.point_label_list.append(QtWidgets.QLabel())
+        layout.addWidget(self.point_label_list[-1])
+        self.append_phase_plot()  # layout.addWidget(self.phase_plot_list[index])
         layout.addWidget(self.phase_plot_list[-1])
         self.tab_widget_page_list[-1].setLayout(layout)
         self.addTab(
             self.tab_widget_page_list[-1], f"ЧХ &{self.count() - 1}")  # FC
+        # self.inf_x_line_list.append(
+        #                 [pg.InfiniteLine(angle=90, pen=pg.mkPen(self.COLOR_LIST[0])) 
+        #                 for _ in range(2)])
+
+        # self.inf_x_line_list[-1].setVisible(False)
+        # self.inf_x_line_list[-1].setVisible(False)
+        # for line in self.inf_x_line_list[-1]:
+            # line.setVisible(False)
+        # print(self.inf_x_line_list)
 
     def append_amp_plot(self):
         amp_plot_item = pg.PlotItem(viewBox=CustomViewBox(),
@@ -782,10 +742,15 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             xMin=-4, xMax=int(self.fs * 0.53), yMin=-0.08, yMax=5000)
             # xMin=-4, xMax=int(self.fs * 0.53), yMin=-0.08, yMax=100)
         self.amp_plot_list[-1].addItem(
-            pg.InfiniteLine(
-                pos=np.sqrt(0.5), angle=0, movable=False,
+            pg.InfiniteLine(pos=np.sqrt(0.5), angle=0, movable=False,
                 pen=pg.mkPen((205, 205, 205), dash=[15, 3], width=0.75)),
                 ignoreBounds=True)  # полоса пропускания
+        self.proxy_amp.append(pg.SignalProxy(
+            self.amp_plot_list[-1].scene().sigMouseMoved, delay=0,
+            rateLimit=15, slot=self.update_crosshair))
+        self.inf_x_line_list.append(
+                        pg.InfiniteLine(angle=90, pen=pg.mkPen(self.COLOR_LIST[0])))
+        self.amp_plot_list[-1].addItem(self.inf_x_line_list[-1], ignoreBounds=True)
 
     def append_phase_plot(self):
         phase_plot_item = pg.PlotItem(viewBox=CustomViewBox(),
@@ -804,7 +769,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         for i in range(self.GYRO_NUMBER):
             self.phase_curves.append(phase_plot_item.plot(
                 pen=self.COLOR_LIST[i], name=f"gyro {i + 1}", symbol="o",
-                symbolSize=6, symbolBrush=self.COLOR_LIST[i])) #, hoverable=True,
+                symbolSize=6, symbolBrush=self.COLOR_LIST[i]))  #, hoverable=True,
             # tip='x: {x:.6g}\ny: {y:.6g}\n{data}'.format))
             self.phase_curves[-1].setVisible(self.visibility_flags_list[i+1])  
         phase_plot_item.setParent(self.phase_plot_list[-1])
@@ -814,26 +779,30 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.phase_plot_list[-1].setLimits(
             xMin=-4, xMax=int(self.fs * 0.53), yMin=-720, yMax=20)
             # xMin=-4, xMax=int(self.fs * 0.53), yMin=-375, yMax=20)
-        line = pg.InfiniteLine(
-                pos=-180, angle=0, movable=False,
+        line = pg.InfiniteLine(pos=-180, angle=0, movable=False,
                 pen=pg.mkPen((205, 205, 205), dash=[10, 2], width=0.75))
         # line.setToolTip('This is a red line.')
-        self.phase_plot_list[-1].addItem(
-            line, ignoreBounds=True)  # -180 degrees
+        self.phase_plot_list[-1].addItem(line, ignoreBounds=True)  # -180 degrees
+
+        self.proxy_phase.append(pg.SignalProxy(
+            self.phase_plot_list[-1].scene().sigMouseMoved, delay=0,
+            rateLimit=15, slot=self.update_crosshair))
+            # rateLimit=12, slot=self.update_crosshair_phase))
+        self.inf_x_line_list.append(
+                        pg.InfiniteLine(angle=90, pen=pg.mkPen(self.COLOR_LIST[0])))
+        self.phase_plot_list[-1].addItem(self.inf_x_line_list[-1], ignoreBounds=True)
 
     def append_gyro_groupbox(self):
-        ind = len(self.groupbox_list)
         self.groupbox_list.append(QtWidgets.QGroupBox(
-            f'gyro {ind + 1}', maximumWidth=190, maximumHeight=250,
-            objectName='small'))
+            f'gyro {len(self.groupbox_list) + 1}',
+            maximumWidth=190, maximumHeight=250, objectName='small'))
         groupbox_layout = QtWidgets.QGridLayout(spacing=2)
         groupbox_layout.setContentsMargins(5, 5, 5, 2)
         # self.median_plot_groupbox_layout.setRowStretch(4, 0)
         self.groupbox_list[-1].setLayout(groupbox_layout)
         # QToolButton # есть wordWrap
-        msx_amp_label = QtWidgets.QLabel("amp")
-        groupbox_layout.addWidget(
-            msx_amp_label, 0, 0, 1, 1)
+        max_amp_label = QtWidgets.QLabel("amp")
+        groupbox_layout.addWidget(max_amp_label, 0, 0, 1, 1)
         self.max_amp_line_edit_list.append(QtWidgets.QLineEdit())
         double_validator = QtGui.QDoubleValidator(bottom=0)
         double_validator.setLocale(QtCore.QLocale("en_US"))
@@ -842,8 +811,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
             self.max_amp_line_edit_list[-1], 0, 1, 1, 2)
 
         rez_freq_label = QtWidgets.QLabel("f, Hz")
-        groupbox_layout.addWidget(
-            rez_freq_label, 1, 0, 1, 1)
+        groupbox_layout.addWidget(rez_freq_label, 1, 0, 1, 1)
         self.rez_freq_line_edit_list.append(QtWidgets.QLineEdit())
         double_validator = QtGui.QDoubleValidator(bottom=0)
         double_validator.setLocale(QtCore.QLocale("en_US"))
@@ -853,12 +821,85 @@ class CustomTabWidget(QtWidgets.QTabWidget):
 
         sensor_name_label = QtWidgets.QLabel(
             "номер", maximumHeight=40)
-        groupbox_layout.addWidget(
-            sensor_name_label, 2, 0, 1, 1)
+        groupbox_layout.addWidget(sensor_name_label, 2, 0, 1, 1)
         self.sensor_name_line_edit_list.append(QtWidgets.QLineEdit())
         groupbox_layout.addWidget(
             self.sensor_name_line_edit_list[-1], 2, 1, 1, 2)
+        self.sensor_name_line_edit_list[-1].setContextMenuPolicy(
+            QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+        self.sensor_name_line_edit_list[-1].customContextMenuRequested.connect(
+            self.__contextMenuLineEdit)
+        self.sensor_name_line_edit_list[-1].textChanged.connect(self.check_excel_file)
 
+    @QtCore.pyqtSlot()
+    def check_excel_file(self):
+        if self.sender().isWidgetType != QtWidgets.QLineEdit:
+            for sensor_name in self.sensor_name_line_edit_list:
+                current_xlsm_path = \
+                    self.projects_combo_box.projects_dict.get(
+                        self.projects_combo_box.currentText(), '') + '/' +\
+                            sensor_name.text() + '.xlsm'
+                if not os.path.isfile(current_xlsm_path):
+                    sensor_name.setStyleSheet("color: #ACACAC;")
+                else:
+                    sensor_name.setStyleSheet("color: #FFFFF1;")
+        else:
+            current_xlsm_path = \
+                self.projects_combo_box.projects_dict[
+                    self.projects_combo_box.currentText()] + '/' +\
+                        self.sender().text() + '.xlsm'
+            if not os.path.isfile(current_xlsm_path):
+                self.sender().setStyleSheet("color: grey;")
+            else:
+                self.sender().setStyleSheet("color: #FFFFF1;")
+
+    @QtCore.pyqtSlot()
+    def __contextMenuLineEdit(self):
+        # if not self.sender().isWidgetType == QtWidgets.QTextEdit:
+        _normal_menu = self.sender().createStandardContextMenu()
+        # _normal_menu.addAction(self.open_folder_action)
+        # _normal_menu.insertMenu(self.open_folder_action)
+        # _normal_menu.insertAction(_normal_menu.actions()[0], self.open_folder_action)
+        # _normal_menu.insertSeparator(_normal_menu.actions()[1])
+        # --- ---
+        # files_menu = QtWidgets.QMenu('Choose files to fft', self)
+        # _normal_menu.setContentsMargins(0, 0, 0, 0)
+        # files_menu.setExclusive(False)
+        # QtWidgets.QActionGroup()
+        current_xlsm_path = self.projects_combo_box.projects_dict[
+            self.projects_combo_box.currentText()] +\
+                '/' + self.sender().text() + '.xlsm'
+        # print(current_xlsm_path)
+        open_excel_action = QtWidgets.QAction("Открыть Excel файл", self)
+        # self.update_com_list_action.setShortcut("Ctrl+U")
+        open_excel_action.triggered.connect(lambda: self.open_file(current_xlsm_path))
+        # _normal_menu.addAction(open_excel_action)
+        _normal_menu.insertAction(_normal_menu.actions()[0], open_excel_action)
+        _normal_menu.insertSeparator(_normal_menu.actions()[1])
+        if not self.sender().text() or not os.path.isfile(current_xlsm_path):
+            open_excel_action.setDisabled(True)
+            open_excel_action.setStatusTip('Файл не обнаружен')
+        _normal_menu.exec(QtGui.QCursor.pos())
+
+    @QtCore.pyqtSlot()
+    def open_file(self, filename):
+        """Open txt file."""
+        self.logger.debug('start file')
+        if os.path.isfile(filename):
+            os.startfile(filename)  # можно с помощью сервера открывать
+        else:
+            self.warning_signal.emit(f'Wrong filename! ({filename})')
+# --- ---
+    # def ffff(self, i):
+    @QtCore.pyqtSlot()
+    def switch_tab(self):
+        i = int(self.sender().key().toString()[-1])-1
+        if i >= self.count():
+            return False
+        self.setCurrentIndex(i)
+        # self.setCurrentIndex(i)
+        # print(self.sender())
+        # print(int(self.sender().key().toString()[-1])-1)
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 #
@@ -932,3 +973,212 @@ if __name__ == "__main__":
 #     #     scatter = pg.ScatterPlotItem(size=5, brush=brush)
 #     #     scatter.addPoints(x, y)
 #     #     plot.addItem(scatter)
+    
+
+    # @QtCore.pyqtSlot(tuple)
+    # def update_crosshair_phase(self, e):  # упросить для 3 гироскопов, может, выводить сразу 3 числа
+    #     pos = e[0]
+    #     print(pos)
+    #     if (any(self.visibility_flags_list[1:])):
+    #         for i, ph_plot in enumerate(self.phase_plot_list[1:]):
+    #             if ph_plot.plotItem.sceneBoundingRect().contains(pos):
+    #             # if ph_plot == self.sender() and ph_plot.plotItem.sceneBoundingRect().contains(pos):
+    #                 self.selected_curve_amp = i
+    #                 print(i)
+    #                 print(ph_plot.plotItem.curves[self.selected_curve].getData())
+    #                 # print(ph_plot.plotItem.curves[self.selected_curve].getData().x())
+    #                 print(ph_plot.plotItem.curves[self.selected_curve].getData()[0])  # x (f)
+    #                 print(ph_plot.plotItem.curves[self.selected_curve].getData()[1])  # y (ph)
+    #                 # print(ph_plot.plotItem.curves[self.selected_curve].getData()[:, -4, self.selected_curve])
+    #                 # print(ph_plot.plotItem.curves[self.selected_curve].getData()[:, -4, :])
+    #                 if not ph_plot.plotItem.curves[self.selected_curve].getData()[0]:
+    #                     # return
+    #                     pass
+    #                 break  
+    #         else:
+    #             return False
+    #         mouse_point = ph_plot.plotItem.vb.mapSceneToView(pos)
+    #         self.selected_curve = self.visibility_flags_list[1:].index(True)
+    #         prev_ind = self.plot_index
+    #         self.plot_index = np.nanargmin(
+    #             np.abs(ph_plot.plotItem.curves[self.selected_curve].getData()[0] - mouse_point.x()))
+    #         if self.plot_index == prev_ind: # чтобы лишний раз не пересчитывать
+    #             return False
+    #         if 0 <= self.plot_index < len(ph_plot.plotItem.curves[self.selected_curve].getData()[0]):  # index >= 0 and
+    #             # --- ---
+    #             print(pos.toPoint())
+    #             p = ph_plot.mapToGlobal(pos.toPoint())
+    #             p = QtCore.QPointF(ph_plot.plotItem.curves[self.selected_curve].getData()[0],
+    #                                1.0 * ph_plot.plotItem.curves[self.selected_curve].getData()[1])
+    #             p = ph_plot.plotItem.vb.mapViewToScene(p)
+    #             p = ph_plot.mapToGlobal(p.toPoint())
+    #             plot_index2 = np.nanargmin(
+    #                 np.abs(ph_plot.plotItem.curves[self.selected_curve].getData()[1] - mouse_point.y()))
+    #             ph_plot.setToolTip(
+    #                 QtWidgets.QToolTip.showText(
+    #                     p, f"<font color={self.COLOR_LIST2[plot_index2]}>\
+    #                         ph={ph_plot.plotItem.curves[self.selected_curve].getData()[1]:.2f}<br />\
+    #                             f={ph_plot.plotItem.curves[self.selected_curve].getData()[0]:.2f}</font>"))
+
+    # @QtCore.pyqtSlot(tuple)
+    # def update_crosshair_amp(self, e):  # упросить для 3 гироскопов, может, выводить сразу 3 числа
+    #     pos = e[0]
+    #     print(pos)
+    #     # print(amp_plot.plotItem.getData())
+    #     for i, amp_plot in enumerate(self.amp_plot_list[1:]):
+    #         if amp_plot.plotItem.sceneBoundingRect().contains(pos):
+    #             self.selected_curve_amp = i
+    #             print(i)
+    #             print(amp_plot.plotItem.curves[self.selected_curve].getData())
+    #             break
+    #     if (self.freq_data.size and any(self.visibility_flags_list[1:])):
+    #         for i, amp_plot in enumerate(self.amp_plot_list):
+    #             if amp_plot.plotItem.sceneBoundingRect().contains(pos):
+    #                 self.selected_curve_amp = i
+    #                 print(i)
+    #                 break
+    #         else:
+    #             return False
+
+    #         mouse_point = amp_plot.plotItem.vb.mapSceneToView(pos)
+    #         self.selected_curve = self.visibility_flags_list[1:].index(True)
+    #         prev_ind = self.plot_index
+    #         self.plot_index = np.nanargmin(
+    #             np.abs(self.freq_data[:, -4, self.selected_curve] - mouse_point.x()))  # ph_plot.plotItem.
+    #         if self.plot_index == prev_ind: # чтобы лишний раз не пересчитывать
+    #             return False
+    #         if 0 <= self.plot_index < len(self.freq_data[:, -4, self.selected_curve]):  # index >= 0 and
+    #             # --- ---
+    #             print(pos.toPoint())
+    #             p = amp_plot.mapToGlobal(pos.toPoint())
+    #             p = QtCore.QPointF(self.freq_data[self.plot_index, -4, self.selected_curve],
+    #                                1.0 * self.freq_data[self.plot_index, -3, self.selected_curve])
+    #             p = amp_plot.plotItem.vb.mapViewToScene(p)
+    #             p = amp_plot.mapToGlobal(p.toPoint())
+    #             plot_index2 = np.nanargmin(
+    #                 np.abs(self.freq_data[self.plot_index, -3, :] - mouse_point.y()))
+    #             amp_plot.setToolTip(
+    #                 QtWidgets.QToolTip.showText(
+    #                     p, f"<font color={self.COLOR_LIST2[plot_index2]}>\
+    #                         A={self.freq_data[self.plot_index, -3, plot_index2]:.3f}<br />\
+    #                             f={self.freq_data[self.plot_index, -4, plot_index2]:.2f}</font>"))
+    #             p = QtCore.QPointF(self.freq_data[self.plot_index, -4, self.selected_curve],
+    #                                1.0 * self.freq_data[self.plot_index, -2, self.selected_curve])
+    #             # --- ---
+    #             # p = self.phase_plot_list[0].plotItem.vb.mapViewToScene(p)
+    #             # p = self.phase_plot_list[0].mapToGlobal(p.toPoint())
+    #             #     QtWidgets.QToolTip.showText(
+    #             #         p, f"<font color={self.COLOR_LIST2[plot_index2]}>\
+    #             #             ph={self.freq_data[self.plot_index, -2, plot_index2]:.2f}<br />\
+    #             #                 f={self.freq_data[self.plot_index, -4, plot_index2]:.2f}</font>"))
+    # @QtCore.pyqtSlot(tuple)
+    # def update_crosshair(self, e):
+    #     """Move cursor to nearest frequency point and update label."""
+    #     pos = e[0]
+    #     # print(type(e))
+    #     # print("-----")
+    #     # print(self.amp_plot_list[0].plotItem.sceneBoundingRect())
+    #     # # print(self.amp_plot_list[0].plotItem.scene.boundingRect())
+    #     # print(self.amp_plot_list[0].plotItem.vb.mapSceneToView(pos))
+    #     # print(self.amp_plot_list[0].plotItem.vb.mapViewToScene(pos))
+    #     # print(self.amp_plot_list[0].plotItem.vb.viewRect())
+    #     # # mouse_point = self.amp_plot_list[0].plotItem.vb.mapSceneToView(pos)
+    #     # # QtWidgets.QToolTip.showText(mouse_point.toPoint(), f"{self.plot_index}")
+    #     # # print(self.selected_curve)
+    #     # print(self.amp_plot_list[0].plotItem.vb.contains(pos))
+    #     # print(self.amp_plot_list[0].hasCursor())
+    #     # print(self.phase_plot_list[0].plotItem.vb.contains(pos))
+    #     if (self.amp_plot_list[0].plotItem.sceneBoundingRect().contains(pos)
+    #         and self.freq_data.size and any(self.visibility_flags_list[1:])):
+    #         mouse_point = self.amp_plot_list[0].plotItem.vb.mapSceneToView(pos)
+    #         # print(self.amp_plot_list[0].plotItem.vb.sceneTransform(pos))
+    #         # print(self.amp_plot_list[0].plotItem.vb.mapViewToScene(pos))
+    #         # print(mouse_point)
+    #         # print(pos)
+    #         # print(self.amp_plot_list[0].plotItem.vb.mapFromItemToView(pos))
+    #         self.selected_curve = self.visibility_flags_list[1:].index(True)
+    #         # print(self.selected_curve)
+    #         # print(self.freq_data.shape)
+    #         prev_ind = self.plot_index
+    #         self.plot_index = np.nanargmin(
+    #             np.abs(self.freq_data[:, -4, self.selected_curve] - mouse_point.x()))
+    #         if self.plot_index == prev_ind: # чтобы лишний раз не пересчитывать
+    #             # pass
+    #             return False
+    #             # np.abs(self.freq_data[:, -4, 0] - mouse_point.x()))
+    #             # np.abs(self.freq_data[:, -4, self.selected_curve] - np.power(10, mouse_point.x())))
+    #         if 0 <= self.plot_index < len(self.freq_data[:, -4, self.selected_curve]):  # index >= 0 and
+    #             # --- ---
+    #             # print(pos.toPoint())
+    #             # p = self.amp_plot_list[0].mapToGlobal(pos.toPoint())
+    #             # p = QtCore.QPointF(self.freq_data[self.plot_index, -4, self.selected_curve],
+    #             #                    1.0 * self.freq_data[self.plot_index, -3, self.selected_curve])
+    #             # p = self.amp_plot_list[0].plotItem.vb.mapViewToScene(p)
+    #             # p = self.amp_plot_list[0].mapToGlobal(p.toPoint())
+    #             # plot_index2 = np.nanargmin(
+    #             #     np.abs(self.freq_data[self.plot_index, -3, :] - mouse_point.y()))
+    #             # self.setStyleSheet("""QToolTip { 
+    #             #                 background-color: #8ad4ff; 
+    #             #                 color: black; 
+    #             #                 border: #8ad4ff solid 1px
+    #             #                 }""")
+    #             # self.amp_plot_list[0].setStyleSheet("""QToolTip { 
+    #             #                 background-color: #8ad4ff; 
+    #             #                 color: black; 
+    #             #                 border: #8ad4ff solid 1px
+    #             #                 }""")
+    #             # self.amp_plot_list[0].setToolTip(
+    #             #     QtWidgets.QToolTip.showText(
+    #             #         p, f"<font color={self.COLOR_LIST2[plot_index2]}>\
+    #             #             A={self.freq_data[self.plot_index, -3, plot_index2]:.3f}<br />\
+    #             #                 f={self.freq_data[self.plot_index, -4, plot_index2]:.2f}</font>"))
+    #             # p = QtCore.QPointF(self.freq_data[self.plot_index, -4, self.selected_curve],
+    #             #                    1.0 * self.freq_data[self.plot_index, -2, self.selected_curve])
+    #             # --- ---
+    #             # p = self.phase_plot_list[0].plotItem.vb.mapViewToScene(p)
+    #             # p = self.phase_plot_list[0].mapToGlobal(p.toPoint())
+    #             #     QtWidgets.QToolTip.showText(
+    #             #         p, f"<font color={self.COLOR_LIST2[plot_index2]}>\
+    #             #             ph={self.freq_data[self.plot_index, -2, plot_index2]:.2f}<br />\
+    #             #                 f={self.freq_data[self.plot_index, -4, plot_index2]:.2f}</font>"))
+    #             message = []
+    #             for i in range(self.freq_data.shape[2]):
+    #                 if self.visibility_flags_list[i + 1]:
+    #                     message.append(
+    #                         f'\t\t\t\t\t\t\t<font color={self.COLOR_LIST2[i]}>gyro{i + 1}</font>: \
+    #                             f {self.freq_data[self.plot_index, -4, i]:.2f}, \
+    #                             \tA {self.freq_data[self.plot_index, -3, i]:.2f}, \
+    #                             \t\u03C6 {self.freq_data[self.plot_index, -2, i]:.1f}')
+    #             self.point_label_list[0].setText('; \t'.join(message))
+    #             for inf_x_line in self.inf_x_line_list:
+    #                 inf_x_line.setPos(
+    #                     self.freq_data[self.plot_index, -4, self.selected_curve])  
+    #         # if 0 <= index < len(self.freq_data[:, -4, 0]):  # index >= 0 and 
+    #             # self.point_label.setText(
+    #             #     f"\t\t\t\t\t\t\tf {self.freq_data[index, -4, self.selected_curve]:.2f}" +
+    #             #     f"\tA {self.freq_data[index, -3, self.selected_curve]:.2f}" +
+    #             #     f"\t\u03C6 {self.freq_data[index, -2, self.selected_curve]:.1f}")
+    #             # self.mouse_x = (self.freq_data[index, -4, self.selected_curve]) # freq_data[:, -4]
+    #             # self.mouse_y = (self.freq_data[index, -3, self.selected_curve]) # freq_data[:, -3]
+            
+    # def mouseDoubleClickEvent(self, e):
+    #     if (e.buttons() & QtCore.Qt.LeftButton & (
+    #         self.amp_plot_list[0].underMouse() |
+    #         self.phase_plot_list[0].underMouse()
+    #         )) and self.freq_data.size:
+    #         # )) and self.freq_data[0, 0, 0] != -1:
+    #         # )) and self.freq_data.size:
+    #         pass
+            # self.amp_info_line_edit_list[self.selected_curve].setText(
+            #     f'{self.mouse_y:.3f}')
+            # self.freq_info_line_edit_list[self.selected_curve].setText(
+            #     f'{self.mouse_x:.2f}')
+            # self.cursor_label.setPos(self.mouse_x + 3, self.mouse_y + 0.3)
+
+            # print(self.amp_plot_list[0].plotItem.vb.viewRect())
+            # print(self.amp_plot_list[0].plotItem.vb.viewRect().width())
+            # print(self.amp_plot_list[0].plotItem.vb.viewRect().x())
+            # print(self.amp_plot_list[0].plotItem.vb.viewRect().y())
+            # self.cursor_label.setPos(
+            #     self.amp_plot_list[0].plotItem.vb.viewRect().x() + 0.02 * self.amp_plot_list[0].plotItem.vb.viewRect().width(),
+            #     self.amp_plot_list[0].plotItem.vb.viewRect().y() + 0.98 * self.amp_plot_list[0].plotItem.vb.viewRect().height())

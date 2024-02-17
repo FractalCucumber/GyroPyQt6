@@ -7,7 +7,7 @@ import sys
 import numpy as np
 from PyQt5.QtGui import QIcon
 # from numba import jit, prange, njit
-
+# import PyQt_example_fft
 
 def natural_keys(text):
     def atoi(text):
@@ -61,6 +61,43 @@ def find_value_between_points(point1, point2, value):
     result = y1 + ((y2 - y1) / (x2 - x1)) * (value - x1)
     return result
 
+# def get_fft_data(gyro: np.ndarray, encoder: np.ndarray, fs: int):
+#     """
+#     Detailed explanation goes here:
+#     amp [безразмерная] - соотношение амплитуд воздействия (encoder)
+#     и реакции гироскопа(gyro) = gyro/encoder
+#     d_phase [degrees] - разница фаз = gyro - encoder
+#     freq [Hz] - частота гармоники (воздействия)
+#     gyro [degrees/sec] - показания гироскопа во время гармонического воздействия
+#     encoder [degrees/sec] - показания энкодера, задающего гармоническое воздействие
+#     FS [Hz] - частота дискретизации
+#     """
+#     L = gyro.size  # длина записи
+#     next_power = np.ceil(np.log2(L))  # показатель степени 2 для числа длины записи
+#     NFFT = np.int32(np.power(2, next_power))
+#     HALF = np.int32(NFFT / 2)
+
+#     # Yg = np.fft.fft(gyro, NFFT) / L  # преобразование Фурье сигнала гироскопа
+#     Yg = (np.fft.rfft(gyro, NFFT)/L).astype(np.complex64)  #
+#     # Ye = np.fft.fft(encoder, NFFT) / L  # преобразование Фурье сигнала энкодера
+#     Ye = (np.fft.rfft(encoder, NFFT)/L).astype(np.complex64)  #
+#     f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=True)  # получение вектора частот
+#     #  delta_phase = asin(2*np.mean(encoder1.*gyro1)/(np.mean(abs(encoder1))*np.mean(abs(gyro1))*pi^2/4))*180/pi
+#     ng = np.argmax(np.abs(Yg[0:HALF]))
+#     Mg = 2 * np.abs(Yg[ng])
+#     freq = f[ng]  # !  у гироскопов меньше помехи обычно
+#     # если с гироскопа придет постоянное число, то частота будет нулевой
+#     # freq = f[ne]  # make sense?
+#     ne = np.argmax(np.abs(Ye[0:HALF]))
+#     Me = 2 * np.abs(Ye[ne])
+#     if freq == 0:  # !!!
+#         freq = f[ne]
+
+#     d_phase = np.angle(Yg[ng], deg=True) - np.angle(Ye[ne], deg=True)
+#     amp = Mg/Me
+#     #  amp = std(gyro)/std(encoder)% по шуму (метод —урова)
+#     return [freq, amp, d_phase]
+
 def get_fft_data(gyro: np.ndarray, encoder: np.ndarray, fs: int):
     """
     Detailed explanation goes here:
@@ -72,6 +109,15 @@ def get_fft_data(gyro: np.ndarray, encoder: np.ndarray, fs: int):
     encoder [degrees/sec] - показания энкодера, задающего гармоническое воздействие
     FS [Hz] - частота дискретизации
     """
+    # mean = np.mean(abs(gyro))
+    # v = np.where(np.greater(abs(gyro), np.full(shape=gyro.shape, fill_value=2.5*mean)))[0]
+    # if len(v) > 2:
+    #     print("len", len(v))
+    #     print("max", max(abs(gyro)))
+    #     print(mean)
+    #     print(v)
+    #     print(v[0])
+    #     gyro[v] = 0
     L = gyro.size  # длина записи
     next_power = np.ceil(np.log2(L))  # показатель степени 2 для числа длины записи
     NFFT = np.int32(np.power(2, next_power))
@@ -81,7 +127,17 @@ def get_fft_data(gyro: np.ndarray, encoder: np.ndarray, fs: int):
     Yg = (np.fft.rfft(gyro, NFFT)/L).astype(np.complex64)  #
     # Ye = np.fft.fft(encoder, NFFT) / L  # преобразование Фурье сигнала энкодера
     Ye = (np.fft.rfft(encoder, NFFT)/L).astype(np.complex64)  #
-    f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=True)  # получение вектора частот
+    # f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=True)  # получение вектора частот
+    f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=False)  # получение вектора частот
+    # freqs = np.fft.fftfreq(len(Yg))
+    # print(freqs.size)
+    # print(Ye.size)
+    # print(f.size)
+    # print(freqs[-1])
+    # print(freqs[0])
+    # print(freqs[512])
+    # print(freqs[513])
+    # print("-----")
     #  delta_phase = asin(2*np.mean(encoder1.*gyro1)/(np.mean(abs(encoder1))*np.mean(abs(gyro1))*pi^2/4))*180/pi
     ng = np.argmax(np.abs(Yg[0:HALF]))
     Mg = 2 * np.abs(Yg[ng])
@@ -109,6 +165,15 @@ def get_fft_data_ext(gyro: np.ndarray, encoder: np.ndarray, fs: int, n: int = 5)
     encoder [degrees/sec] - показания энкодера, задающего гармоническое воздействие
     FS [Hz] - частота дискретизации
     """
+    # mean = np.mean(abs(gyro))
+    # v = np.where(np.greater(abs(gyro), np.full(shape=gyro.shape, fill_value=2.5*mean)))[0]
+    # if len(v) > 2:
+    #     print("len", len(v))
+    #     print("max", max(abs(gyro)))
+    #     print(mean)
+    #     print(v)
+    #     print(v[0])
+    #     gyro[v] = 0
     gyro_ = np.empty([n, gyro.shape[0]])
     gyro_[:] = gyro
     gyro_ = gyro_.reshape(gyro_.shape[1] * gyro_.shape[0])
@@ -123,7 +188,8 @@ def get_fft_data_ext(gyro: np.ndarray, encoder: np.ndarray, fs: int, n: int = 5)
 
     Yg = (np.fft.rfft(gyro_, NFFT)/L).astype(np.complex64)  # преобразование Фурье сигнала гироскопа
     Ye = (np.fft.rfft(encoder_, NFFT)/L).astype(np.complex64)  # преобразование Фурье сигнала энкодера
-    f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=True)  # получение вектора частот
+    # f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=True)  # получение вектора частот
+    f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=False)  # получение вектора частот
     #  delta_phase = asin(2*np.mean(encoder1.*gyro1)/(np.mean(abs(encoder1))*np.mean(abs(gyro1))*pi^2/4))*180/pi
     ng = np.argmax(np.abs(Yg[0:HALF]))
     Mg = 2 * np.abs(Yg[ng])
@@ -145,7 +211,7 @@ def get_fft_data_ext(gyro: np.ndarray, encoder: np.ndarray, fs: int, n: int = 5)
     # print(phase_list)
     return [freq, amp, d_phase]
 
-def get_fft_data_median_frame(gyro: np.ndarray, encoder: np.ndarray, fs: int):
+def get_fft_data_median_frame(gyro: np.ndarray, encoder: np.ndarray, fs: int, n: int = 3):
     """
     Detailed explanation goes here:
     amp [безразмерная] - соотношение амплитуд воздействия (encoder)
@@ -156,7 +222,6 @@ def get_fft_data_median_frame(gyro: np.ndarray, encoder: np.ndarray, fs: int):
     encoder [degrees/sec] - показания энкодера, задающего гармоническое воздействие
     FS [Hz] - частота дискретизации
     """
-    n = 3
     freq_list = np.ones(n, dtype=np.float32)
     amp_list = np.ones(n, dtype=np.float32)
     phase_list = np.ones(n, dtype=np.float32)
@@ -176,7 +241,8 @@ def get_fft_data_median_frame(gyro: np.ndarray, encoder: np.ndarray, fs: int):
         Yg = (np.fft.rfft(gyro_, NFFT)/L).astype(np.complex64)  # преобразование Фурье сигнала гироскопа
         # Ye = np.fft.fft(encoder, NFFT) / L
         Ye = (np.fft.rfft(encoder_, NFFT)/L).astype(np.complex64)  # преобразование Фурье сигнала энкодера
-        f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=True)  # получение вектора частот
+        # f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=True)  # получение вектора частот
+        f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=False)  # получение вектора частот
         #  delta_phase = asin(2*np.mean(encoder1.*gyro1)/(np.mean(abs(encoder1))*np.mean(abs(gyro1))*pi^2/4))*180/pi
         ng = np.argmax(np.abs(Yg[0:HALF]))
         Mg = 2 * np.abs(Yg[ng])

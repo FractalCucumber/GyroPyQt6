@@ -180,7 +180,7 @@ class AppWindowTest(AppWindow):
         self.logger.debug(f"self.cycle_num = {self.total_cycle_num}")
         self.logger.warning("Start")
         self.tab_plot_widget.clear_plots()
-        self.tab_plot_widget.append_fft_plot_tab() 
+        self.tab_plot_widget.append_fft_cycle_plot_tab() 
         from pandas import read_csv, DataFrame
         # filename = 'прежнее/6884_139_6.2_4.txt'
         # filename = 'прежнее/6884_139_6.2_4.txt'
@@ -234,6 +234,7 @@ class AppWindowTest(AppWindow):
 
     @QtCore.pyqtSlot()
     def timer_read_event(self):
+        # print("timer_read_event ", time())
         self.read_serial()
 
     def read_serial(self):
@@ -317,8 +318,8 @@ class AppWindowTest(AppWindow):
         self.processing_thr.flag_measurement_start = False
         self.processing_thr.data_received_event.set()
 
-    def show_certain_data(self):
-        pass
+    # def show_certain_data(self):
+    #     pass
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------

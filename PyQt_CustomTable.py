@@ -6,8 +6,8 @@ class CustomTableWidget(QtWidgets.QTableWidget):
     def __init__(self, parent=None):
         super(CustomTableWidget, self).__init__(parent)
         self.setColumnCount(3)
-        self.setEditTriggers(
-            QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
+        # self.setEditTriggers(
+            # QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         self.setSelectionBehavior(
             QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
         # self.table_widget.setRowHeight(0, 0) 
