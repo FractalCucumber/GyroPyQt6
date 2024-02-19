@@ -127,8 +127,8 @@ def get_fft_data(gyro: np.ndarray, encoder: np.ndarray, fs: int):
     Yg = (np.fft.rfft(gyro, NFFT)/L).astype(np.complex64)  #
     # Ye = np.fft.fft(encoder, NFFT) / L  # преобразование Фурье сигнала энкодера
     Ye = (np.fft.rfft(encoder, NFFT)/L).astype(np.complex64)  #
-    # f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=True)  # получение вектора частот
-    f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=False)  # получение вектора частот
+    f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=True)
+    # f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=False)  # получение вектора частот
     # freqs = np.fft.fftfreq(len(Yg))
     # print(freqs.size)
     # print(Ye.size)
@@ -188,8 +188,8 @@ def get_fft_data_ext(gyro: np.ndarray, encoder: np.ndarray, fs: int, n: int = 5)
 
     Yg = (np.fft.rfft(gyro_, NFFT)/L).astype(np.complex64)  # преобразование Фурье сигнала гироскопа
     Ye = (np.fft.rfft(encoder_, NFFT)/L).astype(np.complex64)  # преобразование Фурье сигнала энкодера
-    # f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=True)  # получение вектора частот
-    f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=False)  # получение вектора частот
+    f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=True)
+    # f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=False)  # получение вектора частот
     #  delta_phase = asin(2*np.mean(encoder1.*gyro1)/(np.mean(abs(encoder1))*np.mean(abs(gyro1))*pi^2/4))*180/pi
     ng = np.argmax(np.abs(Yg[0:HALF]))
     Mg = 2 * np.abs(Yg[ng])
@@ -241,8 +241,8 @@ def get_fft_data_median_frame(gyro: np.ndarray, encoder: np.ndarray, fs: int, n:
         Yg = (np.fft.rfft(gyro_, NFFT)/L).astype(np.complex64)  # преобразование Фурье сигнала гироскопа
         # Ye = np.fft.fft(encoder, NFFT) / L
         Ye = (np.fft.rfft(encoder_, NFFT)/L).astype(np.complex64)  # преобразование Фурье сигнала энкодера
-        # f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=True)  # получение вектора частот
-        f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=False)  # получение вектора частот
+        f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=True)
+        # f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=False)  # получение вектора частот
         #  delta_phase = asin(2*np.mean(encoder1.*gyro1)/(np.mean(abs(encoder1))*np.mean(abs(gyro1))*pi^2/4))*180/pi
         ng = np.argmax(np.abs(Yg[0:HALF]))
         Mg = 2 * np.abs(Yg[ng])

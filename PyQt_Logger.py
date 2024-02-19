@@ -2,10 +2,10 @@
 # cSpell:includeRegExp /(["]{3}|[']{3})[^\1]*?\1/g
 
 import logging
+from PyQt5.QtWidgets import QTextEdit, QAction
+from PyQt5 import QtGui, QtCore
 from logging.handlers import RotatingFileHandler
 import sys
-from PyQt5.QtWidgets import QTextEdit
-from PyQt5 import QtWidgets, QtGui, QtCore
 
 
 class QTextEditLogger(QTextEdit):
@@ -13,6 +13,7 @@ class QTextEditLogger(QTextEdit):
     def __init__(self, parent=None, file_log=True):
         super(QTextEditLogger, self).__init__(
             parent, readOnly=True, objectName="logger")
+
         # def create_logger(path, widget: QTextEdit):
         # logging.disable(logging.INFO) # disable logging for certain level
 
@@ -35,7 +36,7 @@ class QTextEditLogger(QTextEdit):
             file_handler.setLevel(logging.DEBUG)
             file_handler.setFormatter(file_formatter)
             logger.addHandler(file_handler)
-            logger.handlers[0].doRollover()
+            logger.handlers[0].doRollover()  # из-за этого проблемы при работе нескольких экземпляров одного приложения
             # logging.basicConfig(  # не выводит сообщения на русском
             #     filename='GyroTestPyQt.log',
             #     filemode='w',
@@ -69,11 +70,25 @@ class QTextEditLogger(QTextEdit):
             QtCore.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(
             self.__logsContextMenu)
-        self.enable_debug_in_file = QtWidgets.QAction(
+        self.enable_debug_in_file = QAction(
             "Debug in file", None, checkable=True)
         self.enable_debug_in_file.setChecked(True)
         self.enable_debug_in_file.triggered.connect(self.switch_log_mode)
         self.switch_log_mode()
+
+        self.open_debug_file_action = QAction(
+            "Open log file", None)
+        self.open_debug_file_action.triggered.connect(self.open_debug_file)
+
+    @QtCore.pyqtSlot()
+    def open_debug_file(self):
+        logging.getLogger('main').debug('start log file')
+        # from os import path, startfile
+        from os import startfile
+        # if path.isfile('logs\PyQt_VibroGyroTest.log'):
+        startfile('logs\PyQt_VibroGyroTest.log')
+        # else:
+        #     logging.getLogger('main').warning('Wrong filename!')
 
     @QtCore.pyqtSlot()
     def insert_text(self, record):
@@ -94,6 +109,7 @@ class QTextEditLogger(QTextEdit):
         self._normalMenu = self.createStandardContextMenu()
         self._normalMenu.addSeparator()
         self._normalMenu.addAction(self.enable_debug_in_file)
+        self._normalMenu.addAction(self.open_debug_file_action)
         self._normalMenu.exec_(QtGui.QCursor.pos())
 
     def switch_log_mode(self):

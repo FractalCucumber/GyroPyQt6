@@ -76,7 +76,7 @@ class SecondThread(QThread):
         # import sys
         # print(sys.getsizeof(self.time_data))
         # print(get_fft_data(np.array([1, 1, 1, 1, 1, 1, 1, 1, 1]),
-        #   np.array([0, 1, 2, 1, 0, -1, -2, -1, 0]), 9))
+        #   np.array([0, 1, 2, 1, 0, -1, -2, -1, 0, 1, 2, 1, 0, -1, -2, -1]), 4))
         # from json import dump
         # self.fft_opt = {'decimation': 4, # 1-4
         #        'threshold': 5300,  # 5000 - 5500
@@ -88,9 +88,7 @@ class SecondThread(QThread):
         #        }
         # self.OPTIONS_FILE_NAME = 'settings/fft_options.json'
         # with open(self.OPTIONS_FILE_NAME, 'w', encoding='utf-8') as file:
-        #     dump(self.fft_opt,
-        #               file, ensure_ascii=False, indent=4)
-            
+        #     dump(self.fft_opt, file, ensure_ascii=False, indent=4)
         # with open(self.OPTIONS_FILE_NAME, 'r', encoding='utf-8') as file:
         from json import load
         with open(OPTIONS_FILE_NAME, 'r', encoding='utf-8') as file:
@@ -100,7 +98,6 @@ class SecondThread(QThread):
 # -------------------------------------------------------------------------------------------------
 #   
 # -------------------------------------------------------------------------------------------------
-
     @pyqtSlot()
     def run(self):
         self.logger.debug("Thread Start")
@@ -196,6 +193,7 @@ class SecondThread(QThread):
                     self.logger.debug("end thread cycle\n")
             self.package_num_list.append(self.total_pack_num)
 
+# -------------------------------------------------------------------------------------------------
     def change_protocol(self):
         if self.GYRO_NUMBER == 1:
             if self.crc_flag:
@@ -256,7 +254,7 @@ class SecondThread(QThread):
             ).astype(np.float32) / 1000 / self.k_amp
         self.package_num_signal.emit(self.total_pack_num, self.to_plot)
         return True
-# -------------------------------------------------------------------------------------------------
+# --- int from bytes ------------------------------------------------------------------------------
 
     def get_ints_from_bytes14_4_crc8(self):
         if len(self.rx) <= 28:
@@ -483,25 +481,25 @@ class SecondThread(QThread):
         return True
 # -------------------------------------------------------------------------------------------------
 #
-# -------------------------------------------------------------------------------------------------
+# --- saving --------------------------------------------------------------------------------------
 
     def save_condition(self, gyro):
         if not len(self.save_file_name[gyro]): # эта проверка одинаковая и для fft лучше ее вынести отдельно
             self.logger.debug(f"skip gyro{gyro + 1}")
             return False
         if not os.path.isdir(os.path.dirname(self.save_file_name[gyro])):
-            self.logger.debug(
-                f"Folder {os.path.dirname(self.save_file_name[gyro])} doesn't exist!")
-            self.warning_signal.emit(
-                f"Folder {os.path.dirname(self.save_file_name[gyro])} doesn't exist!")
+            info_str = f"Folder {os.path.dirname(self.save_file_name[gyro])} doesn't exist!"
+            self.logger.debug(info_str)
+            self.warning_signal.emit(info_str)
             return False
         return True
+# -------------------------------------------------------------------------------------------------
 
     def save_time_cycles(self):
         """Check save conditions and save time data from cycles."""
-        self.logger.debug("save time cycles!")
+        self.logger.debug("save time cycles")
         k = (self.time_data.shape[1] - 1) / self.GYRO_NUMBER
-        self.logger.debug(f"k={k}, len.package_num_list={len(self.package_num_list)}")
+        self.logger.debug(f"k={k}, len.pack_num_list={len(self.package_num_list)}")
         filename_list_cycles = []
         for j_gyro in range(self.GYRO_NUMBER):
             if not self.save_condition(j_gyro):
@@ -515,13 +513,11 @@ class SecondThread(QThread):
                 self.logger.debug(f"save cycle {filename}")
                 time_data_df = DataFrame(
                     self.time_data[
-                        # self.package_num_list[i]:self.package_num_list[i + 1], :])
                         self.package_num_list[i]:self.package_num_list[i + 1], cols])
                 time_data_df.to_csv(
                     filename, header=None,
-                    # filename, columns=cols, header=None,
                     index=None, sep='\t', mode='w', date_format='%d')
-        if len(filename_list_cycles):  # вот тут info должно быть, а не warning
+        if len(filename_list_cycles):
             self.info_signal.emit(
                 "Successfully save time data for\n" + ',\n'.join(filename_list_cycles) + '\n')
             return True
@@ -572,6 +568,8 @@ class SecondThread(QThread):
                 "Successfully save fft data:\n" + ',\n'.join(filename_list_cycles) + '\n')
             return True
 # -------------------------------------------------------------------------------------------------
+#
+# -------------------------------------------------------------------------------------------------
 
     def new_measurement_cycle(self):
         self.package_num_list.append(self.total_pack_num)
@@ -616,7 +614,6 @@ class SecondThread(QThread):
                                 fs=self.fs)
                         else:
                             [freq, amp, d_phase] = get_fft_data(
-                            # gyro=gyro_list[border[0]:border[1], i],
                                 gyro=(self.time_data[self.border[0]:self.border[1],
                                                     1 + i * self.pack_len] - self.amp_shift[i]),  # добавил сюда учет смещения
                                 encoder=self.time_data[self.border[0]:self.border[1],
@@ -625,9 +622,8 @@ class SecondThread(QThread):
                         freq, amp, d_phase, tau = fft_norm_gen.send((freq, amp, d_phase, i))
                         # [freq, amp, d_phase, tau] = self.fft_normalization(
                             # freq, amp, d_phase, i=i)
-                            # freq, amp, d_phase, d_phase_prev=self.all_fft_data[i-1, (self.cycle_count-1)*4, 0], i=i)
-                        self.all_fft_data[(
-                            self.count_fft_frame - 1), (self.cycle_count-1)*4:self.cycle_count*4, i
+                        self.all_fft_data[
+                            (self.count_fft_frame - 1), (self.cycle_count - 1)*4:self.cycle_count*4, i
                             ] = [freq, amp, d_phase, tau]
                         self.logger.debug(f"fft: {[freq, amp, d_phase, tau]}")
                     self.fft_data_signal.emit(True)  # надо посылать border, потому что теперь это не свойство класса!
@@ -638,32 +634,22 @@ class SecondThread(QThread):
 # -------------------------------------------------------------------------------------------------
 
     def fft_median_filter(self, round_flag=True):
-        # нужна проверка на то, что все частоты +- совпадают, проще при создании массива проверять
-        for j in range(4):
-            self.all_fft_data[:, j - 4, :] = np.nanmedian(self.all_fft_data[:, j::4, :], axis=1)
+        # проверка на то, что все частоты +- совпадают?
+        for i in range(4):
+            self.all_fft_data[:, i - 4, :] = np.nanmedian(self.all_fft_data[:, i::4, :], axis=1)
         if round_flag:
             self.all_fft_data[:, -4, :] = np.round(self.all_fft_data[:, -4, :], 2)
             self.all_fft_data[:, -3, :] = np.round(self.all_fft_data[:, -3, :], 4)
         if self.all_fft_data.shape[0] < 9 or not self.fft_opt['wrap_flag']:  # !
             return
-        for i in range(self.all_fft_data.shape[2]):  # !!!!!
-            # print(np.diff(self.all_fft_data[:-2, -2, i]))
-            # print(np.diff(self.all_fft_data[1:-1, -2, i]))
-            # print(np.diff(self.all_fft_data[2:, -2, i]))
-            # print(self.all_fft_data[:-2, -2, i] - (self.all_fft_data[2:, -2, i]))
-            # print(self.all_fft_data[1:-3, -2, i] - (self.all_fft_data[3:-1, -2, i]))
-            # freq_approximation = np.linspace(1, 330, num=300)
-            # print(k_list)
-            # fun = np.poly1d(k_list)
-            # # amp_approximation = np.array(fun(freq_approximation))
-            # self.time_curves[1].setData(freq_approximation, amp_approximation)
+        for j in range(self.all_fft_data.shape[2]):  # !!!!!
             # print(len(np.where(np.diff(self.all_fft_data[:, -4, i]) < 0)[0]))
-            if len(np.where(np.diff(self.all_fft_data[:, -4, i]) < 0)[0]):
+            if len(np.where(np.diff(self.all_fft_data[:, -4, j]) < 0)[0]):
                 return
-            k_list = np.polyfit(self.all_fft_data[:-5, -4, i], self.all_fft_data[:-5, -2, i], 1)
+            k_list = np.polyfit(self.all_fft_data[:-5, -4, j], self.all_fft_data[:-5, -2, j], 1)
             fun = np.poly1d(k_list)
-            self.phase_approximation = np.array(fun(self.all_fft_data[:, -4, i]))
-            err = self.all_fft_data[:, -2, i] - (self.phase_approximation)
+            self.phase_approximation = np.array(fun(self.all_fft_data[:, -4, j]))
+            err = self.all_fft_data[:, -2, j] - (self.phase_approximation)
             thr = np.abs(np.nanmean(err))
             # print(thr)
             thr = 20 if thr < 20 else thr
@@ -715,9 +701,9 @@ class SecondThread(QThread):
                 # print(3)
                 errors = [self.all_fft_data.shape[0] - 1]
             if len(errors):
-                self.all_fft_data[errors[0]:, -2, i] -= 360
-                self.all_fft_data[errors[0]:, -1, i] += \
-                    -1000 * self.all_fft_data[errors[0]:, -2, i] / self.all_fft_data[errors[0]:, -4, i] / 360
+                self.all_fft_data[errors[0]:, -2, j] -= 360
+                self.all_fft_data[errors[0]:, -1, j] += \
+                    -1000 * self.all_fft_data[errors[0]:, -2, j] / self.all_fft_data[errors[0]:, -4, j] / 360
             # elif np.abs(self.all_fft_data[-1, -2, i] - self.all_fft_data[-2, -2, i]) > np.abs(self.all_fft_data[-1, -2, i] - self.all_fft_data[-2, -2, i] - 360):
                     # self.all_fft_data[-1, -2, i] -= 360
             # tau = -1000 * d_phase / freq / 360
@@ -943,7 +929,7 @@ class SecondThread(QThread):
                 start_arr[i] = end_arr[i - 1]
             if end_arr[i]:
                 # if i < 99:
-                if i < rows_count / options['n_get_fft_data_ext']:
+                if i < rows_count / options['n_get_fft_data_ext']: # тут лучше умножать на число от 0 до 1
                     # self.logger.debug(i)
                     [freq, amp, d_phase] = get_fft_data_ext(
                     # [freq, amp, d_phase] = get_fft_data_median_frame(  # ! fft делается несколько раз с разными границами
