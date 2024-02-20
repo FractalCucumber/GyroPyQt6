@@ -11,18 +11,17 @@ from threading import Event
 from PyQt_Functions import (get_fft_data, get_fft_data_median_frame, get_fft_data_ext,
                             check_name_simple, custom_g_filter)
 
-
 CRC8_END_VALUE = 0x17
 CRC8_INIT_VALUE = 0xfa
 CRC8_Table = np.array([
-	0x273a1d00,0x534e6974,0xcfd2f5e8,0xbba6819c,0xeaf7d0cd,0x9e83a4b9,0x021f3825,0x766b4c51,
-	0xa0bd9a87,0xd4c9eef3,0x4855726f,0x3c21061b,0x6d70574a,0x1904233e,0x8598bfa2,0xf1eccbd6,
-	0x34290e13,0x405d7a67,0xdcc1e6fb,0xa8b5928f,0xf9e4c3de,0x8d90b7aa,0x110c2b36,0x65785f42,
-	0xb3ae8994,0xc7dafde0,0x5b46617c,0x2f321508,0x7e634459,0x0a17302d,0x968bacb1,0xe2ffd8c5,
-	0x011c3b26,0x75684f52,0xe9f4d3ce,0x9d80a7ba,0xccd1f6eb,0xb8a5829f,0x24391e03,0x504d6a77,
-	0x869bbca1,0xf2efc8d5,0x6e735449,0x1a07203d,0x4b56716c,0x3f220518,0xa3be9984,0xd7caedf0,
-	0x120f2835,0x667b5c41,0xfae7c0dd,0x8e93b4a9,0xdfc2e5f8,0xabb6918c,0x372a0d10,0x435e7964,
-	0x9588afb2,0xe1fcdbc6,0x7d60475a,0x0914332e,0x5845627f,0x2c31160b,0xb0ad8a97,0xc4d9fee3])
+	0x273a1d00, 0x534e6974, 0xcfd2f5e8, 0xbba6819c, 0xeaf7d0cd, 0x9e83a4b9, 0x021f3825, 0x766b4c51,
+	0xa0bd9a87, 0xd4c9eef3, 0x4855726f, 0x3c21061b, 0x6d70574a, 0x1904233e, 0x8598bfa2, 0xf1eccbd6,
+	0x34290e13, 0x405d7a67, 0xdcc1e6fb, 0xa8b5928f, 0xf9e4c3de, 0x8d90b7aa, 0x110c2b36, 0x65785f42,
+	0xb3ae8994, 0xc7dafde0, 0x5b46617c, 0x2f321508, 0x7e634459, 0x0a17302d, 0x968bacb1, 0xe2ffd8c5,
+	0x011c3b26, 0x75684f52, 0xe9f4d3ce, 0x9d80a7ba, 0xccd1f6eb, 0xb8a5829f, 0x24391e03, 0x504d6a77,
+	0x869bbca1, 0xf2efc8d5, 0x6e735449, 0x1a07203d, 0x4b56716c, 0x3f220518, 0xa3be9984, 0xd7caedf0,
+	0x120f2835, 0x667b5c41, 0xfae7c0dd, 0x8e93b4a9, 0xdfc2e5f8, 0xabb6918c, 0x372a0d10, 0x435e7964,
+	0x9588afb2, 0xe1fcdbc6, 0x7d60475a, 0x0914332e, 0x5845627f, 0x2c31160b, 0xb0ad8a97, 0xc4d9fee3])
 
 
 class SecondThread(QThread):
@@ -32,8 +31,8 @@ class SecondThread(QThread):
     warning_signal = pyqtSignal(str)
     info_signal = pyqtSignal(str)
 
-    def __init__(self, gyro_number: int, read_interval_ms: int,
-                 logger_name='', wait_time_sec=0.5, OPTIONS_FILE_NAME: str = 'settings/fft_options.json'):
+    def __init__(self, gyro_number: int, read_interval_ms: int, logger_name='',
+                 wait_time_sec=0.5, OPTIONS_FILE_NAME: str = 'settings/fft_options.json'):
         # QThread.__init__(self)
         super(SecondThread, self).__init__()
         self.data_received_event = Event()
@@ -42,7 +41,6 @@ class SecondThread(QThread):
         self.READ_INTERVAL_MS = read_interval_ms
         self.WAIT_TIME_SEC = wait_time_sec
         # self.WAIT_TIME_SEC = 0.2
-        # self.WAIT_TIME_SEC = 0
         self.rx: bytes = b''
         self.all_fft_data: np.ndarray = np.array([], dtype=np.float32)
         self.time_data: np.ndarray = np.array([], dtype=np.int32)
@@ -57,7 +55,7 @@ class SecondThread(QThread):
         self.total_cycle_num = 0  # !
         self.cycle_count = 1
         self.num_measurement_rows = 0
-        self.pack_num = 0
+        self.total_pack_num = 0
         self.package_num_list: list = [0]
         self.pack_len = 2
         self.received_pack_len = 0
@@ -73,42 +71,37 @@ class SecondThread(QThread):
         self.selected_files_to_fft: list[str] = []
         self.save_file_name = [''] * self.GYRO_NUMBER
         self.POWERS14_4 = np.matrix([(256 ** np.arange(4)[::-1])] * 4)  # !
-        self.POWERS14_2 = np.matrix([(256 ** np.arange(4)[::-1])] * 2)  # !
+        # self.POWERS14_2 = np.matrix([(256 ** np.arange(4)[::-1])] * 2)  # !
         self.POWERS20_6 = np.matrix([(256 ** np.arange(4)[::-1])] * 6)  # !
         # import sys
         # print(sys.getsizeof(self.time_data))
         # print(get_fft_data(np.array([1, 1, 1, 1, 1, 1, 1, 1, 1]),
-        #   np.array([0, 1, 2, 1, 0, -1, -2, -1, 0]), 9))
+        #   np.array([0, 1, 2, 1, 0, -1, -2, -1, 0, 1, 2, 1, 0, -1, -2, -1]), 4))
+        # from json import dump
         # self.fft_opt = {'decimation': 4, # 1-4
         #        'threshold': 5300,  # 5000 - 5500
-        #        'min_frame_len_k': 1, # 1.5
-        #        'n_get_fft_data_ext': 4,
-        #        'n_repeat': 10
+        #        'filter_width': 0.26,
+        #        'min_frame_len_k': 1, # 1.5  # сколько времени минимум длится вибрация + пауза, при 1 работало
+        #        'n_get_fft_data_ext': 0.25,
+        #        'n_repeat': 10,
+        #        "wrap_flag": 1
         #        }
         # self.OPTIONS_FILE_NAME = 'settings/fft_options.json'
         # with open(self.OPTIONS_FILE_NAME, 'w', encoding='utf-8') as file:
-        #     json.dump(self.fft_opt,
-        #               file, ensure_ascii=False, indent=4)
-            
-    # def load_json(self, PROJECT_FILE_NAME):
+        #     dump(self.fft_opt, file, ensure_ascii=False, indent=4)
         # with open(self.OPTIONS_FILE_NAME, 'r', encoding='utf-8') as file:
         from json import load
         with open(OPTIONS_FILE_NAME, 'r', encoding='utf-8') as file:
             # self.fft_opt = json.load(file)
             self.fft_opt = load(file)
             self.logger.debug(self.fft_opt)
-        # kwargs['threshold'] = 1.0 * self.fs  # сколько времени минимум длится вибрация + пауза, при 1 работало
-        # n_get_fft_data_ext = 4
-        # n_repeat = 10
-        # min_frame_len =  * self.fs
 # -------------------------------------------------------------------------------------------------
 #   
 # -------------------------------------------------------------------------------------------------
-
     @pyqtSlot()
     def run(self):
         self.logger.debug("Thread Start")
-        temp = self.GYRO_NUMBER
+        # temp = self.GYRO_NUMBER
         # --- check file processing flags ---
         if self.flag_big_processing or self.flag_by_name:  # лучше все эти флаги загнать в словарь
             self.flag_do_not_save = True  # !!!
@@ -124,20 +117,16 @@ class SecondThread(QThread):
             self.flag_by_name_ = False
         # --- check save flag and save results ---
         self.logger.debug(
-            f"Start saving time {(not self.flag_by_name and self.pack_num) and not self.flag_do_not_save}")
-        if self.pack_num and not self.flag_do_not_save and not self.flag_by_name_:
+            f"Start saving time {(not self.flag_by_name and self.total_pack_num) and not self.flag_do_not_save}")
+        if self.total_pack_num and not self.flag_do_not_save and not self.flag_by_name_:
             self.save_time_cycles()
-        # self.logger.debug(
-        #     f"Start saving fff {((not self.flag_do_not_save or self.save_again) and self.pack_num) and (self.flag_by_name or self.save_again)}")
-        # self.logger.debug(
-        #     f"Start saving fff {((not self.flag_do_not_save or self.save_again) and self.pack_num)}")
         # if ((not self.flag_do_not_save or self.save_again) and self.pack_num) and (self.flag_by_name or self.save_again):
-        if not self.flag_do_not_save and self.pack_num:
+        if not self.flag_do_not_save and self.total_pack_num:
             self.save_fft()
         elif self.save_again:
             self.warning_signal.emit("Nothing to save")
         # --- reset flags ---
-        self.GYRO_NUMBER = temp
+        # self.GYRO_NUMBER = temp
         self.flag_by_name = False
         self.flag_do_not_save = False
         self.save_again = True
@@ -162,7 +151,7 @@ class SecondThread(QThread):
             # --- init ---
             self.logger.debug("flag_measurement_start True")
             self.to_plot.fill(np.nan)
-            self.pack_num = 0
+            self.total_pack_num = 0
             # --- measurement cycle ---
             while self.flag_measurement_start:
                 self.data_received_event.wait(1)  # Timeout 1 sec!
@@ -175,8 +164,8 @@ class SecondThread(QThread):
                     self.prepare_to_emit()
             # --- ---
             self.check_shift_and_gyro()
-            self.package_num_list.append(self.pack_num)
-            self.pack_num = 0
+            self.package_num_list.append(self.total_pack_num)
+            self.total_pack_num = 0
 
         # --- measurements and fft processing ---
         if self.flag_full_measurement_start:
@@ -185,39 +174,37 @@ class SecondThread(QThread):
             self.package_num_list = [0]
             self.to_plot.fill(np.nan)
             self.cycle_count = 1
-            self.pack_num = 0
+            self.total_pack_num = 0
             self.k_amp.resize(self.GYRO_NUMBER)
             self.k_amp.fill(1)
             self.flag_send = True
             make_fft_frame_gen = self.make_fft_frame_generator() #####################################################################
             # --- measurement and fft processing cycle ---
             while self.flag_full_measurement_start:
-                self.data_received_event.wait(0.5)  # Timeout 500 msec!
+                self.data_received_event.wait(1)  # Timeout 1 sec!
                 if not self.data_received_event.is_set():
                     self.logger.debug("Timeout")
                     continue
                 self.data_received_event.clear()
                 if self.flag_full_measurement_start:
                     self.get_ints_from_bytes()
-                    # next(make_fft_frame_gen)
                     self.prepare_to_emit()
                     next(make_fft_frame_gen)  # выполняется и в случае таймаута, позволяет бороться с неправильными выделениями рамок
                     self.logger.debug("end thread cycle\n")
-            self.package_num_list.append(self.pack_num)
+            self.package_num_list.append(self.total_pack_num)
 
+# -------------------------------------------------------------------------------------------------
     def change_protocol(self):
         if self.GYRO_NUMBER == 1:
-            if self.pack_len == 4:
-                if self.crc_flag:
-                    self.get_ints_from_bytes = self.get_ints_from_bytes14_4_crc8
-                    self.logger.debug("get_ints_from_bytes14_4_crc8")
-                else:
-                    self.get_ints_from_bytes = self.get_ints_from_bytes14_4
-                    self.logger.debug("get_ints_from_bytes14_4")
+            if self.crc_flag:
+                self.pack_len = 4
+                self.get_ints_from_bytes = self.get_ints_from_bytes14_4_crc8
+                self.logger.debug("get_ints_from_bytes14_4_crc8")
             else:
-                self.get_ints_from_bytes = self.get_ints_from_bytes14_2
-                self.logger.debug("get_ints_from_bytes14_2")
+                self.get_ints_from_bytes = self.get_ints_from_bytes14
+                self.logger.debug("get_ints_from_bytes14")
         if self.GYRO_NUMBER == 3:
+            self.pack_len = 2
             if self.crc_flag:
                 self.get_ints_from_bytes = self.get_ints_from_bytes20_2_crc8
                 self.logger.debug("get_ints_from_bytes20_2_crc8")
@@ -228,10 +215,10 @@ class SecondThread(QThread):
 #
 # -------------------------------------------------------------------------------------------------
     def check_shift_and_gyro(self):
-        if self.pack_num > 5 * self.fs:
+        if self.total_pack_num > 5 * self.fs:
             self.amp_shift = np.mean(self.time_data[:5 * self.fs, 1::self.pack_len], axis=0)
         else:
-            self.amp_shift = np.mean(self.time_data[:self.pack_num, 1::self.pack_len], axis=0)
+            self.amp_shift = np.mean(self.time_data[:self.total_pack_num, 1::self.pack_len], axis=0)
         self.logger.debug(f"amp_shift = {self.amp_shift}")
         for i in range(self.GYRO_NUMBER):
             if np.equal(self.amp_shift[i], -1):
@@ -245,7 +232,7 @@ class SecondThread(QThread):
         """Normalize data and send it in main thread"""
         # и тут можно итератор сделать, тогда не надо знать self.received_pack_len
         self.logger.debug(
-            f"prepare data to graph, {self.pack_num}, {self.received_pack_len}")
+            f"prepare data to graph, {self.total_pack_num}, {self.received_pack_len}")
         # (измерить, насколько быстро точки на график выводятся)
         # можно сделать несколько режимов вывода, которые можно будет переключать
         if not self.received_pack_len:
@@ -253,11 +240,9 @@ class SecondThread(QThread):
             return False
         self.to_plot = np.roll(self.to_plot, -self.received_pack_len, axis=0)
         if self.flag_full_measurement_start:
-            start = self.pack_num - self.received_pack_len
-            end = self.pack_num
+            start, end = self.total_pack_num - self.received_pack_len, self.total_pack_num
         else:
-            start = 0
-            end = self.received_pack_len
+            start, end = 0, self.received_pack_len
         self.to_plot[-self.received_pack_len:, 0] = (
             np.copy(self.time_data[start:end, 0])
             ).astype(np.float32) / self.fs
@@ -267,9 +252,9 @@ class SecondThread(QThread):
         self.to_plot[-self.received_pack_len:, 1::self.pack_len] = (
             np.copy(self.time_data[start:end, 1::self.pack_len])
             ).astype(np.float32) / 1000 / self.k_amp
-        self.package_num_signal.emit(self.pack_num, self.to_plot)
+        self.package_num_signal.emit(self.total_pack_num, self.to_plot)
         return True
-# -------------------------------------------------------------------------------------------------
+# --- int from bytes ------------------------------------------------------------------------------
 
     def get_ints_from_bytes14_4_crc8(self):
         if len(self.rx) <= 28:
@@ -321,18 +306,18 @@ class SecondThread(QThread):
             for j in range(3):
                 array_r[:, i, j] = bytes_arr[np.add(start, 3*i + j)]
         # ---
-        pack_num_ = self.pack_num * self.flag_full_measurement_start
+        pack_num_ = self.total_pack_num * self.flag_full_measurement_start
         if pack_num_ + self.received_pack_len >= self.time_data.shape[0]:
             self.time_data.resize(
                 self.time_data.shape[0] + 15 * self.fs,
                 self.time_data.shape[1], refcheck=False)
         self.time_data[pack_num_:pack_num_ + self.received_pack_len, 0] = np.arange(
-            self.pack_num, self.pack_num + self.received_pack_len)
+            self.total_pack_num, self.total_pack_num + self.received_pack_len)
         for k in range(self.GYRO_NUMBER):
             self.time_data[pack_num_:pack_num_ + self.received_pack_len,
                             (1 + 4*k):(5 + 4*k)] = (
                                 np.einsum("ijk,jk->ij", array_r, self.POWERS14_4) / 256)
-        self.pack_num += self.received_pack_len
+        self.total_pack_num += self.received_pack_len
         # print(np.nanmean(np.abs(
         #     (self.time_data[pack_num_:pack_num_ + self.received_pack_len, 1]))))
         # print(np.nanmean(np.abs(
@@ -391,69 +376,24 @@ class SecondThread(QThread):
             for j in range(3):
                 array_r[:, i, j] = bytes_arr[np.add(start, 3*i + j)]
         # --- Check size ---
-        pack_num_ = self.pack_num * self.flag_full_measurement_start
+        pack_num_ = self.total_pack_num * self.flag_full_measurement_start
         if pack_num_ + self.received_pack_len >= self.time_data.shape[0]:
             self.time_data.resize(
                 self.time_data.shape[0] + 18 * self.fs,
-                self.time_data.shape[1], refcheck=False)  # !!!!!!!!!!!!!!!!!!!!
+                self.time_data.shape[1], refcheck=False)  # !
         self.time_data[pack_num_:pack_num_ + self.received_pack_len, 0] = np.arange(
-            self.pack_num, self.pack_num + self.received_pack_len)
-        # for k in range(self.GYRO_NUMBER):  # !!!
-            # self.time_data[pack_num_:pack_num_ + self.recieved_pack_len,
-            #                (1 + self.pack_len*k):(1 + (self.pack_len)*k + 2)] = (
-            #                    np.einsum("ijk,jk->ij", array_r[:,2*k:2*k+2, :], self.POWERS14_2) / 256)
+            self.total_pack_num, self.total_pack_num + self.received_pack_len)
         self.time_data[pack_num_:pack_num_ + self.received_pack_len, 1:] = (
-                            np.einsum("ijk,jk->ij", array_r, self.POWERS20_6) / 256)
-        self.pack_num += self.received_pack_len
-        if len(self.rx[start[-1] + 19:]) < 60:
-            self.rx = self.rx[start[-1] + 19:]
-        else:
-            self.rx = b''
+            np.einsum("ijk,jk->ij", array_r, self.POWERS20_6) / 256)
+        self.total_pack_num += self.received_pack_len
+        # if len(self.rx[start[-1] + 19:]) < 60:
+        #     self.rx = self.rx[start[-1] + 19:]
+        # else:
+        #     self.rx = b''
+        self.rx = (self.rx[start[-1] + 19:] if len(self.rx[start[-1] + 19:]) < 60 else b'')
         return True
 
-    def get_ints_from_bytes14_4(self):
-        if len(self.rx) <= 28:
-            self.received_pack_len = 0
-            return False
-        self.logger.debug("start matrix processing data frame")
-        bytes_arr = np.frombuffer(self.rx, dtype=np.uint8)
-        start = np.where(
-            (bytes_arr[:-13] == 0x72) & (bytes_arr[13:] == 0x27))[0] + 1
-            # (bytes_arr[:-14] == 0x72) & (bytes_arr[13:-1] == 0x27) & (bytes_arr[14:] == 0x72))[0] + 1
-        if not start.size:
-            self.warning_signal.emit("Check settings, incorrect data from COM port!")
-            self.logger.debug("Incorrect data in rx!")
-            self.received_pack_len = 0
-            self.rx = b''
-            return False
-        start = np.insert(start, start.size, start[-1] + 14)
-        start = start[np.where(np.diff(start) == 14)[0]]
-        self.received_pack_len = start.size
-        array_r = np.zeros((self.received_pack_len, 4, 4), dtype=np.uint8)
-        for i in range(4):
-            for j in range(3):
-                array_r[:, i, j] = bytes_arr[np.add(start, 3*i + j)]
-        pack_num_ = self.pack_num * self.flag_full_measurement_start
-        if pack_num_ + self.received_pack_len >= self.time_data.shape[0]:
-            self.logger.debug("expand array")
-            self.time_data.resize(
-                self.time_data.shape[0] + 15 * self.fs,
-                self.time_data.shape[1], refcheck=False)  # !!!!!!!!!!!!!!!!!!!!
-        self.time_data[pack_num_:pack_num_ + self.received_pack_len, 0] = np.arange(
-            self.pack_num, self.pack_num + self.received_pack_len)
-        for k in range(self.GYRO_NUMBER):
-            self.time_data[pack_num_:pack_num_ + self.received_pack_len,
-                           (1 + 4*k):(5 + 4*k)] = (
-                               np.einsum("ijk,jk->ij", array_r, self.POWERS14_4) / 256)
-        self.pack_num += self.received_pack_len
-        self.logger.debug("end matrix processing")
-        if len(self.rx[start[-1] + 13:]) < 28:
-            self.rx = self.rx[start[-1] + 13:]
-        else:
-            self.rx = b''
-        return True
-
-    def get_ints_from_bytes14_2(self):
+    def get_ints_from_bytes14(self):
         self.logger.debug("start matrix processing data frame")
         if len(self.rx) <= 28:
             self.received_pack_len = 0  # self.rx = b''
@@ -470,27 +410,28 @@ class SecondThread(QThread):
         start = np.insert(start, start.size, start[-1] + 14)
         start = start[np.where(np.diff(start) == 14)[0]]
         self.received_pack_len = start.size
-        array_r = np.zeros((self.received_pack_len, 2, 4), dtype=np.uint8)
-        for i in range(2):
+        array_r = np.zeros((self.received_pack_len, self.pack_len, 4), dtype=np.uint8)
+        for i in range(self.pack_len):
             for j in range(3):
                 array_r[:, i, j] = bytes_arr[np.add(start, 3*i + j)]
         self.logger.debug(self.received_pack_len)
-        pack_num_ = self.pack_num * self.flag_full_measurement_start
+        pack_num_ = self.total_pack_num * self.flag_full_measurement_start
         if pack_num_ + self.received_pack_len >= self.time_data.shape[0]:
             self.logger.debug("expand array")
             self.time_data.resize(
                 self.time_data.shape[0] + 15 * self.fs,
-                self.time_data.shape[1], refcheck=False)  # !!!!!!!!!!!!!!!!!!!!
+                self.time_data.shape[1], refcheck=False)
         self.time_data[pack_num_:pack_num_ + self.received_pack_len, 0] = np.arange(
-            self.pack_num, self.pack_num + self.received_pack_len)
-        self.time_data[pack_num_:pack_num_ + self.received_pack_len, 1:3] = (
-            np.einsum("ijk,jk->ij", array_r, self.POWERS14_2) / 256)
-        self.pack_num += self.received_pack_len
+            self.total_pack_num, self.total_pack_num + self.received_pack_len)
+        self.time_data[pack_num_:pack_num_ + self.received_pack_len, 1:1+self.pack_len] = (
+            np.einsum("ijk,jk->ij", array_r, self.POWERS14_4[:self.pack_len, :]) / 256)
+        self.total_pack_num += self.received_pack_len
         self.logger.debug("end matrix processing")
-        if len(self.rx[start[-1] + 13:]) < 28:
-            self.rx = self.rx[start[-1] + 13:]
-        else:
-            self.rx = b''
+        # if len(self.rx[start[-1] + 13:]) < 28:
+        #     self.rx = self.rx[start[-1] + 13:]
+        # else:
+        #     self.rx = b''
+        self.rx = (self.rx[start[-1] + 13:] if len(self.rx[start[-1] + 13:]) < 28 else b'')
         return True
 
     def get_ints_from_bytes20_2(self):
@@ -516,47 +457,49 @@ class SecondThread(QThread):
             for j in range(3):
                 array_r[:, i, j] = bytes_arr[np.add(start, 3*i + j)]
         self.logger.debug(self.received_pack_len)
-        pack_num_ = self.pack_num * self.flag_full_measurement_start
+        pack_num_ = self.total_pack_num * self.flag_full_measurement_start
         if pack_num_ + self.received_pack_len >= self.time_data.shape[0]:
             self.logger.debug("expand array")
             self.time_data.resize(
                 self.time_data.shape[0] + 18 * self.fs,
                 self.time_data.shape[1], refcheck=False)
         self.time_data[pack_num_:pack_num_ + self.received_pack_len, 0] = np.arange(
-            self.pack_num, self.pack_num + self.received_pack_len)
-        for k in range(self.GYRO_NUMBER):  # !!!
-            self.time_data[pack_num_:pack_num_ + self.received_pack_len,
-                           (1 + self.pack_len*k):(1 + (self.pack_len)*k + 2)] = (
-                               np.einsum("ijk,jk->ij", array_r[:,2*k:2*k+2, :], self.POWERS14_2) / 256)
-                            #    np.einsum("ijk,jk->ij", array_r, self.POWERS14_4) / 256)
-        self.pack_num += self.received_pack_len
+            self.total_pack_num, self.total_pack_num + self.received_pack_len)
+        # for k in range(self.GYRO_NUMBER):  # !!!
+        #     self.time_data[pack_num_:pack_num_ + self.received_pack_len,
+        #                    (1 + self.pack_len*k):(1 + (self.pack_len)*k + 2)] = (
+        #                        np.einsum("ijk,jk->ij", array_r[:,2*k:2*k+2, :], self.POWERS14_2) / 256)
+        self.time_data[pack_num_:pack_num_ + self.received_pack_len, 1:] = (
+            np.einsum("ijk,jk->ij", array_r, self.POWERS20_6) / 256)
+        self.total_pack_num += self.received_pack_len
         self.logger.debug("end matrix processing")
-        if len(self.rx[(start[-1] + 13):]) < 40:
-            self.rx = self.rx[start[-1] + 13:]
-        else:
-            self.rx = b''
+        # if len(self.rx[(start[-1] + 19):]) < 60:
+        #     self.rx = self.rx[start[-1] + 19:]
+        # else:
+        #     self.rx = b''
+        self.rx = (self.rx[start[-1] + 19:] if len(self.rx[start[-1] + 19:]) < 60 else b'')
         return True
 # -------------------------------------------------------------------------------------------------
 #
-# -------------------------------------------------------------------------------------------------
+# --- saving --------------------------------------------------------------------------------------
 
     def save_condition(self, gyro):
         if not len(self.save_file_name[gyro]): # эта проверка одинаковая и для fft лучше ее вынести отдельно
             self.logger.debug(f"skip gyro{gyro + 1}")
             return False
         if not os.path.isdir(os.path.dirname(self.save_file_name[gyro])):
-            self.logger.debug(
-                f"Folder {os.path.dirname(self.save_file_name[gyro])} doesn't exist!")
-            self.warning_signal.emit(
-                f"Folder {os.path.dirname(self.save_file_name[gyro])} doesn't exist!")
+            info_str = f"Folder {os.path.dirname(self.save_file_name[gyro])} doesn't exist!"
+            self.logger.debug(info_str)
+            self.warning_signal.emit(info_str)
             return False
         return True
+# -------------------------------------------------------------------------------------------------
 
     def save_time_cycles(self):
         """Check save conditions and save time data from cycles."""
-        self.logger.debug("save time cycles!")
+        self.logger.debug("save time cycles")
         k = (self.time_data.shape[1] - 1) / self.GYRO_NUMBER
-        self.logger.debug(f"k={k}, len.package_num_list={len(self.package_num_list)}")
+        self.logger.debug(f"k={k}, len.pack_num_list={len(self.package_num_list)}")
         filename_list_cycles = []
         for j_gyro in range(self.GYRO_NUMBER):
             if not self.save_condition(j_gyro):
@@ -570,13 +513,11 @@ class SecondThread(QThread):
                 self.logger.debug(f"save cycle {filename}")
                 time_data_df = DataFrame(
                     self.time_data[
-                        # self.package_num_list[i]:self.package_num_list[i + 1], :])
                         self.package_num_list[i]:self.package_num_list[i + 1], cols])
                 time_data_df.to_csv(
                     filename, header=None,
-                    # filename, columns=cols, header=None,
                     index=None, sep='\t', mode='w', date_format='%d')
-        if len(filename_list_cycles):  # вот тут info должно быть, а не warning
+        if len(filename_list_cycles):
             self.info_signal.emit(
                 "Successfully save time data for\n" + ',\n'.join(filename_list_cycles) + '\n')
             return True
@@ -627,9 +568,11 @@ class SecondThread(QThread):
                 "Successfully save fft data:\n" + ',\n'.join(filename_list_cycles) + '\n')
             return True
 # -------------------------------------------------------------------------------------------------
+#
+# -------------------------------------------------------------------------------------------------
 
     def new_measurement_cycle(self):
-        self.package_num_list.append(self.pack_num)
+        self.package_num_list.append(self.total_pack_num)
         self.cycle_count += 1
 # -------------------------------------------------------------------------------------------------
 
@@ -644,17 +587,17 @@ class SecondThread(QThread):
                            int(-0.4 * self.WAIT_TIME_SEC * self.fs)])
         flag_frame_start = False
         self.border.fill(0)  # можно оставить self, просто обнулять здесь
-        fft_norm_gen = self.fft_normalization_generator() # генератор  # d_phase += 360 / 1000 * freq * 0.225  # ?????
+        fft_norm_gen = self.fft_normalization_generator()  # генератор  # d_phase += 360 / 1000 * freq * 0.225  # ?????
         next(fft_norm_gen)
         fft_norm_gen.send((0, 0, 0, 0))
         while True:
             # --- processing cycle ---
             if not self.flag_send and not flag_frame_start:
                 flag_frame_start = True
-                self.border[0] = self.pack_num  # frame start
+                self.border[0] = self.total_pack_num  # frame start
             elif flag_frame_start and self.flag_send:
                 flag_frame_start = False
-                self.border[1] = self.pack_num  # frame end
+                self.border[1] = self.total_pack_num  # frame end
                 self.border = self.border + delays
                 self.logger.debug(f"old borders = {self.border}")
                 self.border = self.get_new_border(self.border, self.fs)
@@ -671,7 +614,6 @@ class SecondThread(QThread):
                                 fs=self.fs)
                         else:
                             [freq, amp, d_phase] = get_fft_data(
-                            # gyro=gyro_list[border[0]:border[1], i],
                                 gyro=(self.time_data[self.border[0]:self.border[1],
                                                     1 + i * self.pack_len] - self.amp_shift[i]),  # добавил сюда учет смещения
                                 encoder=self.time_data[self.border[0]:self.border[1],
@@ -680,9 +622,8 @@ class SecondThread(QThread):
                         freq, amp, d_phase, tau = fft_norm_gen.send((freq, amp, d_phase, i))
                         # [freq, amp, d_phase, tau] = self.fft_normalization(
                             # freq, amp, d_phase, i=i)
-                            # freq, amp, d_phase, d_phase_prev=self.all_fft_data[i-1, (self.cycle_count-1)*4, 0], i=i)
-                        self.all_fft_data[(
-                            self.count_fft_frame - 1), (self.cycle_count-1)*4:self.cycle_count*4, i
+                        self.all_fft_data[
+                            (self.count_fft_frame - 1), (self.cycle_count - 1)*4:self.cycle_count*4, i
                             ] = [freq, amp, d_phase, tau]
                         self.logger.debug(f"fft: {[freq, amp, d_phase, tau]}")
                     self.fft_data_signal.emit(True)  # надо посылать border, потому что теперь это не свойство класса!
@@ -693,34 +634,78 @@ class SecondThread(QThread):
 # -------------------------------------------------------------------------------------------------
 
     def fft_median_filter(self, round_flag=True):
-        # нужна проверка на то, что все частоты +- совпадают, проще при создании массива проверять
-        for j in range(4):
-            self.all_fft_data[:, j - 4, :] = np.nanmedian(self.all_fft_data[:, j::4, :], axis=1)
+        # проверка на то, что все частоты +- совпадают?
+        for i in range(4):
+            self.all_fft_data[:, i - 4, :] = np.nanmedian(self.all_fft_data[:, i::4, :], axis=1)
         if round_flag:
             self.all_fft_data[:, -4, :] = np.round(self.all_fft_data[:, -4, :], 2)
             self.all_fft_data[:, -3, :] = np.round(self.all_fft_data[:, -3, :], 4)
-        if not self.all_fft_data.shape[0] < 4:  # !!!
+        if self.all_fft_data.shape[0] <= 10 or not self.fft_opt['wrap_flag']:  # !
             return
-        for i in range(self.all_fft_data.shape[2]):
-            # print(np.diff(self.all_fft_data[:-2, -2, i]))
-            # print(np.diff(self.all_fft_data[1:-1, -2, i]))
-            # print(np.diff(self.all_fft_data[2:, -2, i]))
-            # print(self.all_fft_data[:-2, -2, i] - (self.all_fft_data[2:, -2, i]))
-            # print(self.all_fft_data[1:-3, -2, i] - (self.all_fft_data[3:-1, -2, i]))
+        for j in range(self.all_fft_data.shape[2]):  # !!!!!
+            # print(len(np.where(np.diff(self.all_fft_data[:, -4, i]) < 0)[0]))
+            if len(np.where(np.diff(self.all_fft_data[:, -4, j]) < 0)[0]):
+                return
+            k_list = np.polyfit(self.all_fft_data[2:-5, -4, j], self.all_fft_data[2:-5, -2, j], 1)
+            fun = np.poly1d(k_list)
+            self.phase_approximation = np.array(fun(self.all_fft_data[:, -4, j]))
+            err = self.all_fft_data[:, -2, j] - (self.phase_approximation)
+            thr = np.abs(np.nanmean(err))
+            # print(thr)
+            thr = 20 if thr < 20 else thr
+            k = 5
             errors = np.where(
-                (self.all_fft_data[1:-3, -2, i] - (self.all_fft_data[2:-2, -2, i]) < 120) &
-                (np.diff(self.all_fft_data[3:, -2, i]) < 0) &
-                (np.diff(self.all_fft_data[1:-2, -2, i]) < 0) &
-                (np.diff(self.all_fft_data[2:-1, -2, i]) > 120))[0]
+                (err[:-2] > k * thr) & (err[1:-1] > 2 * k * thr) & (err[2:] > 1.2 * k * thr))[0]
+                # (err[3:-1] > 25) & (err[2:-2] > 80) & (err[1:-3] > 25) & (err[:-4] > 0))[0]
+            # print(k_list)
+            # k_list2 = np.polyfit(self.all_fft_data[:-4, -4, i], self.all_fft_data[:-4, -2, i], 3)
+            # fun2 = np.poly1d(k_list2)
+            # self.phase_approximation2 = np.array(fun2(self.all_fft_data[:, -4, i]))
+            # err2 = self.all_fft_data[:, -2, i] - (self.phase_approximation2)
+            # thr2 = np.abs(np.nanmean(err2))
+            # print(thr2)
+            # print(thr); print(errors); print(err)
+            # # self.freq_approximation = np.linspace(1, 330, num=300)
+            # # print(self.freq_approximation)
+            # print(2222)
+            # print(self.phase_approximation)
+            # print(1111)
+            # errors2 = np.where(
+            #     (self.all_fft_data[1:-3, -2, i] - (self.all_fft_data[2:-2, -2, i]) < 150) &
+            #     (np.diff(self.all_fft_data[3:, -2, i]) < 0) &
+            #     (np.diff(self.all_fft_data[1:-2, -2, i]) < 0) &
+            #     (np.diff(self.all_fft_data[2:-1, -2, i]) > 150))[0]
                 # (self.all_fft_data[:-2, -2, i] - (self.all_fft_data[1:-1, -2, i]) > 100) \
                     # | ((self.all_fft_data[:-2, -4, i] - self.all_fft_data[2:, -2, i]) > 100))[0]
+            # print(errors2)
+            # print(self.all_fft_data[3:, -2, i])
+            # print(errors)
+            # print(errors.size)
             if errors.size:
-                # print(errors)
+                pass
+                # errors[0] += 2
+                # print(1)
                 # print(errors[-1] + 2)
+                # print(np.diff(self.all_fft_data[2:-1, -2, i]))
+                # print(self.all_fft_data[errors[-1] + 1:, -2, i])
                 # print(self.all_fft_data[errors[-1] + 2:, -2, i])
-                self.all_fft_data[errors[-1] + 3:, -2, i] -= 360
-                self.all_fft_data[errors[-1] + 3:, -1, i] += \
-                    -1000 * self.all_fft_data[errors[-1] + 3:, -2, i] / self.all_fft_data[errors[-1] + 3:, -4, i] / 360
+                # print(self.all_fft_data[errors[-1] + 3:, -2, i])
+                # print(self.all_fft_data[errors[-1] + 4:, -2, i])
+            elif err[-4] < k * thr and err[-3] > k * thr and err[-2] > k * thr and err[-1] > 1.2 * k * thr: # and err[-3] < -50:
+                errors = [self.all_fft_data.shape[0] - 3]
+            elif err[-3] < k * thr and err[-2] > k * thr and err[-1] > 1.2 * k * thr: # and err[-3] < -50:
+                # print(2)
+                errors = [self.all_fft_data.shape[0] - 2]
+                # print(self.all_fft_data[-2:-1, -2, i])
+            elif err[-2] < k * thr and err[-1] > 1.5 * k * thr:
+                # print(3)
+                errors = [self.all_fft_data.shape[0] - 1]
+            if len(errors):
+                self.all_fft_data[errors[0]:, -2, j] -= 360
+                self.all_fft_data[errors[0]:, -1, j] += \
+                    -1000 * self.all_fft_data[errors[0]:, -2, j] / self.all_fft_data[errors[0]:, -4, j] / 360
+            # elif np.abs(self.all_fft_data[-1, -2, i] - self.all_fft_data[-2, -2, i]) > np.abs(self.all_fft_data[-1, -2, i] - self.all_fft_data[-2, -2, i] - 360):
+                    # self.all_fft_data[-1, -2, i] -= 360
             # tau = -1000 * d_phase / freq / 360
         # for i in range(self.all_fft_data.shape[2]):
         #     for j in range(4):
@@ -766,13 +751,13 @@ class SecondThread(QThread):
             [int(0.8 * self.WAIT_TIME_SEC * self.fs),
                 int(-0.32 * self.WAIT_TIME_SEC * self.fs)])  # не забыть их учесть в обработке
         # self.cycle_count = 1
-        self.pack_num = 0
-        self.GYRO_NUMBER = 1
-        self.amp_shift.resize(self.GYRO_NUMBER)
+        self.total_pack_num = 0
+        # self.GYRO_NUMBER = 1
+        self.amp_shift.resize(1)  # self.GYRO_NUMBER
         self.amp_shift.fill(0)
 
-        if self.flag_do_not_save and self.flag_big_processing:  # лучше все эти флаги загнать в словарь
-            self.logger.debug("do_not_save")  # добавить создание папки в текущей директории
+        if self.flag_big_processing:  # лучше все эти флаги загнать в словарь
+            self.logger.debug("flag_big_processing")  # добавить создание папки в текущей директории
             self.get_fft_from_folders(folder_to_save=os.getcwd(), file_name="sensor_list")  # !!!
 
         if self.flag_by_name:
@@ -788,10 +773,11 @@ class SecondThread(QThread):
 
     def fft_from_file_median(self, file_list: list):
         """Calculate fft median data from several files."""
-        self.k_amp.resize(self.GYRO_NUMBER)
+        self.k_amp.resize(1)  # self.GYRO_NUMBER
         self.k_amp.fill(1)
-        self.amp_shift.resize(self.GYRO_NUMBER)
+        self.amp_shift.resize(1)  # self.GYRO_NUMBER
         self.amp_shift.fill(0)
+        self.all_fft_data.fill(np.nan)
         self.total_cycle_num = len(file_list)
         self.logger.debug(f"total_cycle_num={self.total_cycle_num}")
         # n = 4  self.fft_opt['filter_width'] = 0.26
@@ -799,14 +785,22 @@ class SecondThread(QThread):
         filter_list = [(np.ones(filter_len) / filter_len * 1.5).astype(np.float32),  #] # const_filter
                        (custom_g_filter(len=int(35 / self.fft_opt['decimation']), k=0.008) * 1).astype(np.float32)]  # g_filter
         self.cycle_count = 1
+        existing_fft_file_flag = False
+        i = 0
+        filename_list_median = ['', '', '']
         for file_for_fft in file_list:
             with open(file_for_fft) as file:
                 line_len = len(file.readline().split("\t"))
-                if line_len == 4:
-                    self.get_existing_fft_file(file_for_fft)
-                    if len(file_list) > 1:
-                        self.warning_signal.emit("Only one file processed!")
-                    break
+                if line_len == 4 and i < self.GYRO_NUMBER:
+                    existing_fft_file_flag = True
+                    filename_list_median[i] = self.get_existing_fft_file(file_for_fft, i)
+                    i += 1
+                    existing_fft_file_flag = True
+                    continue
+                    # break
+                if existing_fft_file_flag:
+                    self.logger.debug("not existing_fft_file_flag")
+                    continue
                 if line_len != 5 and line_len != 3:
                     self.logger.debug(f"{file.readline()}")
                     self.warning_signal.emit("You choose wrong file!")
@@ -816,14 +810,40 @@ class SecondThread(QThread):
                 # file_for_fft, filter_list, threshold=5300, decimation=n)
         self.cycle_count -= 1
 
-        if self.cycle_count:
+        if self.cycle_count and not existing_fft_file_flag:
             self.fft_median_filter(round_flag=False)
             self.get_special_points()
             filename_list_median = [re.split("_", os.path.basename(file_for_fft))[0]]
             self.to_plot.resize(16 * self.fs, self.time_data.shape[1])  # !
-            self.pack_num = self.time_data[-1, 0]
-            self.package_num_list.append(self.pack_num)
+            self.total_pack_num = self.time_data[-1, 0]
+            self.package_num_list.append(self.total_pack_num)
             self.median_data_ready_signal.emit(filename_list_median)
+        if existing_fft_file_flag:
+            self.all_fft_data = np.copy(self.all_fft_data[:, :, :i])   # .resize(
+            self.median_data_ready_signal.emit(filename_list_median)
+# -------------------------------------------------------------------------------------------------
+
+    def get_existing_fft_file(self, file_for_fft, i: int = 0):
+        """Show data from FRQ_AMP_dPh file."""
+        self.logger.debug("get data from existing fft file")
+        # можно сделать так, чтобы до трех разных датчиков можно было выбирать
+        try:
+            all_fft_data = np.array(
+                read_csv(file_for_fft, delimiter='\t',
+                         dtype=np.float32, header=None,  #,
+                         index_col=False, decimal=","))
+        except ValueError:  # на случай, если в файле в качестве разделителей точки
+            all_fft_data = np.array(
+                read_csv(file_for_fft, delimiter='\t',
+                         dtype=np.float32, header=None,  #,
+                         index_col=False, decimal="."))
+        self.all_fft_data.resize(
+            all_fft_data.shape[0], all_fft_data.shape[1], 3, refcheck=False)
+        self.all_fft_data[:, :, i] = all_fft_data[:, :]
+        self.get_special_points()
+        # filename_list_median = [re.split("_", os.path.basename(file_for_fft))[0]]
+        return re.split("_", os.path.basename(file_for_fft))[0]
+        # self.median_data_ready_signal.emit(filename_list_median)
 # -------------------------------------------------------------------------------------------------
 
     # def fft_for_file(self, filename: str, filter_list: list, threshold: int = 5300, decimation: int = 2): # здесь не учитывается смещение по каналу гироскопа!
@@ -874,7 +894,7 @@ class SecondThread(QThread):
         rows_count = min(end_arr.size, start_arr.size)
         if self.cycle_count == 1:
             self.all_fft_data.resize(
-                (rows_count, 4 * (self.total_cycle_num + 1), self.GYRO_NUMBER),
+                (rows_count, 4 * (self.total_cycle_num + 1), 1),  # self.GYRO_NUMBER
                 refcheck=False)
             self.all_fft_data.fill(np.nan)
         elif rows_count != self.all_fft_data.shape[0]:
@@ -909,7 +929,8 @@ class SecondThread(QThread):
                 start_arr[i] = end_arr[i - 1]
             if end_arr[i]:
                 # if i < 99:
-                if i < rows_count / options['n_get_fft_data_ext']:
+                # print(i < rows_count * options['n_get_fft_data_ext'])
+                if i < rows_count * options['n_get_fft_data_ext']: # тут лучше умножать на число от 0 до 1
                     # self.logger.debug(i)
                     [freq, amp, d_phase] = get_fft_data_ext(
                     # [freq, amp, d_phase] = get_fft_data_median_frame(  # ! fft делается несколько раз с разными границами
@@ -983,15 +1004,10 @@ class SecondThread(QThread):
             #     d_phase_prev_prev = [0, 0, 0]
             #     d_phase_prev = [0, 0, 0]
             #     flag[i] = False
-            # self.logger.debug(
-                # f"wrap d_phase = {d_phase}, d_phase_prev = {d_phase_prev[i]}, freq={freq}")
             # if d_phase - d_phase_prev[i] > 135 and d_phase - d_phase_prev_prev[i] > 85:
             # if (d_phase - d_phase_prev[i]) > 125 and (d_phase_prev[i] - d_phase_prev_prev[i]) > 125 and d_phase > d_phase_prev_prev[i]:  # может сработать из-за выброса
             # if d_phase - d_phase_prev[i] > 999 and d_phase - d_phase_prev_prev[i] > 195:  # может сработать из-за выброса
                 # flag[i] = True
-                # self.logger.debug(f"really wrap! d_phase={d_phase}, freq={freq}")
-                # self.logger.debug((d_phase - d_phase_prev_prev[i]) > 125)
-                # self.logger.debug((d_phase_prev[i] - d_phase_prev_prev[i]) > 125)
                 # self.logger.debug(f"d_phase={d_phase}, d_phase_prev[i]={d_phase_prev[i]}, d_phase_prev_prev[i]={d_phase_prev_prev[i]}")
                 # d_phase_prev[i] -= 360
                 # self.all_fft_data[self.count_fft_frame - 2, (self.cycle_count-1)*4+2:self.cycle_count*4, i] = \
@@ -1001,11 +1017,10 @@ class SecondThread(QThread):
             # d_phase_prev[i] = d_phase
             # if flag[i]:
             #     d_phase -= 360  # фаза меньше -360
-
             tau = -1000 * d_phase / freq / 360
             cort = yield (freq, amp, d_phase, tau)  # print(cort)
             freq, amp, d_phase, i = cort   
-            # d_phase -= .5 * freq
+            # d_phase -= .32 * freq  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     # def fft_normalization(self, freq, amp, d_phase, i=0):
     #     while not (-360 < d_phase <= 0):  # если d_phase = np.nan, то все сломается
@@ -1034,6 +1049,7 @@ class SecondThread(QThread):
         # border[0] = border[1] - ((border[1] - border[0]) // self.fs) * self.fs
         borders[0, :] = borders[1, :] - ((borders[1, :] - borders[0, :]) // fs) * fs
         return np.greater_equal((borders[1, :] - borders[0, :]), fs) * borders
+        # return borders
 
     @staticmethod
     def get_new_border(border: np.ndarray, fs: int):
@@ -1046,6 +1062,7 @@ class SecondThread(QThread):
         # return (np.array([0, 0]) if (border[1] - border[0]) < fs / 2 else border)
         # border[1] = border[0] + ((border[1] - border[0]) // fs) * fs
         # return (np.array([0, 0]) if (border[1] - border[0]) < fs else border)
+        # return borders
 
     @staticmethod
     def find_value_between_points(point1, point2, value):
@@ -1085,27 +1102,7 @@ class SecondThread(QThread):
             self.fft_from_file_median(self.selected_files_to_fft) #, self.fft_filename)
             self.logger.debug("save fft")
             self.save_fft()
-# -------------------------------------------------------------------------------------------------
 
-    def get_existing_fft_file(self, file_for_fft):
-        """Show data from FRQ_AMP_dPh file."""
-        self.logger.debug("plot existing fft")
-        # можно сделать так, чтобы до трех разных датчиков можно было выбирать
-        try:
-            self.all_fft_data = np.array(
-                read_csv(file_for_fft, delimiter='\t',
-                         dtype=np.float32, header=None,  #,
-                         index_col=False, decimal=","))
-        except ValueError:  # на случай, если в файле в качестве разделителей точки
-            self.all_fft_data = np.array(
-                read_csv(file_for_fft, delimiter='\t',
-                         dtype=np.float32, header=None,  #,
-                         index_col=False, decimal="."))
-        self.all_fft_data.resize(
-            self.all_fft_data.shape[0], self.all_fft_data.shape[1], 1)
-        self.get_special_points()
-        filename_list_median = [re.split("_", os.path.basename(file_for_fft))[0]]
-        self.median_data_ready_signal.emit(filename_list_median)
 # ----------------------------------------------------------------------------
 #
 # ----------------------------------------------------------------------------
@@ -1120,3 +1117,47 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     window = PyQt_ApplicationClass.AppWindow()
     sys.exit(app.exec())
+
+
+
+    # def get_ints_from_bytes14_4(self):  # объединить с get_ints_from_bytes14_2 !!!
+    #     if len(self.rx) <= 28:
+    #         self.received_pack_len = 0
+    #         return False
+    #     self.logger.debug("start matrix processing data frame")
+    #     bytes_arr = np.frombuffer(self.rx, dtype=np.uint8)
+    #     start = np.where(
+    #         (bytes_arr[:-13] == 0x72) & (bytes_arr[13:] == 0x27))[0] + 1
+    #         # (bytes_arr[:-14] == 0x72) & (bytes_arr[13:-1] == 0x27) & (bytes_arr[14:] == 0x72))[0] + 1
+    #     if not start.size:
+    #         self.warning_signal.emit("Check settings, incorrect data from COM port!")
+    #         self.logger.debug("Incorrect data in rx!")
+    #         self.received_pack_len = 0
+    #         self.rx = b''
+    #         return False
+    #     start = np.insert(start, start.size, start[-1] + 14)
+    #     start = start[np.where(np.diff(start) == 14)[0]]
+    #     self.received_pack_len = start.size
+    #     array_r = np.zeros((self.received_pack_len, 4, 4), dtype=np.uint8)
+    #     for i in range(4):
+    #         for j in range(3):
+    #             array_r[:, i, j] = bytes_arr[np.add(start, 3*i + j)]
+    #     pack_num_ = self.pack_num * self.flag_full_measurement_start
+    #     if pack_num_ + self.received_pack_len >= self.time_data.shape[0]:
+    #         self.logger.debug("expand array")
+    #         self.time_data.resize(
+    #             self.time_data.shape[0] + 15 * self.fs,
+    #             self.time_data.shape[1], refcheck=False)  # !!!!!!!!!!!!!!!!!!!!
+    #     self.time_data[pack_num_:pack_num_ + self.received_pack_len, 0] = np.arange(
+    #         self.pack_num, self.pack_num + self.received_pack_len)
+    #     for k in range(self.GYRO_NUMBER):
+    #         self.time_data[pack_num_:pack_num_ + self.received_pack_len,
+    #                        (1 + 4*k):(5 + 4*k)] = (
+    #                            np.einsum("ijk,jk->ij", array_r, self.POWERS14_4) / 256)
+    #     self.pack_num += self.received_pack_len
+    #     self.logger.debug("end matrix processing")
+    #     if len(self.rx[start[-1] + 13:]) < 28:
+    #         self.rx = self.rx[start[-1] + 13:]
+    #     else:
+    #         self.rx = b''
+    #     return True

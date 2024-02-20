@@ -234,6 +234,7 @@ class AppWindowTest(AppWindow):
 
     @QtCore.pyqtSlot()
     def timer_read_event(self):
+        # print("timer_read_event ", time())
         self.read_serial()
 
     def read_serial(self):

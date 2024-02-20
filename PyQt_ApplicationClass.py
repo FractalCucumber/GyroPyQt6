@@ -213,7 +213,7 @@ class AppWindow(QtWidgets.QMainWindow):
         options_menu.addSeparator()
         options_menu.addAction(exit_action)
 
-        # --- ---
+        # --- Mode menu ---
         mode_menu = menu_bar.addMenu("Режим измерений")  # !
         self.enable_crc_action = QtWidgets.QAction(
             "CRC8", self, checkable=True)
@@ -237,13 +237,38 @@ class AppWindow(QtWidgets.QMainWindow):
             "Изменить период чтения", self)
         self.change_read_interval_action.triggered.connect(self.change_read_interval)
         mode_menu.addAction(self.change_read_interval_action)
-
+        # --- ---
+        # self.form_group_box = QtWidgets.QGroupBox(objectName='no_border')
+        # layout = QtWidgets.QFormLayout()
+        # self._spin_widget = QtWidgets.QSpinBox(
+        #     mode_menu, maximumWidth=200, maximum=100_000,
+        #     minimum=75, value=self.PAUSE_INTERVAL_MS,
+        #     alignment=QtCore.Qt.AlignmentFlag.AlignHCenter) #, maximumHeight=220)
+        # def ff():
+        #     self.PAUSE_INTERVAL_MS = self._spin_widget.value()
+        # self._spin_widget.valueChanged.connect(ff) 
+        # self._spin_widget2 = QtWidgets.QSpinBox(
+        #     mode_menu, maximumWidth=200, maximum=1_000,
+        #     minimum=20, value=self.READ_INTERVAL_MS,
+        #     alignment=QtCore.Qt.AlignmentFlag.AlignHCenter) #, maximumHeight=220)
+        # def ff2():
+        #     self.READ_INTERVAL_MS = self._spin_widget2.value()
+        # self._spin_widget2.valueChanged.connect(ff2) 
+        # layout.addRow(QtWidgets.QLabel("Пауза между вибрациями:"), self._spin_widget)
+        # layout.addRow(QtWidgets.QLabel("Период чтения:"), self._spin_widget2)
+        # self.form_group_box.setLayout(layout)     
+        # layout.setContentsMargins(17, 5, 5, 5)
+        # _widget_action = QtWidgets.QWidgetAction(mode_menu)
+        # _widget_action.setDefaultWidget(self.form_group_box)
+        # mode_menu.addAction(_widget_action)
+        mode_menu.addSeparator()
+        # --- ---
         self.update_com_list_action = QtWidgets.QAction("Обновить COM", self)
         self.update_com_list_action.setShortcut("Ctrl+U")
         self.update_com_list_action.triggered.connect(self.get_available_com)
         mode_menu.addAction(self.update_com_list_action) 
 
-        # ---  ---
+        # --- Settings control ---
         settings_menu = menu_bar.addMenu("Настройки")
         self.settings_autosave_action = QtWidgets.QAction(
             "Автосохранение настроек", self, checkable=True)
@@ -271,7 +296,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self.get_available_com()
         self.com_port_name_combobox.get_ind()
         self.com_port_name_combobox.setContextMenuPolicy(
-            QtCore.Qt.CustomContextMenu)
+            QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
         self.com_port_name_combobox.customContextMenuRequested.connect(
             self.__contextMenu)
         # com_param_groupbox_layout.addWidget(QtWidgets.QLabel('COM:'),
@@ -465,10 +490,12 @@ class AppWindow(QtWidgets.QMainWindow):
         self.edit_file_button.clicked.connect(self.open_file)
         self.logs_clear_button.clicked.connect(
             lambda: self.log_text_box.clear())
-        for (choose_path_btn, saving_result_folder) in zip(
-            self.choose_path_button_list, self.saving_result_folder_label_list):
+        for (choose_path_btn, saving_res_folder, file_name_line_edit) in zip(
+            self.choose_path_button_list, self.saving_result_folder_label_list,
+            self.file_name_line_edit_list):
             choose_path_btn.clicked.connect(self.choose_result_saving_path)
-            saving_result_folder.textChanged.connect(self.folder_change_event)
+            saving_res_folder.textChanged.connect(self.folder_change_event)
+            file_name_line_edit.textChanged.connect(self.file_name_change_event)
 # ------ actions ----------------------------------------------------------------
         self.open_folder_action = QtWidgets.QAction("Open folder", self)
         self.open_folder_action.setShortcut('Ctrl+O')
@@ -584,7 +611,7 @@ class AppWindow(QtWidgets.QMainWindow):
                 self.file_name_line_edit_list, self.create_folder_checkbox_list):
             # if saving_result_folder_label == self.sender().parent():
             if saving_res_folder_label.hasFocus() or file_name_line.hasFocus():
-                self.path_to_sensor = saving_res_folder_label.toPlainText()
+                self.path_to_sensor = os.path.realpath(saving_res_folder_label.toPlainText())
                 if create_fld_checkbox.isChecked():  # re.split("_", file_name_line.text())[0]
                     if os.path.isdir(self.path_to_sensor + '/' + re.split("_", file_name_line.text())[0]):
                         self.path_to_sensor += '/' + re.split("_", file_name_line.text())[0]
@@ -604,20 +631,20 @@ class AppWindow(QtWidgets.QMainWindow):
         # # files_menu.insertSeparator()
         # files_menu.addActions(actions1)
         # # files_menu.insertMenu(actions1)
-
-        self._event_flag = True
         # --- ---
+        self._event_flag = True
         _widget_action = QtWidgets.QWidgetAction(_normal_menu)
         self._files_list_widget = QtWidgets.QListWidget(_normal_menu) #, maximumHeight=220)
         self._files_list_widget.itemSelectionChanged.connect(self._selection_event_handler) 
         # self._files_list_widget.addItems(
         #     [path.name for path in os.scandir(self.path_to_sensor) if path.is_file()])
-        for i, path in enumerate(os.scandir(self.path_to_sensor)):
-            if path.is_file():
-                self._files_list_widget.addItem(path.name)
-            if i >= 300:
-                self.logger.warning("Too much files in directory! You can see part of them.")
-                break
+        if len(self.path_to_sensor):
+            for i, path in enumerate(os.scandir(self.path_to_sensor)):
+                if path.is_file() and os.path.splitext(path.name)[1] == '.txt':
+                    self._files_list_widget.addItem(path.name)
+                if i >= 300:
+                    self.logger.warning("Too much files in directory! You can see part of them.")
+                    break
         self._files_list_widget.setSelectionMode(
             QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection)
         _widget_action.setDefaultWidget(self._files_list_widget)
@@ -626,20 +653,19 @@ class AppWindow(QtWidgets.QMainWindow):
         # --- ---
         _normal_menu.insertMenu(_normal_menu.actions()[2], files_menu)
         _normal_menu.insertSeparator(_normal_menu.actions()[3])
-        if self.processing_thr.isRunning():
+        if self.processing_thr.isRunning() or not len(self.path_to_sensor):
             files_menu.setDisabled(True)
         _normal_menu.exec(QtGui.QCursor.pos())
 
     def start_file_processing(self):
-        # print(time() - self.t)
-        modifiers = QtWidgets.QApplication.keyboardModifiers()
         m_btn = QtWidgets.QApplication.mouseButtons()
-        if m_btn == QtCore.Qt.LeftButton or modifiers == QtCore.Qt.ControlModifier:
+        modifiers = QtWidgets.QApplication.queryKeyboardModifiers() # keyboardModifiers().
+        if m_btn == QtCore.Qt.MouseButton.LeftButton or modifiers == QtCore.Qt.KeyboardModifier.ControlModifier:
             self.t = time()
-            QtCore.QTimer.singleShot(200, self.start_file_processing) 
+            QtCore.QTimer.singleShot(60, self.start_file_processing) 
             return False
         self._event_flag = True
-        if time() - self.t > 0.190:
+        if time() - self.t > 0.055:
             self.tab_plot_widget.selected_files_to_fft = []
             for item in self._files_list_widget.selectedItems():
                 self.tab_plot_widget.selected_files_to_fft.append(
@@ -650,10 +676,12 @@ class AppWindow(QtWidgets.QMainWindow):
             del self.t
 
     def _selection_event_handler(self):
-        self.t = time()
+        self.t = time() - 0.1
+        # print(time())
         if self._event_flag:
-            QtCore.QTimer.singleShot(200, self.start_file_processing)
+            # QtCore.QTimer.singleShot(10, self.start_file_processing)
             self._event_flag = False
+            self.start_file_processing()
         # print(self.list_widget._mouse_button)
         # if self.list_widget._mouse_button == QtCore.QEvent.Type.MouseButtonPress:
         #     print("press")
@@ -704,7 +732,7 @@ class AppWindow(QtWidgets.QMainWindow):
                     self.logger.warning("Path contain space and cannot be open!")
                     return False
                 # только если есть галочка создавать папку
-                if create_fld_checkbox.isChecked(): # re.split("_", file_name_line_edit.text())[0]
+                if create_fld_checkbox.isChecked():
                     if os.path.isdir(path_to_sensor + '/' + re.split("_", file_name_line.text())[0]):
                         path_to_sensor += '/' + re.split("_", file_name_line.text())[0]
                     else:
@@ -714,6 +742,14 @@ class AppWindow(QtWidgets.QMainWindow):
                 # path_to_sensor = path_to_sensor.replace('\\', '//')
                 # path_to_sensor = path_to_sensor[2:]
                 # print(path_to_sensor.find(' '))
+                # import subprocess
+                # # task = path_to_sensor.split(" ")
+                # # task[0] = 'start ' + task[0]
+                # # print(task)
+                # # process = subprocess.run(task, shell = False)
+                # # subprocess.call(['D://GyroVibroTest/22', '2/'], shell=True) 
+                # subprocess.run(['start D://GyroVibroTest/22', '2/']) 
+                # subprocess.call(['start D://GyroVibroTest/22', '2/']) 
                 parent_text = r'start ' + path_to_sensor
                 # print(repr(parent_text))
                 os.system((parent_text))
@@ -749,7 +785,7 @@ class AppWindow(QtWidgets.QMainWindow):
             objectName="with_border"))
         self.saving_result_folder_label_list[-1].setTabChangesFocus(True)
         self.saving_result_folder_label_list[-1].setContextMenuPolicy(
-            QtCore.Qt.CustomContextMenu)
+            QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
         self.saving_result_folder_label_list[-1].customContextMenuRequested.connect(
             self.__textEditContextMenu)
         # self.current_folder_label.setMinimumHeight(20)
@@ -763,9 +799,10 @@ class AppWindow(QtWidgets.QMainWindow):
 
         saving_measurements_groupbox_layout.addWidget(
             QtWidgets.QLabel('Имя:'), 3, 0, 1, 1)
-        self.file_name_line_edit_list.append(QtWidgets.QLineEdit(f'test{ind + 1}'))
+        # self.file_name_line_edit_list.append(QtWidgets.QLineEdit(f'test{ind + 1}'))
+        self.file_name_line_edit_list.append(QtWidgets.QLineEdit())
         self.file_name_line_edit_list[-1].setContextMenuPolicy(
-            QtCore.Qt.CustomContextMenu)
+            QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
         self.file_name_line_edit_list[-1].customContextMenuRequested.connect(
             self.__textEditContextMenu)
         saving_measurements_groupbox_layout.addWidget(
@@ -875,7 +912,7 @@ class AppWindow(QtWidgets.QMainWindow):
                 return False
             # Check filenames
             for i in range(self.GYRO_NUMBER):  # !
-                if self.processing_thr.pack_num and not self.processing_thr.flag_by_name_:
+                if self.processing_thr.total_pack_num and not self.processing_thr.flag_by_name_:
                     self.make_filename(i)  # !  # без создания имени не получится
                 self.processing_thr.start()
             return True
@@ -915,7 +952,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self.count = 0
         self.current_cycle = 1
         self.tab_plot_widget.time_plot.setVisible(True)
-        self.tab_plot_widget.spectrum_button.setVisible(True)
+        # self.tab_plot_widget.spectrum_button.setVisible(True)
         self.tab_plot_widget.bytes_widget.setVisible(False)
 
     @QtCore.pyqtSlot()
@@ -963,6 +1000,7 @@ class AppWindow(QtWidgets.QMainWindow):
     def read_bytes_serial(self):
         if self.serial_port.bytesAvailable() == 0:
             self.logger.warning("No data!")
+            self.stop_no_save()  # !
             return False
         # self.serial_port.readyRead.disconnect(self.read_bytes_serial)  # !!!!!
         # self.processing_thr.rx += self.serial_port.readAll().data() # частичное обнуление в потоке
@@ -975,30 +1013,30 @@ class AppWindow(QtWidgets.QMainWindow):
             self.stop_no_save()  # !
             self.show_bytes_flag = False
             self.tab_plot_widget.time_plot.setVisible(False)
-            self.tab_plot_widget.spectrum_button.setVisible(False)
+            # self.tab_plot_widget.spectrum_button.setVisible(False)
             self.tab_plot_widget.bytes_widget.setVisible(True)
-            if True:
-                opt = np.get_printoptions()
-                # np.set_printoptions(threshold=np.inf, linewidth=60)
-                # np.set_printoptions(threshold=np.inf, linewidth=118)
-                np.set_printoptions(threshold=np.inf)
-                byte_string = str(np.frombuffer(bytes, dtype=np.uint8))
-                # print(byte_string.find('114'))
-                byte_string = byte_string.replace(' 114', '<font color="green"> 114</font>')
-                byte_string = byte_string.replace(' 39', '<font color="red"> 39</font>')
-                byte_string = byte_string.replace(' 0', '<font color="gray"> 0</font>')
-                self.tab_plot_widget.bytes_widget.insertHtml(byte_string)
-                self.tab_plot_widget.bytes_widget.insertHtml(
-                    f"<br /><br />Received <font color='red'>{len(bytes)}</font> bytes" +
-                    f"<br />Time is about <font color='red'>{self.READ_INTERVAL_MS / 2}</font> ms")
-                # self.tab_plot_widget.bytes_widget.insertHtml(f"<br />fs = {len(bytes)} Hz")
-                # self.tab_plot_widget.bytes_widget.insertHtml(f"<br />fs = {self.READ_INTERVAL_MS / 2} Hz")
-                np.set_printoptions(**opt)
-                # threshold=None, edgeitems=10 , linewidth=200
-            else:
-                self.custom_tab_plot_widget.bytes_widget.insertPlainText(
-                    str(self.serial_port.readAll().data()))
-                self.custom_tab_plot_widget.bytes_widget.insertPlainText('\n\n')
+            # if True:
+            opt = np.get_printoptions()
+            # np.set_printoptions(threshold=np.inf, linewidth=60)
+            # np.set_printoptions(threshold=np.inf, linewidth=118)
+            np.set_printoptions(threshold=np.inf)
+            byte_string = str(np.frombuffer(bytes, dtype=np.uint8))
+            # print(byte_string.find('114'))
+            byte_string = byte_string.replace(' 114', '<font color="green"> 114</font>')
+            byte_string = byte_string.replace(' 39', '<font color="red"> 39</font>')
+            byte_string = byte_string.replace(' 0', '<font color="gray"> 0</font>')
+            self.tab_plot_widget.bytes_widget.insertHtml(byte_string)
+            self.tab_plot_widget.bytes_widget.insertHtml(
+                f"<br /><br />Received <font color='red'>{len(bytes)}</font> bytes" +
+                f"<br />Time is about <font color='red'>{self.READ_INTERVAL_MS / 2}</font> ms")
+            # self.tab_plot_widget.bytes_widget.insertHtml(f"<br />fs = {len(bytes)} Hz")
+            # self.tab_plot_widget.bytes_widget.insertHtml(f"<br />fs = {self.READ_INTERVAL_MS / 2} Hz")
+            np.set_printoptions(**opt)
+            # threshold=None, edgeitems=10 , linewidth=200
+            # else:
+            #     self.custom_tab_plot_widget.bytes_widget.insertPlainText(
+            #         str(self.serial_port.readAll().data()))
+            #     self.custom_tab_plot_widget.bytes_widget.insertPlainText('\n\n')
 
 
     @QtCore.pyqtSlot()
@@ -1170,6 +1208,8 @@ class AppWindow(QtWidgets.QMainWindow):
     def timer_read_event(self):
         """Connect COM port readyread signal to read function.
         Generate warning if available less than 14 bytes."""
+        QtCore.QCoreApplication.processEvents()
+        # print(self.serial_port.bytesAvailable(), time())
         if not self.serial_port.receivers(self.serial_port.readyRead):
             self.serial_port.readyRead.connect(self.read_serial)
         else:
@@ -1297,17 +1337,19 @@ class AppWindow(QtWidgets.QMainWindow):
         if self.timer_receive.isActive():
             self.logger.debug("Stop timer_receive")
             self.timer_receive.stop()
+        # --- Check filenames ---
         if self.processing_thr.isRunning() and self.processing_thr.flag_full_measurement_start:
-            # --- Check filenames ---
             if self.processing_thr.flag_do_not_save:
                 self.logger.info("No saving")
             else:
                 for i in range(self.GYRO_NUMBER):
                     self.make_filename(i)
+        # --- ---
         self.processing_thr.flag_full_measurement_start = False
         self.processing_thr.flag_measurement_start = False
         self.processing_thr.data_received_event.set()
         self.flag_send = False
+        # --- ---
         if self.serial_port.isOpen():
             # if self.processing_thr.flag_full_measurement_start:
             self.serial_port.write(bytes([0, 0, 0, 0, 0, 0, 0, 0]))
@@ -1316,20 +1358,21 @@ class AppWindow(QtWidgets.QMainWindow):
             sleep(0.05)
             self.logger.info("End of measurements\n")
             self.serial_port.close()
-            if self.progress_value > 3:
+            if self.progress_value > 4:
                 check = int(int(self.package_num_label.text()) / self.progress_value)
                 if not (0.95 * self.fs < check < 1.05 * self.fs):
                     QtWidgets.QMessageBox.critical(
                         self, "Warning",
                         f"You set fs = {self.fs} Hz," +
                         f"but in fact it's close to {check} Hz")
+        # --- ---
         self.set_available_buttons(False)
-
         total_time = self.total_cycle_num * (self.table_widget.total_time +
                 self.table_widget.rowCount() * self.PAUSE_INTERVAL_MS / 1000)
         self.logger.debug(
             f"real progress time = {self.progress_value}, " +
-            f"progress_bar.maximum = {self.progress_bar.maximum()}, total time (not rounded) =  ({total_time})")
+            f"progress_bar.maximum = {self.progress_bar.maximum()}, " +
+            f"total time (not rounded) =  ({total_time})")
 ###############################################################################
 # ----- plotting --------------------------------------------------------------
 
@@ -1354,11 +1397,17 @@ class AppWindow(QtWidgets.QMainWindow):
             # plot_data[:, 0], plot_data[:, 2], plot_data[:, 1::4])
         self.logger.debug("end plot")
 
-    @QtCore.pyqtSlot()
-    def resizeEvent(self, event):
-        # self.resizeEvent(event)
-        super(AppWindow, self).resizeEvent(event)
-        QtCore.QCoreApplication.processEvents()
+    # @QtCore.pyqtSlot()
+    # def resizeEvent(self, event):
+    #     # self.resizeEvent(event)
+    #     # print(self.size())
+    #     # print(self.isFullScreen())
+    #     # print(event.oldSize())
+    #     # print(self.maximumSize())
+    #     # print(self.pos())
+    #     # QtGui.QResizeEvent.oldSize()
+    #     super(AppWindow, self).resizeEvent(event)
+    #     QtCore.QCoreApplication.processEvents()
 
     @QtCore.pyqtSlot()
     def show_certain_data(self):  # работает
@@ -1410,9 +1459,9 @@ class AppWindow(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot(list)
     def plot_fft_final(self, name: list):
-        self.package_num_label.setText(str(self.processing_thr.pack_num))
-        # здесь число пакетов получать, чтобы можно было прежние записи просматривать
         self.logger.debug(f"Final median plot {name}")
+        self.package_num_label.setText(str(self.processing_thr.total_pack_num))
+        # здесь число пакетов получать, чтобы можно было прежние записи просматривать
         self.tab_plot_widget.set_fft_median_data(
             self.processing_thr.all_fft_data[:, -4:],
             self.processing_thr.special_points, name)
@@ -1420,7 +1469,7 @@ class AppWindow(QtWidgets.QMainWindow):
     @QtCore.pyqtSlot()
     def save_image(self):
         self.logger.debug("Save image")
-        for i, plot_check_box in enumerate(self.tab_plot_widget.plot_check_box_list):
+        for i, plot_check_box in enumerate(self.tab_plot_widget.plot_check_box_list[1:]):
             # if (len(self.processing_thr.save_file_name[i])
                 # and self.plot_check_box_list[i].isChecked()):
             if plot_check_box.isChecked():
@@ -1526,19 +1575,42 @@ class AppWindow(QtWidgets.QMainWindow):
     # def directory_changed(self, path):
     #     self.logger.debug(f'Directory Changed: {path}')
     #     print(f'Directory Changed: {path}')
+    @QtCore.pyqtSlot()
+    def file_name_change_event(self): # можно и само имя файла в серый красить, если папка для него не создана
+        pass
+        # for i, file_name_line_edit in enumerate(self.file_name_line_edit_list):
+        #     if self.sender() is file_name_line_edit:
+        #         break
+        # else:
+        #     return
+        # if self.create_folder_checkbox_list[i].isChecked():
+        #     if not os.path.isdir(self.folder_name_list[i] + self.sender().text()):
+        #         self.sender().setStyleSheet("color: #ACACAC;")
+        #     else:
+        #         self.sender().setStyleSheet("color: #FFFFF1;")
+        # else:
+            # if not os.path.isdir(self.saving_result_folder_label_list[i].toPlainText()):
+            #     self.sender().setStyleSheet("color: #ACACAC;")
+            # else:
+            #     self.sender().setStyleSheet("color: #FFFFF1;")
+        # self.folder_name_list[i] = self.sender().toPlainText() + '/' 
 
     @QtCore.pyqtSlot()
     def folder_change_event(self): 
-        for i, saving_result_folder_label in enumerate(self.saving_result_folder_label_list):
-            if self.sender() is saving_result_folder_label:
+        for i, saving_res_folder_label in enumerate(self.saving_result_folder_label_list):
+            if self.sender() is saving_res_folder_label:
                 break
         else:
             return
-        if not os.path.isdir(saving_result_folder_label.toPlainText()):
-            saving_result_folder_label.setStyleSheet("color: grey;")
+        if not os.path.isdir(self.sender().toPlainText()):
+            # if not self.create_folder_checkbox_list[i].isChecked():
+            #     self.file_name_line_edit_list[i].setStyleSheet("color: #ACACAC;")
+            self.sender().setStyleSheet("color: #ACACAC;")
         else:
-            saving_result_folder_label.setStyleSheet("color: #FFFFF1;")
-        self.folder_name_list[i] = saving_result_folder_label.toPlainText() + '/' 
+            # if not self.create_folder_checkbox_list[i].isChecked():
+            #     self.file_name_line_edit_list[i].setStyleSheet("color: #FFFFF1;")
+            self.sender().setStyleSheet("color: #FFFFF1;")
+        self.folder_name_list[i] = self.sender().toPlainText() + '/' 
 
     @QtCore.pyqtSlot()
     def choose_result_saving_path(self):
@@ -1559,7 +1631,7 @@ class AppWindow(QtWidgets.QMainWindow):
     def filename_and_path_text_change(self):
         """Вызывается при изменении пути к файлу измерений."""
         if not os.path.isfile(self.filename_and_path_textedit.toPlainText()):  # text
-            self.filename_and_path_textedit.setStyleSheet("color: grey;")
+            self.filename_and_path_textedit.setStyleSheet("color: #ACACAC;")
             return False
         if len(self.filename_and_path_textedit.toPlainText()):
             self.file_watcher.removePath(self.filename_path_watcher)
@@ -1636,6 +1708,8 @@ class AppWindow(QtWidgets.QMainWindow):
         # --- ---
         self.settings.setValue(f'autosave_{self.GYRO_NUMBER}',
                                int(self.settings_autosave_action.isChecked()))
+        self.settings.setValue(f'showMaximized_flag_{self.GYRO_NUMBER}',
+                               int(self.isMaximized()))
         if self.settings_autosave_action.isChecked():
             self.save_all_settings()
 
@@ -1654,11 +1728,9 @@ class AppWindow(QtWidgets.QMainWindow):
                                [int(checkbox.isChecked()) 
                                 for checkbox in self.create_folder_checkbox_list])
         self.settings.setValue(f'enable_debug_in_file_{self.GYRO_NUMBER}',
-                               int(self.log_text_box.enable_debug_in_file.isChecked()))
+                               int(self.log_text_box.enable_debug_in_file_action.isChecked()))
         # лучше сохранять и распаковывать эти настройки в отдельном файле в классе комбобокса
         # или, как максимум, одну функцию оставить
-        # self.settings.setValue(self.enable_crc_action
-            # 'dict', self.custom_tab_plot_widget.projects_combo_box.projects_dict)
         self.settings.setValue(
             f'PAUSE_INTERVAL_MS_{self.GYRO_NUMBER}', self.PAUSE_INTERVAL_MS)
         self.settings.setValue(
@@ -1675,7 +1747,9 @@ class AppWindow(QtWidgets.QMainWindow):
 
     def load_previous_settings(self, settings: QtCore.QSettings):
         """Get previous settings from .ini and .json files."""
-        self.log_text_box.enable_debug_in_file.setChecked(
+        if self.get_settings(f'showMaximized_flag_{self.GYRO_NUMBER}', False):
+            self.showMaximized()
+        self.log_text_box.enable_debug_in_file_action.setChecked(
             self.get_settings(f"enable_debug_in_file_{self.GYRO_NUMBER}", True))
         self.enable_crc_action.setChecked(
             self.get_settings(f"crc_enable_{self.GYRO_NUMBER}",
@@ -1746,7 +1820,7 @@ if __name__ == "__main__":
     splash = QtWidgets.QSplashScreen(QtGui.QPixmap(get_res_path('res/load_icon.png')))
     splash.show()
     # print(time() - t)
-    app.processEvents()
+    # app.processEvents()
     window = AppWindow()
     # print(time() - t)
     splash.finish(window)

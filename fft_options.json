@@ -1,0 +1,9 @@
+{
+    "decimation": 4,
+	"filter_width": 0.26,
+    "threshold": 5300,
+    "min_frame_len_k": 1,
+    "n_get_fft_data_ext": 0.25,
+    "n_repeat": 12,
+	"wrap_flag": 1
+}

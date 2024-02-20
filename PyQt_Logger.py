@@ -2,21 +2,21 @@
 # cSpell:includeRegExp /(["]{3}|[']{3})[^\1]*?\1/g
 
 import logging
+from PyQt5.QtWidgets import QTextEdit, QAction
+from PyQt5 import QtGui, QtCore
 from logging.handlers import RotatingFileHandler
 import sys
-from PyQt5.QtWidgets import QTextEdit
-from PyQt5 import QtWidgets, QtGui, QtCore
 
 
 class QTextEditLogger(QTextEdit):
     # def __init__(self, parent, file_log=True, debug_enable=True):
-    def __init__(self, parent=None, file_log=True):
+    def __init__(self, parent=None, file_log=True, logger_name='main'):
         super(QTextEditLogger, self).__init__(
             parent, readOnly=True, objectName="logger")
-        # def create_logger(path, widget: QTextEdit):
+        self.logger_name = logger_name
         # logging.disable(logging.INFO) # disable logging for certain level
 
-        logger = logging.getLogger('main')
+        logger = logging.getLogger(logger_name)
         def handle_exception(exc_type, exc_value, exc_traceback):
             if issubclass(exc_type, KeyboardInterrupt):
                 sys.__excepthook__(exc_type, exc_value, exc_traceback)
@@ -35,7 +35,10 @@ class QTextEditLogger(QTextEdit):
             file_handler.setLevel(logging.DEBUG)
             file_handler.setFormatter(file_formatter)
             logger.addHandler(file_handler)
-            logger.handlers[0].doRollover()
+            try:
+                logger.handlers[0].doRollover()  # из-за этого проблемы при работе нескольких экземпляров одного приложения
+            except PermissionError:  # [WinError 32]
+                logger.debug("doRollover() PermissionError")
             # logging.basicConfig(  # не выводит сообщения на русском
             #     filename='GyroTestPyQt.log',
             #     filemode='w',
@@ -69,19 +72,19 @@ class QTextEditLogger(QTextEdit):
             QtCore.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(
             self.__logsContextMenu)
-        self.enable_debug_in_file = QtWidgets.QAction(
+        self.enable_debug_in_file_action = QAction(
             "Debug in file", None, checkable=True)
-        self.enable_debug_in_file.setChecked(True)
-        self.enable_debug_in_file.triggered.connect(self.switch_log_mode)
+        self.enable_debug_in_file_action.setChecked(True)
+        self.enable_debug_in_file_action.triggered.connect(self.switch_log_mode)
         self.switch_log_mode()
 
-        self.open_debug_file_action = QtWidgets.QAction(
+        self.open_debug_file_action = QAction(
             "Open log file", None)
         self.open_debug_file_action.triggered.connect(self.open_debug_file)
 
     @QtCore.pyqtSlot()
     def open_debug_file(self):
-        logging.getLogger('main').debug('start log file')
+        logging.getLogger(self.logger_name).debug('start log file')
         # from os import path, startfile
         from os import startfile
         # if path.isfile('logs\PyQt_VibroGyroTest.log'):
@@ -94,8 +97,7 @@ class QTextEditLogger(QTextEdit):
         cur = self.textCursor()
         cur.movePosition(QtGui.QTextCursor.End)
         self.setTextCursor(cur)
-        self.insertHtml(
-            self.log_window_handler.format(record))
+        self.insertHtml(self.log_window_handler.format(record))
         # self.widget.insertPlainText(
             # self.log_window_handler.format(record))
         scrollbar = self.verticalScrollBar()
@@ -105,15 +107,15 @@ class QTextEditLogger(QTextEdit):
 
     @QtCore.pyqtSlot()
     def __logsContextMenu(self):
-        self._normalMenu = self.createStandardContextMenu()
-        self._normalMenu.addSeparator()
-        self._normalMenu.addAction(self.enable_debug_in_file)
-        self._normalMenu.addAction(self.open_debug_file_action)
-        self._normalMenu.exec_(QtGui.QCursor.pos())
+        self._normal_menu = self.createStandardContextMenu()
+        self._normal_menu.addSeparator()
+        self._normal_menu.addAction(self.enable_debug_in_file_action)
+        self._normal_menu.addAction(self.open_debug_file_action)
+        self._normal_menu.exec_(QtGui.QCursor.pos())
 
     def switch_log_mode(self):
         logger = logging.getLogger('main')
-        if self.enable_debug_in_file.isChecked():
+        if self.enable_debug_in_file_action.isChecked():
             logger.setLevel(logging.DEBUG)
         else:
             logger.setLevel(logging.INFO)

@@ -82,20 +82,22 @@ class ProjectsComboBox(QtWidgets.QComboBox):
         self.dlg = CustomDialog()
         self.projects_dict = {}
 
-    def delete_xlsx_item(self):
+    def delete_project_item(self):
         self.projects_dict.pop(self.currentText(), None)
         self.removeItem(self.currentIndex())
         
-    def change_current_xlsx_item(self):  # сделать этот пункт недоступным просто
+    def change_current_project_item(self):  # сделать этот пункт недоступным просто
         self.dlg.path_to_project.setText(
             self.projects_dict[self.currentText()])
         self.dlg.project_name.setText(self.currentText())
         if self.dlg.exec():  # сделать запуск с open(), потом принять сигнал завершения вместе с флагом
+            self.setCurrentText('')
             self.projects_dict.pop(self.currentText(), None)
             self.apply_changes()
 
-    def add_xlsx_item(self):
+    def add_project_item(self):
         if self.dlg.exec():
+            self.projects_dict[self.dlg.project_name.text()] = self.dlg.path_to_project.text()
             self.insertItem(0, self.dlg.project_name.text())
             self.setCurrentIndex(0)
             self.apply_changes()
@@ -112,13 +114,13 @@ class ProjectsComboBox(QtWidgets.QComboBox):
         if event.type() == QtCore.QEvent.ContextMenu:
             menu = QtWidgets.QMenu(self)
             change_action = QtWidgets.QAction('Изменить проект', self)
-            change_action.triggered.connect(self.change_current_xlsx_item)
+            change_action.triggered.connect(self.change_current_project_item)
             menu.addAction(change_action)
             add_action = QtWidgets.QAction('Добавить проект', self)
-            add_action.triggered.connect(self.add_xlsx_item)
+            add_action.triggered.connect(self.add_project_item)
             menu.addAction(add_action)
             delete_action = QtWidgets.QAction('Удалить текущий проект', self)
-            delete_action.triggered.connect(self.delete_xlsx_item)
+            delete_action.triggered.connect(self.delete_project_item)
             if not self.count():
                 change_action.setDisabled(True)
                 delete_action.setDisabled(True)

@@ -1,0 +1,144 @@
+
+/* 
+    Main Window 
+*/
+
+QWidget{
+    background-color: #111111;
+    color: #FFFFF1;
+    font-size: 14px;
+    /* text-align: center; */
+    /* qproperty-alignment: AlignCenter; align everything */
+    /* color: silver; */
+    /* background-color: #302F2F; */
+    /* selection-background-color:#3d8ec9; */
+    /* selection-color: black; */
+    background-clip: border;
+    border-image: none;
+    outline: 0;
+}
+/* 
+    Grid
+*/
+QSpinBox {
+    border-width: 2px;
+    /* border-radius: 10px; */
+    border-color: rgb(0, 0, 0);
+    padding: 3px;
+    background-color: rgb(8, 3, 27);
+}
+
+/* 
+    QProgressBar
+*/
+
+QProgressBar{
+    border: 2px solid grey;
+    border-radius: 5px;
+    text-align: center;
+}
+QProgressBar::chunk {
+    background-color: rgb(160, 32, 15);
+    /* width: 20px; */
+    /* margin: 1px; */
+}
+/* 
+    QComboBox
+*/
+
+QComboBox {
+    /* background-color: rgb(93, 10, 10); */
+    background-color: rgb(8, 3, 27);
+}
+QComboBox:!editable {
+    /* text-align: center; */
+    /* background-color: gray; */
+}
+/* QComboBox::item {
+    text-align: center;
+} */
+/* 
+    Buttons
+*/
+
+QPushButton {
+    border-style: outset;
+    border-width: 1px;
+    border-radius: 7px;
+    border-color: rgb(197, 197, 197);
+    padding: 1px;
+    padding-left: 9px;
+    padding-right: 9px;
+    background-color: rgb(49, 49, 49);
+}
+QPushButton:pressed, QPushButton:pressed#start_button, QPushButton:pressed#stop_button {
+    background-color: rgb(14, 11, 11);
+}
+QPushButton:disabled {
+    border-color: rgb(90, 88, 88);
+    border-width: 0px;
+}
+
+/* QPushButton#textbox1 {
+    color: blue;
+} */
+
+/* 
+    Others
+*/
+/* QFormLayout {
+
+} */
+QLabel {
+    qproperty-alignment: AlignCenter; 
+} 
+QLabel#with_border {
+    border: 1px solid rgb(181, 181, 181);
+    border-radius: 10px;
+} 
+QCheckBox::indicator:unchecked {
+    background-color: rgb(0, 0, 0);
+    border-width: 1px;
+    border-style: solid;
+    border-color: white;
+    /* padding: 9px */
+}
+/* QCheckBox::indicator:checked { */
+    /* background-color: rgb(255, 255, 255); */
+    /* border-width: 1px; */
+    /* border-style: solid; */
+    /* border-color: rgb(0, 0, 0); */
+    /* padding: 9px */
+/* } */
+/* QCheckBox::indicator {
+    border: 1px solid grey;
+} */
+/* QCheckBox {
+    border-width: 1px;
+    border-style: solid;
+    border-color: white;
+    margin: 2px
+    max-width: 72px
+    padding: 3px
+} */
+QLineEdit:read-only {
+    background-color: rgb(0, 0, 0);
+    border-width: 1px;
+}
+QLineEdit {
+    border-style: outset;
+    border-width: 1px;
+    border-radius: 7px;
+    border-color: white;
+    padding: 3px;
+    background-color: rgb(32, 20, 20);
+    /* border: 1px solid rgb(204, 203, 203); */
+    qproperty-alignment: AlignCenter;
+    /* border-radius: 5px; */
+}
+QTextEdit#with_border {
+    border: 1px solid rgb(181, 181, 181);
+    border-radius: 10px;
+} 
+
+
