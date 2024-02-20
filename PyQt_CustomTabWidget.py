@@ -655,7 +655,7 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         self.append_amp_plot()
         last_tab_layout.addWidget(self.amp_plot_list[0], 0, 0, 1, 1)
         # self.point_label = QtWidgets.QLabel()
-        self.point_label_list.append(QtWidgets.QLabel())
+        self.point_label_list.append(QtWidgets.QLabel(minimumWidth=200))
         last_tab_layout.addWidget(self.point_label_list[0], 1, 0, 1, 1)
         # last_tab_layout.addWidget(self.point_label, 1, 0, 1, 1)
         self.append_phase_plot()
@@ -697,22 +697,13 @@ class CustomTabWidget(QtWidgets.QTabWidget):
         layout.setContentsMargins(5, 10, 5, 5)
         self.append_amp_plot()  # layout.addWidget(self.amp_plot_list[index])
         layout.addWidget(self.amp_plot_list[-1])
-        self.point_label_list.append(QtWidgets.QLabel())
+        self.point_label_list.append(QtWidgets.QLabel(minimumWidth=200))
         layout.addWidget(self.point_label_list[-1])
         self.append_phase_plot()  # layout.addWidget(self.phase_plot_list[index])
         layout.addWidget(self.phase_plot_list[-1])
         self.tab_widget_page_list[-1].setLayout(layout)
         self.addTab(
             self.tab_widget_page_list[-1], f"ЧХ &{self.count() - 1}")  # FC
-        # self.inf_x_line_list.append(
-        #                 [pg.InfiniteLine(angle=90, pen=pg.mkPen(self.COLOR_LIST[0])) 
-        #                 for _ in range(2)])
-
-        # self.inf_x_line_list[-1].setVisible(False)
-        # self.inf_x_line_list[-1].setVisible(False)
-        # for line in self.inf_x_line_list[-1]:
-            # line.setVisible(False)
-        # print(self.inf_x_line_list)
 
     def append_amp_plot(self):
         amp_plot_item = pg.PlotItem(viewBox=CustomViewBox(),
