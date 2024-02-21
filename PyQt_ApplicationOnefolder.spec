@@ -39,10 +39,9 @@ a.datas += [(subfolder + 'red.png', subfolder + 'red.png', 'DATA'),]
 a.datas += [(subfolder + 'green.png', subfolder + 'green.png', 'DATA'),]
 a.datas += [(subfolder + 'blue.png', subfolder + 'blue.png', 'DATA')]
 a.datas += [(subfolder + 'load_icon.png', subfolder + 'load_icon.png', 'DATA')]
-a.datas += [('settings/config.ini', 'PyQt_ConfigDefault.ini', 'DATA')]
-a.datas += [('settings/projects.json', 'settings/projects.json', 'DATA')]
-a.datas += [('settings/fft_options.json', 'settings/fft_options.json', 'DATA')]
-
+a.datas += [('settings/config.ini', 'settings_default/config_d.ini', 'DATA')]
+a.datas += [('settings/projects.json', 'settings_default/projects_d.json', 'DATA')]
+a.datas += [('settings/fft_options.json', 'settings_default/fft_options_d.json', 'DATA')]
 
 exe = EXE(
     pyz,
@@ -75,7 +74,6 @@ coll = COLLECT(
     name='GyroVibroTest',
 )
 
-
 import os
 print('\nDelete useless dll files:')
 print('opengl32sw, Qt5Network, Qt5WebSockets, Qt5Quick, Qt5DBus, Qt5Qml, Qt5QmlModels, Qt5Svg')
@@ -98,3 +96,13 @@ if os.path.isfile(path + 'Qt5QmlModels.dll'):
 if os.path.isfile(path + 'Qt5Svg.dll'):
     os.remove(path + 'Qt5Svg.dll')
 print('Finished!')
+
+# from win32com.client import Dispatch
+def create_shortcut(file_name: str, target: str, work_dir: str, arguments: str = ''):
+    shell = Dispatch('WScript.Shell')
+    shortcut = shell.CreateShortCut(file_name)
+    shortcut.TargetPath = target
+    shortcut.Arguments = arguments
+    shortcut.WorkingDirectory = work_dir
+    shortcut.save()
+# create_shortcut(path + 'GVT.lnk', path + 'GyroVibroTest.exe', path)

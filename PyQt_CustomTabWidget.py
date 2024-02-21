@@ -303,6 +303,11 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     def plot_time_graph(self, time_data: np.ndarray,
                         enc_data: np.ndarray, gyro_data: np.ndarray):
         """Adds points to time curves."""
+        # if len(enc_data.shape) == 2:
+        #     self.time_curves[0].setData(
+        #         np.linspace(time_data[0], time_data[-1], enc_data.size), enc_data.reshape((enc_data.size)))
+        # else:
+        #     self.time_curves[0].setData(time_data, enc_data)
         self.time_curves[0].setData(time_data, enc_data)
         for i in range(gyro_data.shape[1]):
             self.time_curves[i + 1].setData(time_data, gyro_data[:, i])
@@ -874,9 +879,20 @@ class CustomTabWidget(QtWidgets.QTabWidget):
     @QtCore.pyqtSlot()
     def open_file(self, filename):
         """Open txt file."""
-        self.logger.debug('start file')
+        self.logger.debug('start file') #  + '.xlsm' 2540
         if os.path.isfile(filename):
-            os.startfile(filename)  # можно с помощью сервера открывать
+            excel_com_object = win32.gencache.EnsureDispatch('Excel.Application')
+            # self.excel_com_object = win32.Dispatch('Excel.Application')
+            # self.excel_com_object = win32.DispatchEx("Excel.Application")  # !
+            # excel_com_object2.Interactive = True
+            # excel_com_object2.DisplayAlerts = True
+            excel_com_object.Visible = True
+            self.logger.debug(f"excel_com_object.Visible: {excel_com_object.Visible}")
+            excel_com_object.Workbooks.Open(filename)
+            # self.excel_com_object.Quit  # !
+            # del self.excel_com_object
+            # from win32api import ShellExecute
+            # ShellExecute(0, 'open', filename, '', '', 1)
         else:
             self.warning_signal.emit(f'Wrong filename! ({filename})')
 # --- ---

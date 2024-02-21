@@ -123,34 +123,31 @@ def get_fft_data(gyro: np.ndarray, encoder: np.ndarray, fs: int):
     NFFT = np.int32(np.power(2, next_power))
     HALF = np.int32(NFFT / 2)
 
-    # Yg = np.fft.fft(gyro, NFFT) / L  # преобразование Фурье сигнала гироскопа
-    Yg = (np.fft.rfft(gyro, NFFT)/L).astype(np.complex64)  #
-    # Ye = np.fft.fft(encoder, NFFT) / L  # преобразование Фурье сигнала энкодера
-    Ye = (np.fft.rfft(encoder, NFFT)/L).astype(np.complex64)  #
+    Yg = (np.fft.rfft(gyro, NFFT)/L).astype(np.complex64)  # преобразование Фурье сигнала гироскопа
+    Ye = (np.fft.rfft(encoder, NFFT)/L).astype(np.complex64)  # преобразование Фурье сигнала энкодера
     f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=True)
-    # f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=False)  # получение вектора частот
-    # freqs = np.fft.fftfreq(len(Yg))
-    # print(freqs.size)
-    # print(Ye.size)
-    # print(f.size)
-    # print(freqs[-1])
-    # print(freqs[0])
-    # print(freqs[512])
-    # print(freqs[513])
     # print("-----")
     #  delta_phase = asin(2*np.mean(encoder1.*gyro1)/(np.mean(abs(encoder1))*np.mean(abs(gyro1))*pi^2/4))*180/pi
-    ng = np.argmax(np.abs(Yg))
-    Mg = 2 * np.abs(Yg[ng])
-    freq = f[ng]  # !  у гироскопов меньше помехи обычно
-    # если с гироскопа придет постоянное число, то частота будет нулевой
+    # freq = f[ng]  # !  у гироскопов меньше помехи обычно
     # freq = f[ne]  # make sense?
-    ne = np.argmax(np.abs(Ye))
-    Me = 2 * np.abs(Ye[ne])
-    if freq == 0:  # !!!
-        freq = f[ne]
-
+    # ng = np.argmax(np.abs(Yg))
+    n = np.argmax(np.abs(Ye))
+    ng = ne = n
+    Mg = 2 * np.abs(Yg[ng])
+    Me = 2 * np.abs(Ye[ng])
+    freq = f[ne]
     d_phase = np.angle(Yg[ng], deg=True) - np.angle(Ye[ne], deg=True)
     amp = Mg/Me
+    # if freq == 0:  # !!!
+
+    # print("freq ", (Yg[ng]), (Ye[ne]))
+    # print(ne, ng)
+    # print(freq, np.angle(Yg[ng+1], deg=True), np.angle(Ye[ne+1], deg=True))
+    # print(freq, np.angle(Yg[ng], deg=True), np.angle(Ye[ne], deg=True))
+    # print(freq, np.angle(Yg[ng-1], deg=True), np.angle(Ye[ne-1], deg=True))
+    # print(f[ne+1], np.abs(Yg[ng+1]), np.abs(Ye[ne+1]))
+    # print(f[ne], np.abs(Yg[ng]), np.abs(Ye[ne]))
+    # print(f[ne-1], np.abs(Yg[ng-1]), np.abs(Ye[ne-1]))
     #  amp = std(gyro)/std(encoder)% по шуму (метод —урова)
     return [freq, amp, d_phase]
 
@@ -190,18 +187,22 @@ def get_fft_data_ext(gyro: np.ndarray, encoder: np.ndarray, fs: int, n: int = 5)
     f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=True)
     # f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=False)  # получение вектора частот
     #  delta_phase = asin(2*np.mean(encoder1.*gyro1)/(np.mean(abs(encoder1))*np.mean(abs(gyro1))*pi^2/4))*180/pi
-    ng = np.argmax(np.abs(Yg))
-    Mg = 2 * np.abs(Yg[ng])
-    freq = f[ng]  # !  у гироскопов меньше помехи обычно
-    # если с гироскопа придет постоянное число, то частота будет нулевой
-    # freq = f[ne]  # make sense?
-    # print(f[ng])
-    ne = np.argmax(np.abs(Ye))
-    Me = 2 * np.abs(Ye[ne])
-    if freq == 0:  # !!!
-        freq = f[ne]
+    # ng = np.argmax(np.abs(Yg))
+    # Mg = 2 * np.abs(Yg[ng])
+    # freq = f[ng]  # !  у гироскопов меньше помехи обычно
+    # # если с гироскопа придет постоянное число, то частота будет нулевой
+    # # freq = f[ne]  # make sense?
+    # # print(f[ng])
+    # ne = np.argmax(np.abs(Ye))
+    # Me = 2 * np.abs(Ye[ne])
+    # if freq == 0:  # !!!
+    #     freq = f[ne]
     # print(f[ne])
-
+    n = np.argmax(np.abs(Ye))
+    ng = ne = n
+    Mg = 2 * np.abs(Yg[ng])
+    Me = 2 * np.abs(Ye[ng])
+    freq = f[ne]
     d_phase = np.angle(Yg[ng], deg=True) - np.angle(Ye[ne], deg=True)
     amp = Mg/Me
     # print("-------------------------------------")
@@ -243,16 +244,20 @@ def get_fft_data_median_frame(gyro: np.ndarray, encoder: np.ndarray, fs: int, n:
         f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=True)
         # f = fs / 2 * np.linspace(0, 1, HALF + 1, endpoint=False)  # получение вектора частот
         #  delta_phase = asin(2*np.mean(encoder1.*gyro1)/(np.mean(abs(encoder1))*np.mean(abs(gyro1))*pi^2/4))*180/pi
-        ng = np.argmax(np.abs(Yg))
+        # ng = np.argmax(np.abs(Yg))
+        # Mg = 2 * np.abs(Yg[ng])
+        # freq = f[ng]  # !  у гироскопов меньше помехи обычно
+        # # если с гироскопа придет постоянное число, то частота будет нулевой
+        # # freq = f[ne]  # make sense?
+        # ne = np.argmax(np.abs(Ye))
+        # Me = 2 * np.abs(Ye[ne])
+        # if freq == 0:  # !!!
+        #     freq = f[ne]
+        n = np.argmax(np.abs(Ye))
+        ng = ne = n
         Mg = 2 * np.abs(Yg[ng])
-        freq = f[ng]  # !  у гироскопов меньше помехи обычно
-        # если с гироскопа придет постоянное число, то частота будет нулевой
-        # freq = f[ne]  # make sense?
-        ne = np.argmax(np.abs(Ye))
-        Me = 2 * np.abs(Ye[ne])
-        if freq == 0:  # !!!
-            freq = f[ne]
-
+        Me = 2 * np.abs(Ye[ng])
+        freq = f[ne]
         d_phase = np.angle(Yg[ng], deg=True) - np.angle(Ye[ne], deg=True)
         amp = Mg / Me
         freq_list[i] = freq

@@ -15,6 +15,7 @@ import PyQt_CustomTable
 import PyQt_CustomComboBox
 import PyQt_Thread
 from PyQt_Functions import get_icon_by_name, get_res_path, natural_keys
+from win32api import ShellExecute
 
 
 # description:
@@ -50,13 +51,12 @@ class AppWindow(QtWidgets.QMainWindow):
             get_res_path('settings/config.ini'), QtCore.QSettings.Format.IniFormat)
         self.settings.setIniCodec("UTF-8")
         self.GYRO_NUMBER = self.get_settings("GYRO_NUMBER", GYRO_NUMBER)
-        # return
 # ------ Init vars ------------------------------------------------------------
         self.MAX_WIDTH_FIRST_COL = 315  # не расширяется
         self.PAUSE_INTERVAL_MS = self.get_settings(
             f'PAUSE_INTERVAL_MS_{self.GYRO_NUMBER}', 500)
         self.READ_INTERVAL_MS = self.get_settings(
-            f'READ_INTERVAL_MS_{self.GYRO_NUMBER}', 75 * 2)  #  75 * 2  100 * 2 # 125 * 2
+            f'READ_INTERVAL_MS_{self.GYRO_NUMBER}', 75 * 2)
         self.folder_name_list = [''] * self.GYRO_NUMBER  # [os.getcwd() + '/'] 
         self.count: int = 0
         self.progress_value = 0  # убрать?
@@ -64,18 +64,19 @@ class AppWindow(QtWidgets.QMainWindow):
         self.current_cycle: int = 0
         self.check_time = 0
         self.flag_send = False
-        FILE_LOG_FLAG = True
+        # FILE_LOG_FLAG = True
+        # FILE_LOG_FLAG = False
         LOGGER_NAME = 'main'
         self.filename_path_watcher = ""
         # STYLE_SHEETS_FILENAME = get_res_path('res\StyleSheets.css')
         STYLE_SHEETS_FILENAME = 'res/StyleSheets.css'
-        # FILE_LOG_FLAG = False
+        FFT_OPTIONS_FILE_NAME = 'settings/fft_options.json'
         # self.PROJECT_FILE_NAME = get_res_path('settings/projects.json')  # get_res_path не нужен по идее
         self.PROJECT_FILE_NAME = 'settings/projects.json'
         self.ICON_COLOR_LIST = ['red', 'green', 'blue']
 # ------ Logger ---------------------------------------------------------------
-        self.log_text_box = PyQt_Logger.QTextEditLogger(
-            file_log=FILE_LOG_FLAG)
+        self.log_text_box = PyQt_Logger.QTextEditLogger()
+            # file_log=FILE_LOG_FLAG)
             # self, file_log=FILE_LOG_FLAG, debug_enable=DEBUG_ENABLE_FLAG)
         self.logger = self.log_text_box.getLogger()
         self.logger.debug("Начало загрузки")
@@ -97,7 +98,11 @@ class AppWindow(QtWidgets.QMainWindow):
         widget = QtWidgets.QWidget()
         self.main_grid_layout = QtWidgets.QGridLayout(widget, spacing=2)
         self.logger.debug(self.main_grid_layout.getContentsMargins())
-        self.main_grid_layout.setContentsMargins(10, 0, 10, 10)
+        self.logger.debug(f"os info: {sys.getwindowsversion()}")
+        if sys.getwindowsversion().major <= 7:
+            self.main_grid_layout.setContentsMargins(5, 0, 5, 5)
+        else:
+            self.main_grid_layout.setContentsMargins(10, 0, 10, 10)
         # self.statusBar().showMessage("this is status bar.") 
         self.setCentralWidget(widget)
 # ------ Style ----------------------------------------------------------------
@@ -123,7 +128,8 @@ class AppWindow(QtWidgets.QMainWindow):
             gyro_number=self.GYRO_NUMBER,
             read_interval_ms=self.READ_INTERVAL_MS,
             logger_name=LOGGER_NAME,
-            wait_time_sec=self.get_settings("WAIT_TIME_SEC", 0.5))
+            wait_time_sec=self.get_settings("WAIT_TIME_SEC", 0.5),
+            options_file_name=FFT_OPTIONS_FILE_NAME)
         self.processing_thr.package_num_signal.connect(
             self.get_and_show_data_from_thread)
         self.processing_thr.fft_data_signal.connect(self.plot_fft)
@@ -280,6 +286,18 @@ class AppWindow(QtWidgets.QMainWindow):
         self.save_settings_action.triggered.connect(self.save_settings)        
         settings_menu.addAction(self.save_settings_action)  
 
+        self.open_settings_folder_action = QtWidgets.QAction(
+            "Открыть папку с настройками", self)
+        self.open_settings_folder_action.triggered.connect(
+            lambda: os.system(r'start settings'))
+        settings_menu.addAction(self.open_settings_folder_action)  
+        self.load_settings_folder_action = QtWidgets.QAction(
+            "Загрузить настройки", self)
+        self.load_settings_folder_action.triggered.connect(
+            lambda: self.load_previous_settings(self.settings))   
+        self.load_settings_folder_action.triggered.connect(
+            lambda: self.processing_thr.load_settings(FFT_OPTIONS_FILE_NAME))   
+        settings_menu.addAction(self.load_settings_folder_action)
 # ------ Com Settings ---------------------------------------------------------
         """Block with COM port settings and sampling frequency selection."""
 
@@ -366,6 +384,10 @@ class AppWindow(QtWidgets.QMainWindow):
         self.filename_and_path_textedit.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Ignored,
             QtWidgets.QSizePolicy.Policy.Ignored)
+        self.filename_and_path_textedit.setContextMenuPolicy(
+            QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+        self.filename_and_path_textedit.customContextMenuRequested.connect(
+            self.__textEditContextMenu2)
         measurements_groupbox_layout.addWidget(
             self.filename_and_path_textedit, 0, 1, 3, 3)
         # measurements_groupbox_layout.setSizeConstraint(
@@ -487,7 +509,8 @@ class AppWindow(QtWidgets.QMainWindow):
         #     self.choose_result_saving_path)
         self.filename_and_path_textedit.textChanged.connect(
             self.filename_and_path_text_change)
-        self.edit_file_button.clicked.connect(self.open_file)
+        self.edit_file_button.clicked.connect(
+            lambda: self.open_file(self.filename_and_path_textedit.toPlainText()))
         self.logs_clear_button.clicked.connect(
             lambda: self.log_text_box.clear())
         for (choose_path_btn, saving_res_folder, file_name_line_edit) in zip(
@@ -501,7 +524,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self.open_folder_action.setShortcut('Ctrl+O')
         for saving_result_folder_label in self.saving_result_folder_label_list:
             saving_result_folder_label.addAction(self.open_folder_action)
-        self.open_folder_action.triggered.connect(self.open_folder) 
+        self.open_folder_action.triggered.connect(self.open_sensor_folder) 
 # ------ excel com object ----------------------------------------------------------------
         self.tab_plot_widget.create_excel_com_object()  # !
 # ------  ----------------------------------------------------------------
@@ -539,7 +562,8 @@ class AppWindow(QtWidgets.QMainWindow):
            self, 'Изменение параметра', 'Введите новое время паузы в мс:',
            max=100_000, min=75, value=self.PAUSE_INTERVAL_MS)
         if flag:
-           self.PAUSE_INTERVAL_MS = new_time_ms
+            self.PAUSE_INTERVAL_MS = new_time_ms
+            self.progress_bar_set_max()
 
     @QtCore.pyqtSlot()
     def change_read_interval(self):
@@ -557,12 +581,6 @@ class AppWindow(QtWidgets.QMainWindow):
             self.enable_crc_action.setDisabled(True)
         else:
             self.enable_crc_action.setDisabled(False)
-        # self.GYRO_NUMBER = 1
-        #     self.processing_thr.package_len = 4
-        # else:
-        #     self.processing_thr.package_len = 2
-        # self.processing_thr.GYRO_NUMBER = 1
-        # self.custom_tab_plot_widget.GYRO_NUMBER = 1
 
     @QtCore.pyqtSlot()
     def change_crc_mode(self):
@@ -590,6 +608,15 @@ class AppWindow(QtWidgets.QMainWindow):
         _normal_menu.addSeparator()
         _normal_menu.addAction(self.update_com_list_action)
         # self._addCustomMenuItems(self._normalMenu)
+        _normal_menu.exec(QtGui.QCursor.pos())
+
+    @QtCore.pyqtSlot()
+    def __textEditContextMenu2(self):        
+        _normal_menu = self.sender().createStandardContextMenu()
+        # _normal_menu.addAction(self.open_folder_action)
+        # _normal_menu.insertMenu(self.open_folder_action)
+        _normal_menu.insertAction(_normal_menu.actions()[0], self.open_folder_action)
+        _normal_menu.insertSeparator(_normal_menu.actions()[1])
         _normal_menu.exec(QtGui.QCursor.pos())
 
     @QtCore.pyqtSlot()
@@ -638,7 +665,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self._files_list_widget.itemSelectionChanged.connect(self._selection_event_handler) 
         # self._files_list_widget.addItems(
         #     [path.name for path in os.scandir(self.path_to_sensor) if path.is_file()])
-        if len(self.path_to_sensor):
+        if len(self.path_to_sensor) and os.path.isdir(self.path_to_sensor):
             for i, path in enumerate(os.scandir(self.path_to_sensor)):
                 if path.is_file() and os.path.splitext(path.name)[1] == '.txt':
                     self._files_list_widget.addItem(path.name)
@@ -700,27 +727,30 @@ class AppWindow(QtWidgets.QMainWindow):
         #     QtCore.QTimer.singleShot(2500, self.open_file223)
         #     return
 
-    @QtCore.pyqtSlot()
-    def _start_file_processing2(self):
-        """Open txt file."""
-        # self.logger.debug('start file')
-        # print(self.sender())
-        # print(QtWidgets.QAction.text())
-        path = self.path_to_sensor + '/' + self.sender().text()
-        if os.path.isfile(path):
-            # os.startfile(path)
-            pass
-        else:
-            self.logger.warning('Wrong filename!')
-        self.tab_plot_widget.selected_files_to_fft = [path]
-        self.run_thread_for_file_processing(True)
-        self.logger.debug(
-            f"files: {self.tab_plot_widget.selected_files_to_fft}")
+    # @QtCore.pyqtSlot()
+    # def _start_file_processing2(self):
+    #     """Open txt file."""
+    #     # self.logger.debug('start file')
+    #     # print(self.sender())
+    #     # print(QtWidgets.QAction.text())
+    #     path = self.path_to_sensor + '/' + self.sender().text()
+    #     if os.path.isfile(path):
+    #         # os.startfile(path)
+    #         pass
+    #     else:
+    #         self.logger.warning('Wrong filename!')
+    #     self.tab_plot_widget.selected_files_to_fft = [path]
+    #     self.run_thread_for_file_processing(True)
+    #     self.logger.debug(
+    #         f"files: {self.tab_plot_widget.selected_files_to_fft}")
 
     @QtCore.pyqtSlot()
-    def open_folder(self):  # не открываются папки с пробелами!
+    def open_sensor_folder(self):  # не открываются папки с пробелами!
         self.logger.debug(f"open folder event")
         # правильнее было бы определить родителя и по нему обратиться к нужному виджету
+        if self.filename_and_path_textedit.hasFocus():
+            self.edit_file_button.click()
+            return True
         for (saving_res_folder_label, file_name_line, create_fld_checkbox) in \
             zip(self.saving_result_folder_label_list,
                 self.file_name_line_edit_list, self.create_folder_checkbox_list):
@@ -728,9 +758,12 @@ class AppWindow(QtWidgets.QMainWindow):
             if saving_res_folder_label.hasFocus() or file_name_line.hasFocus():
                 path_to_sensor = os.path.realpath(
                     saving_res_folder_label.toPlainText())
-                if not (path_to_sensor.find(' ') == -1):
-                    self.logger.warning("Path contain space and cannot be open!")
+                if not os.path.isdir(path_to_sensor):
+                    self.logger.warning(f"Folder '{path_to_sensor}' doesn't exist!")
                     return False
+                # if not (path_to_sensor.find(' ') == -1):
+                    # self.logger.warning("Path contain space and cannot be open!")
+                    # return False
                 # только если есть галочка создавать папку
                 if create_fld_checkbox.isChecked():
                     if os.path.isdir(path_to_sensor + '/' + re.split("_", file_name_line.text())[0]):
@@ -750,16 +783,12 @@ class AppWindow(QtWidgets.QMainWindow):
                 # # subprocess.call(['D://GyroVibroTest/22', '2/'], shell=True) 
                 # subprocess.run(['start D://GyroVibroTest/22', '2/']) 
                 # subprocess.call(['start D://GyroVibroTest/22', '2/']) 
-                parent_text = r'start ' + path_to_sensor
-                # print(repr(parent_text))
-                os.system((parent_text))
+                # parent_text = r'start ' + path_to_sensor
+                # os.system(parent_text)
+                ShellExecute(0, 'explore', path_to_sensor, None, None, 1)
                 return True
-                # os.system(repr(parent_text))
                 # py_path = sys.executable # "E:\program files\python\python.exe"
-                # cmdline = path_to_sensor
-                # os.system(py_path + ' ' + cmdline)
                 # os.popen('%s %s' % (py_path, cmdline))
-                # os.system(repr(parent_text))
         self.logger.warning("You must select widget with path")
         return False
 
@@ -897,8 +926,23 @@ class AppWindow(QtWidgets.QMainWindow):
 ################################################################################################
 
     @QtCore.pyqtSlot()
-    def save_results(self):
+    def save_results(self):  # ! предлагать изменить имя файла
+        "Open dialog and save last fft results after confirmation."
+        # text = ''
         msg = QtWidgets.QMessageBox(parent=self, text="Сохранить последний результат fft?")
+        # if self.processing_thr.total_pack_num and self.processing_thr.flag_by_name_:
+        #     name_list = [name for name in self.processing_thr.save_file_name if len(name)]
+        #     if name_list:
+        #         text = '\nFilenames:\n' + ', '.join(name_list)
+        #         msg.setText("Сохранить последний результат fft?" + text)
+        #     else:
+        #         msg.setText("Нечего сохранять")
+        #         msg.exec()
+        #         return
+        if not self.processing_thr.total_pack_num:
+            msg.setText("Нечего сохранять")
+            msg.exec()
+            return
         msg.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
         if msg.exec() == msg.Ok:
             self.logger.debug("Try to save last data")
@@ -911,10 +955,10 @@ class AppWindow(QtWidgets.QMainWindow):
                 # self.processing_thr.flag_measurement_start = False
                 return False
             # Check filenames
-            for i in range(self.GYRO_NUMBER):  # !
-                if self.processing_thr.total_pack_num and not self.processing_thr.flag_by_name_:
+            if not self.processing_thr.flag_by_name_:
+                for i in range(self.GYRO_NUMBER):  # !
                     self.make_filename(i)  # !  # без создания имени не получится
-                self.processing_thr.start()
+            self.processing_thr.start()
             return True
 
     @QtCore.pyqtSlot(bool)
@@ -952,7 +996,6 @@ class AppWindow(QtWidgets.QMainWindow):
         self.count = 0
         self.current_cycle = 1
         self.tab_plot_widget.time_plot.setVisible(True)
-        # self.tab_plot_widget.spectrum_button.setVisible(True)
         self.tab_plot_widget.bytes_widget.setVisible(False)
 
     @QtCore.pyqtSlot()
@@ -989,7 +1032,6 @@ class AppWindow(QtWidgets.QMainWindow):
         self.serial_port.clear()
 
         self.fs = int(self.fs_combo_box.currentText())
-
         self.tab_plot_widget.fs = self.fs
         # QtCore.QTimer.singleShot(50, lambda: self.serial_port.readyRead.connect(self.read_bytes_serial))
         QtCore.QTimer.singleShot(int(self.READ_INTERVAL_MS / 2), self.read_bytes_serial)
@@ -1440,6 +1482,7 @@ class AppWindow(QtWidgets.QMainWindow):
             self.tab_plot_widget.plot_time_graph(
                 self.processing_thr.time_data[start:end, 0] / self.fs,
                 self.processing_thr.time_data[start:end, 2] / 1000,
+                # self.processing_thr.time_data[start:end, 2::self.processing_thr.pack_len]  / 1000,
                 self.processing_thr.time_data[start:end, 1::self.processing_thr.pack_len] / 1000 / self.processing_thr.k_amp)
             self.tab_plot_widget.region.setVisible(False)
             self.tab_plot_widget.time_plot.autoRange()
@@ -1559,6 +1602,8 @@ class AppWindow(QtWidgets.QMainWindow):
             self.processing_thr.save_file_name[i] = ''
             self.logger.warning(f"Path {self.folder_name_list[i]} doesn't exist!")
             return False
+        if self.folder_name_list[i][-1] != '/':
+            self.folder_name_list[i] += '/'
         if self.create_folder_checkbox_list[i].isChecked():
             folder = re.split("_", self.file_name_line_edit_list[i].text())[0]
             if not os.path.isdir(self.folder_name_list[i] + folder):
@@ -1575,6 +1620,7 @@ class AppWindow(QtWidgets.QMainWindow):
     # def directory_changed(self, path):
     #     self.logger.debug(f'Directory Changed: {path}')
     #     print(f'Directory Changed: {path}')
+
     @QtCore.pyqtSlot()
     def file_name_change_event(self): # можно и само имя файла в серый красить, если папка для него не создана
         pass
@@ -1625,7 +1671,7 @@ class AppWindow(QtWidgets.QMainWindow):
         if folder:
             self.folder_name_list[i] = folder + '/'
             self.saving_result_folder_label_list[i].setText(
-                self.folder_name_list[i])
+                folder)
 
     @QtCore.pyqtSlot()
     def filename_and_path_text_change(self):
@@ -1675,12 +1721,22 @@ class AppWindow(QtWidgets.QMainWindow):
             self.progress_bar_set_max()
         return self.table_widget.total_time > 0
 
+    # @QtCore.pyqtSlot()
+    # def open_file(self):
+    #     """Open txt file."""
+    #     self.logger.debug('start file')
+    #     if os.path.isfile(self.filename_and_path_textedit.toPlainText()):
+    #         os.startfile(self.filename_and_path_textedit.toPlainText())
+    #     else:
+    #         self.logger.warning('Wrong filename!')
+
     @QtCore.pyqtSlot()
-    def open_file(self):
+    def open_file(self, text):
         """Open txt file."""
         self.logger.debug('start file')
-        if os.path.isfile(self.filename_and_path_textedit.toPlainText()):
-            os.startfile(self.filename_and_path_textedit.toPlainText())
+        if os.path.isfile(text):
+            # ShellExecute(0, 'open', text, '', '', 1)  # тоже работает
+            os.startfile(text)  # тоже работает
         else:
             self.logger.warning('Wrong filename!')
 
@@ -1690,7 +1746,7 @@ class AppWindow(QtWidgets.QMainWindow):
         self.logger.info("Saving the settings and exit")
         self.stop()
         for i in range(self.tab_plot_widget.count()):
-            self.tab_plot_widget.widget(i).deleteLater() # во избежание Warning: ViewBox should be closed before application exit.
+            self.tab_plot_widget.widget(i).deleteLater() # во избежание 'Warning: ViewBox should be closed before application exit.'
         self.save_settings()
         self.logger.info("Wait Excel to close...")
         try:
@@ -1764,10 +1820,10 @@ class AppWindow(QtWidgets.QMainWindow):
             self.gyro_full_data_or_not()
         if settings.contains(f"filename_{self.GYRO_NUMBER}"):
             name = settings.value(f"filename_{self.GYRO_NUMBER}")
-            if os.path.exists(name):
+            if os.path.isfile(name):
                 self.filename_and_path_textedit.setText(name)
                 if self.get_data_from_file(name):
-                    self.logger.info("The previous file is loaded")
+                    self.logger.debug("The previous file is loaded")
                 self.filename_path_watcher = self.filename_and_path_textedit.toPlainText()  # os.path.basename(filename)
                 self.file_watcher.addPath(self.filename_path_watcher)
         if settings.contains(f"create_folder_flag_{self.GYRO_NUMBER}"):
@@ -1780,22 +1836,16 @@ class AppWindow(QtWidgets.QMainWindow):
                     self.saving_result_folder_label_list[i].setText(current_folder)
                     self.folder_name_list[i] = current_folder
         # попробовать сохранить в json или вместо словаря использовать dataFrame pandas
-        # можно будет добавить пункт открыть исходник, чтобы вручную редактировать
         if not os.path.isfile(self.PROJECT_FILE_NAME):
             self.logger.warning(f"No json file:\n{self.PROJECT_FILE_NAME}")
-            return
+            return False
         self.tab_plot_widget.projects_combo_box.load_json(self.PROJECT_FILE_NAME)
-        # try:
-        #     with open(self.PROJECT_FILE_NAME, 'r', encoding='utf-8') as f:  # оставить чтение json
-        #         projects_dict = json.load(f)
-        # except FileNotFoundError:
-        #     self.logger.warning(f"No json file:\n{self.PROJECT_FILE_NAME}!")
-        #     return
-        if self.settings.contains('dict_curr_project' + str(self.GYRO_NUMBER)):
+        if self.settings.contains('dict_curr_project_' + str(self.GYRO_NUMBER)):
             for i in range(self.tab_plot_widget.projects_combo_box.count()):
                 if self.tab_plot_widget.projects_combo_box.itemText(i) == \
-                    self.settings.value('dict_curr_project' + str(self.GYRO_NUMBER)):
+                    self.settings.value('dict_curr_project_' + str(self.GYRO_NUMBER)):
                     self.tab_plot_widget.projects_combo_box.setCurrentIndex(i)
+        self.logger.info('Settings is successfully loaded')
 
     def get_settings(self, name, otherwise_val):
         """Get settings or set default value"""

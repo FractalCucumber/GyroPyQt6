@@ -32,7 +32,7 @@ class SecondThread(QThread):
     info_signal = pyqtSignal(str)
 
     def __init__(self, gyro_number: int, read_interval_ms: int, logger_name='',
-                 wait_time_sec=0.5, OPTIONS_FILE_NAME: str = 'settings/fft_options.json'):
+                 wait_time_sec=0.5, options_file_name: str = 'settings/fft_options.json'):
         # QThread.__init__(self)
         super(SecondThread, self).__init__()
         self.data_received_event = Event()
@@ -90,14 +90,11 @@ class SecondThread(QThread):
         # with open(self.OPTIONS_FILE_NAME, 'w', encoding='utf-8') as file:
         #     dump(self.fft_opt, file, ensure_ascii=False, indent=4)
         # with open(self.OPTIONS_FILE_NAME, 'r', encoding='utf-8') as file:
-        from json import load
-        with open(OPTIONS_FILE_NAME, 'r', encoding='utf-8') as file:
-            # self.fft_opt = json.load(file)
-            self.fft_opt = load(file)
-            self.logger.debug(self.fft_opt)
+        self.load_settings(options_file_name)
 # -------------------------------------------------------------------------------------------------
 #   
 # -------------------------------------------------------------------------------------------------
+
     @pyqtSlot()
     def run(self):
         self.logger.debug("Thread Start")
@@ -640,12 +637,12 @@ class SecondThread(QThread):
         if round_flag:
             self.all_fft_data[:, -4, :] = np.round(self.all_fft_data[:, -4, :], 2)
             self.all_fft_data[:, -3, :] = np.round(self.all_fft_data[:, -3, :], 4)
-        if self.all_fft_data.shape[0] <= 10 or not self.fft_opt['wrap_flag']:  # !
-            return
+        if self.count_fft_frame <= 12 or not self.fft_opt['wrap_flag']:  # self.all_fft_data.shape[0] <= 10
+            return True
         for j in range(self.all_fft_data.shape[2]):  # !!!!!
             # print(len(np.where(np.diff(self.all_fft_data[:, -4, i]) < 0)[0]))
             if len(np.where(np.diff(self.all_fft_data[:, -4, j]) < 0)[0]):
-                return
+                return False
             k_list = np.polyfit(self.all_fft_data[2:-5, -4, j], self.all_fft_data[2:-5, -2, j], 1)
             fun = np.poly1d(k_list)
             self.phase_approximation = np.array(fun(self.all_fft_data[:, -4, j]))
@@ -691,14 +688,12 @@ class SecondThread(QThread):
                 # print(self.all_fft_data[errors[-1] + 2:, -2, i])
                 # print(self.all_fft_data[errors[-1] + 3:, -2, i])
                 # print(self.all_fft_data[errors[-1] + 4:, -2, i])
-            elif err[-4] < k * thr and err[-3] > k * thr and err[-2] > k * thr and err[-1] > 1.2 * k * thr: # and err[-3] < -50:
+            elif err[-4] < 0.6 * k * thr and err[-3] > k * thr and err[-2] > k * thr and err[-1] > 1.2 * k * thr: # and err[-3] < -50:
                 errors = [self.all_fft_data.shape[0] - 3]
-            elif err[-3] < k * thr and err[-2] > k * thr and err[-1] > 1.2 * k * thr: # and err[-3] < -50:
-                # print(2)
+            elif err[-3] < 0.6 * k * thr and err[-2] > k * thr and err[-1] > 1.2 * k * thr: # and err[-3] < -50:
                 errors = [self.all_fft_data.shape[0] - 2]
                 # print(self.all_fft_data[-2:-1, -2, i])
-            elif err[-2] < k * thr and err[-1] > 1.5 * k * thr:
-                # print(3)
+            elif err[-2] < 0.6 * k * thr and err[-1] > 1.5 * k * thr:
                 errors = [self.all_fft_data.shape[0] - 1]
             if len(errors):
                 self.all_fft_data[errors[0]:, -2, j] -= 360
@@ -750,9 +745,7 @@ class SecondThread(QThread):
         self.delays = np.array(
             [int(0.8 * self.WAIT_TIME_SEC * self.fs),
                 int(-0.32 * self.WAIT_TIME_SEC * self.fs)])  # не забыть их учесть в обработке
-        # self.cycle_count = 1
         self.total_pack_num = 0
-        # self.GYRO_NUMBER = 1
         self.amp_shift.resize(1)  # self.GYRO_NUMBER
         self.amp_shift.fill(0)
 
@@ -780,10 +773,11 @@ class SecondThread(QThread):
         self.all_fft_data.fill(np.nan)
         self.total_cycle_num = len(file_list)
         self.logger.debug(f"total_cycle_num={self.total_cycle_num}")
-        # n = 4  self.fft_opt['filter_width'] = 0.26
-        filter_len = int(self.fs * self.fft_opt['filter_width'] / self.fft_opt['decimation']) * 2 + 1  # filter_len = int(self.fs * 0.1) * 2 + 1, 0.21 for n = 2
-        filter_list = [(np.ones(filter_len) / filter_len * 1.5).astype(np.float32),  #] # const_filter
-                       (custom_g_filter(len=int(35 / self.fft_opt['decimation']), k=0.008) * 1).astype(np.float32)]  # g_filter
+        filter_len = int(
+            self.fs * self.fft_opt['filter_width'] / self.fft_opt['decimation']) * 2 + 1  # filter_len = int(self.fs * 0.1) * 2 + 1, 0.21 for n = 2
+        filter_list = [
+            (np.ones(filter_len) / filter_len * self.fft_opt['multiplication_k']).astype(np.float32),  #] # const_filter
+            (custom_g_filter(len=int(35 / self.fft_opt['decimation']), k=0.008) * 1).astype(np.float32)]  # g_filter
         self.cycle_count = 1
         existing_fft_file_flag = False
         i = 0
@@ -797,7 +791,6 @@ class SecondThread(QThread):
                     i += 1
                     existing_fft_file_flag = True
                     continue
-                    # break
                 if existing_fft_file_flag:
                     self.logger.debug("not existing_fft_file_flag")
                     continue
@@ -807,7 +800,6 @@ class SecondThread(QThread):
                     continue
             self.fft_for_file(
                 file_for_fft, filter_list, **self.fft_opt)
-                # file_for_fft, filter_list, threshold=5300, decimation=n)
         self.cycle_count -= 1
 
         if self.cycle_count and not existing_fft_file_flag:
@@ -846,7 +838,6 @@ class SecondThread(QThread):
         # self.median_data_ready_signal.emit(filename_list_median)
 # -------------------------------------------------------------------------------------------------
 
-    # def fft_for_file(self, filename: str, filter_list: list, threshold: int = 5300, decimation: int = 2): # здесь не учитывается смещение по каналу гироскопа!
     def fft_for_file(self, filename: str, filter_list: list, **options): # здесь не учитывается смещение по каналу гироскопа!
         """Open file, find borders and calculate fft data."""
         self.logger.debug(f"start download {filename}")
@@ -921,24 +912,19 @@ class SecondThread(QThread):
         fft_norm_gen = self.fft_normalization_generator()
         next(fft_norm_gen)
         fft_norm_gen.send((0, 0, 0, 0))
-        # self.logger.debug("6")
         for i in range(rows_count):
             if i and start_arr[i] < end_arr[i - 1]:  # можно векторно проверять, не особо нужная часть
                 self.logger.debug(
                     f"!!! start[{i}]={start_arr[i]}, end[{i}]={end_arr[i]}")
                 start_arr[i] = end_arr[i - 1]
             if end_arr[i]:
-                # if i < 99:
-                # print(i < rows_count * options['n_get_fft_data_ext'])
                 if i < rows_count * options['n_get_fft_data_ext']: # тут лучше умножать на число от 0 до 1
-                    # self.logger.debug(i)
                     [freq, amp, d_phase] = get_fft_data_ext(
                     # [freq, amp, d_phase] = get_fft_data_median_frame(  # ! fft делается несколько раз с разными границами
                         self.time_data[start_arr[i]:end_arr[i], 1],
                         self.time_data[start_arr[i]:end_arr[i], 2] * self.k_amp[0],
                         fs=self.fs, n=options['n_repeat'])
                         # fs=self.fs, n=30)
-                    # self.logger.debug(i)
                 else:
                     [freq, amp, d_phase] = get_fft_data(
                     # [freq, amp, d_phase] = get_fft_data_median_frame(  # ! fft делается несколько раз с разными границами
@@ -947,9 +933,6 @@ class SecondThread(QThread):
                         fs=self.fs)
                 self.count_fft_frame = i + 1
                 freq, amp, d_phase, tau = fft_norm_gen.send((freq, amp, d_phase, 0))
-                # [freq, amp, d_phase, tau] = self.fft_normalization(
-                    # freq, amp, d_phase)
-                    # freq, amp, d_phase, d_phase_prev=self.all_fft_data[i-1, (self.cycle_count-1)*4, 0])
                 self.all_fft_data[
                     i, (self.cycle_count-1)*4:self.cycle_count*4, 0
                     ] = [freq, amp, d_phase, tau]
@@ -996,6 +979,8 @@ class SecondThread(QThread):
                 self.k_amp[i] = amp * sign  #
                 amp = 1
                 self.logger.debug(f"k_amp[{i}] = {self.k_amp[i]}")
+                if not 1.05 > freq > 0.95 and i == 0:
+                    self.logger.warning(f"First frequency is {freq:.2} Hz, check selected fs! (current FS={self.fs} Hz)")
                 if self.flag_full_measurement_start:
                     # --- normalization of the data already received ---
                     self.logger.debug("normalization")
@@ -1022,23 +1007,6 @@ class SecondThread(QThread):
             freq, amp, d_phase, i = cort   
             # d_phase -= .32 * freq  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    # def fft_normalization(self, freq, amp, d_phase, i=0):
-    #     while not (-360 < d_phase <= 0):  # если d_phase = np.nan, то все сломается
-    #         d_phase += (360 if d_phase < -360 else -360)
-    #     if self.cycle_count == 1 and 1.5 > freq > 0.5 and amp > 0:
-    #         if -200 < d_phase < -160:
-    #             sign = -1
-    #             d_phase += 180
-    #         else:
-    #             sign = 1
-    #         self.k_amp[i] = amp * sign  #
-    #         amp = 1
-    #         self.logger.debug(f"k_amp[{i}] = {self.k_amp[i]}")
-    #         if self.flag_full_measurement_start:  # нормировка уже полученных данных
-    #             self.logger.debug("normalization")
-    #             self.to_plot[:, 1 + self.pack_len * i] = self.to_plot[:, 1 + self.pack_len * i] / self.k_amp[i]
-    #     tau = -1000 * d_phase / freq / 360
-    #     return [freq, amp, d_phase, tau]
 # -------------------------------------------------------------------------------------------------
 
     @staticmethod
@@ -1084,11 +1052,7 @@ class SecondThread(QThread):
                 sensor_num = check[-1]
             sensor_folder = '//fs/Projects/АФЧХ/' + sensor_num
             self.logger.debug(f"\npath: {sensor_folder}")
-            # быстрый способ, примерно в 20 раз быстрее
             only_files = [path.name for path in os.scandir(sensor_folder) if path.is_file()]
-            # гораздо более медленный способ
-            # only_files = [file for file in os.listdir(sensor_folder)
-                        #  if os.path.isfile(os.path.join(sensor_folder, file))]
             self.selected_files_to_fft = []
             for file in only_files:
                 split_filename = list(filter(None, re.split("_|_|.txt", file)))
@@ -1103,6 +1067,11 @@ class SecondThread(QThread):
             self.logger.debug("save fft")
             self.save_fft()
 
+    def load_settings(self, options_file_name):
+        from json import load
+        with open(options_file_name, 'r', encoding='utf-8') as file:
+            self.fft_opt = load(file)
+            self.logger.debug(self.fft_opt)
 # ----------------------------------------------------------------------------
 #
 # ----------------------------------------------------------------------------
@@ -1117,7 +1086,6 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     window = PyQt_ApplicationClass.AppWindow()
     sys.exit(app.exec())
-
 
 
     # def get_ints_from_bytes14_4(self):  # объединить с get_ints_from_bytes14_2 !!!
@@ -1161,3 +1129,21 @@ if __name__ == "__main__":
     #     else:
     #         self.rx = b''
     #     return True
+
+    # def fft_normalization(self, freq, amp, d_phase, i=0):
+    #     while not (-360 < d_phase <= 0):  # если d_phase = np.nan, то все сломается
+    #         d_phase += (360 if d_phase < -360 else -360)
+    #     if self.cycle_count == 1 and 1.5 > freq > 0.5 and amp > 0:
+    #         if -200 < d_phase < -160:
+    #             sign = -1
+    #             d_phase += 180
+    #         else:
+    #             sign = 1
+    #         self.k_amp[i] = amp * sign  #
+    #         amp = 1
+    #         self.logger.debug(f"k_amp[{i}] = {self.k_amp[i]}")
+    #         if self.flag_full_measurement_start:  # нормировка уже полученных данных
+    #             self.logger.debug("normalization")
+    #             self.to_plot[:, 1 + self.pack_len * i] = self.to_plot[:, 1 + self.pack_len * i] / self.k_amp[i]
+    #     tau = -1000 * d_phase / freq / 360
+    #     return [freq, amp, d_phase, tau]
